@@ -1,4 +1,6 @@
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
 
@@ -50,3 +52,12 @@ def load_map(data: dict) -> GameMap:
         start=tuple(data["start"]),
         goal=tuple(data["goal"]),
     )
+
+
+def load_map_from_file(path: str | Path) -> GameMap:
+    """Load a GameMap from a JSON file."""
+
+    with open(path, "r", encoding="utf-8") as file:
+        data = json.load(file)
+
+    return load_map(data)
