@@ -1,1 +1,71 @@
-
+{
+  "width": 7,
+  "height": 7,
+  "start": [0, 0],
+  "goal": [6, 6],
+  "tiles": [
+    [
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true}
+    ],
+    [
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "obstacle", "elevation": 0, "hazard": null, "walkable": false},
+      {"terrain": "obstacle", "elevation": 0, "hazard": null, "walkable": false},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true}
+    ],
+    [
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 1, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 1, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 1, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true}
+    ],
+    [
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 1, "hazard": null, "walkable": true},
+      {"terrain": "hazard", "elevation": 1, "hazard": "damage", "walkable": true},
+      {"terrain": "ground", "elevation": 1, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true}
+    ],
+    [
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 1, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 1, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 1, "hazard": null, "walkable": true},
+      {"terrain": "obstacle", "elevation": 0, "hazard": null, "walkable": false},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true}
+    ],
+    [
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true}
+    ],
+    [
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true},
+      {"terrain": "ground", "elevation": 0, "hazard": null, "walkable": true}
+    ]
+  ]
+}
