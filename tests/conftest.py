@@ -5,7 +5,7 @@ import pytest
 
 from src.environment.action_space import ACTION_SPACE
 from src.environment.observation_space import create_observation_space
-
+from src.configs.environment_config import EnvironmentConfig, MapConfig
 
 @pytest.fixture
 def action_space():
@@ -24,7 +24,10 @@ def observation_space():
     Returns:
         gymnasium.spaces.Dict: The default environment observation space.
     """
-    return create_observation_space()
+    return create_observation_space(
+        MapConfig(),
+        EnvironmentConfig(),
+    )
 
 
 @pytest.fixture
