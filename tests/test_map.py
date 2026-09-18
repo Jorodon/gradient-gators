@@ -39,17 +39,17 @@ def test_map_tiles():
 
     # Obstacle at (1, 1)
     obstacle = game_map.get_tile(1, 1)
-    assert obstacle.walkable is False
+    assert obstacle.obstacle is True
     assert obstacle.special_traversal is False
 
     # Elevated tile at (2, 2)
     elevated = game_map.get_tile(2, 2)
     assert elevated.elevation == 1
-    assert elevated.walkable is True
+    assert elevated.obstacle is False
     assert elevated.special_traversal is True
 
     # Damaging hazard at (3, 3)
     hazard = game_map.get_tile(3, 3)
     assert hazard.hazard == "damage"
-    assert hazard.walkable is True
+    assert hazard.obstacle is False
     assert hazard.special_traversal is False
