@@ -55,7 +55,7 @@ class GatorEnv(gym.Env):
         self.agent_hp = self.environment_config.max_hp
         self.steps = 0
 
-        return self._get_obs(), self._get_info() ##234124
+        return self._get_obs(), self._get_info()
 
     # Advance env one timestep
     def step(self, action):
@@ -196,7 +196,7 @@ class GatorEnv(gym.Env):
         # Creates observation dictionary
         observation = {
             key: np.zeros(space.shape, dtype=space.dtype)
-            for key, space, in self.observation_space.spaces.items()
+            for key, space in self.observation_space.spaces.items()
         }
 
         observation["agent_hp"] = np.array([self.agent_hp], dtype=np.float32)
