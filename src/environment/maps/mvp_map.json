@@ -1,0 +1,71 @@
+{
+  "width": 7,
+  "height": 7,
+  "start": [0, 0],
+  "goal": [6, 6],
+  "tiles": [
+    [
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false}
+    ],
+    [
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": true, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": true, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false}
+    ],
+    [
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 1, "obstacle": false, "hazard": null, "special_traversal": true},
+      {"elevation": 1, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 1, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false}
+    ],
+    [
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 1, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 1, "obstacle": false, "hazard": "damage", "special_traversal": false},
+      {"elevation": 1, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false}
+    ],
+    [
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 1, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 1, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 1, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": true, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false}
+    ],
+    [
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false}
+    ],
+    [
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false},
+      {"elevation": 0, "obstacle": false, "hazard": null, "special_traversal": false}
+    ]
+  ]
+}
