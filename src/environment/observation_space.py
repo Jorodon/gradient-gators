@@ -7,10 +7,13 @@ from src.configs.environment_config import EnvironmentConfig, MapConfig
 #defines gymnasium observation space
 #configurable defaults
 def create_observation_space(
+    #width/height determined by JSON game map, config files provide other global variables
+    width: int,
+    height: int,
     map_config: MapConfig,
     environment_config: EnvironmentConfig,
 ):
-    shape = (map_config.height, map_config.width)
+    shape = (height, width)
 
     return spaces.Dict({
         "elevation": spaces.Box(

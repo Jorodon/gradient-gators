@@ -25,8 +25,10 @@ def observation_space():
         gymnasium.spaces.Dict: The default environment observation space.
     """
     return create_observation_space(
-        MapConfig(),
-        EnvironmentConfig(),
+        width=8,
+        height=8,
+        map_config=MapConfig(),
+        environment_config=EnvironmentConfig(),
     )
 
 
