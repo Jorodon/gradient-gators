@@ -33,24 +33,45 @@ def test_invalid_movement(gator_env):
     pass
 
 
-@pytest.mark.skip(reason="Elevation restrictions WIP")
 def test_elevation_restrictions(gator_env):
-    """Verifies that invalid elevation changes prevent agent movement.
+    """Verifies that invalid elevation changes prevent agent movement."""
 
-    Args:
-        gator_env: environment under test.
-    """
-    pass
+    gator_env.reset()
+
+    # Move down from (0, 0) to (0, 1).
+    gator_env.step(2)
+
+    # (1, 1) is elevation 1 and does not allow special traversal.
+    # The agent should not be able to move from elevation 0 to elevation 1.
+    gator_env.step(1)
+
+    assert gator_env.agent_position == (0, 1)
 
 
-@pytest.mark.skip(reason="Fall damage WIP")
 def test_fall_damage(gator_env):
-    """Verifies that falling applies expected damage to agent.
+    """Verifies that falling applies expected damage to agent."""
 
-    Args:
-        gator_env: environment under test.
-    """
-    pass
+    from src.environment.map import load_map_from_file
+
+    fall_map = load_map_from_file(
+        "src/environment/maps/fall_map.json"
+    )
+
+    gator_env.game_map = fall_map
+    gator_env.reset()
+
+    # Move from (0, 1) to (1, 1), staying at elevation 2.
+    gator_env.step(1)
+
+    starting_hp = gator_env.agent_hp
+
+    # Move from elevation 2 to elevation 0.
+    # Safe fall height is 1, so this 2-level drop causes 1 damage.
+    gator_env.step(1)
+
+    assert gator_env.agent_position == (2, 1)
+    assert gator_env.agent_hp == starting_hp - 1.0
+
 
 
 @pytest.mark.skip(reason="HP system WIP")
