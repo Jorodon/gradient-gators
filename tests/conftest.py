@@ -1,10 +1,16 @@
 """Shared pytest fixtures for environment and interface tests."""
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
 from src.environment.action_space import ACTION_SPACE
+from src.environment.map import load_map_from_file
 from src.environment.observation_space import create_observation_space
+
+
+MAP_DIR = Path(__file__).resolve().parents[1] / "src" / "environment" / "maps"
 from src.configs.environment_config import EnvironmentConfig, MapConfig
 
 @pytest.fixture
@@ -49,6 +55,16 @@ def valid_observation():
         "agent_occupancy": np.zeros((8, 8), dtype=np.int8),
         "agent_hp": np.array([100.0], dtype=np.float32),
     }
+
+
+@pytest.fixture
+def fall_map():
+    """Load the deterministic map used by fall-damage tests.
+
+    Returns:
+        GameMap: A map with a known elevation drop.
+    """
+    return load_map_from_file(MAP_DIR / "fall_map.json")
 
 
 @pytest.fixture
