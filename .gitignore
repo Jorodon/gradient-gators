@@ -219,3 +219,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# macOS / PyCharm
+.DS_Store
+.idea/
