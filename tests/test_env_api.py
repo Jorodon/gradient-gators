@@ -8,7 +8,11 @@ from stable_baselines3.common.env_checker import check_env as sb3_check_env
 
 
 def test_gymnasium_environment_checker(gator_env):
-    """Verifies GatorEnv follows Gymnasium environment API."""
+    """Verifies GatorEnv follows Gymnasium environment API.
+
+    Args:
+        gator_env: The environment under test.
+    """
     gym_check_env(
         gator_env,
         skip_render_check=True,
@@ -16,7 +20,11 @@ def test_gymnasium_environment_checker(gator_env):
 
 
 def test_sb3_environment_checker(gator_env):
-    """Verifies GatorEnv is compatible with Stable-Baselines3."""
+    """Verifies GatorEnv is compatible with Stable-Baselines3.
+
+    Args:
+        gator_env: The environment under test.
+    """
     sb3_check_env(
         gator_env,
         warn=True,
@@ -25,7 +33,11 @@ def test_sb3_environment_checker(gator_env):
 
 
 def test_reset_returns_observation_and_info(gator_env):
-    """Verifies reset returns an observation and info dictionary."""
+    """Verifies reset returns an observation and info dictionary.
+
+    Args:
+        gator_env: The environment under test.
+    """
     observation, info = gator_env.reset()
 
     assert observation is not None
@@ -33,21 +45,33 @@ def test_reset_returns_observation_and_info(gator_env):
 
 
 def test_reset_observation_is_valid(gator_env):
-    """Verifies the initial observation belongs to observation_space."""
+    """Verifies the initial observation belongs to observation_space.
+
+    Args:
+        gator_env: The environment under test.
+    """
     observation, _ = gator_env.reset()
 
     assert gator_env.observation_space.contains(observation)
 
 
 def test_action_space_produces_valid_actions(gator_env):
-    """Verifies sampled actions belong to action_space."""
+    """Verifies sampled actions belong to action_space.
+
+    Args:
+        gator_env: The environment under test.
+    """
     action = gator_env.action_space.sample()
 
     assert gator_env.action_space.contains(action)
 
 
 def test_step_returns_expected_values(gator_env):
-    """Verifies  step returns values matching the Gymnasium API."""
+    """Verifies step returns values matching the Gymnasium API.
+
+    Args:
+        gator_env: The environment under test.
+    """
     gator_env.reset()
 
     action = gator_env.action_space.sample()
@@ -66,7 +90,11 @@ def test_step_returns_expected_values(gator_env):
 
 
 def test_multiple_random_steps_do_not_break_environment(gator_env):
-    """Verifies repeated valid actions preserve a valid environment state."""
+    """Verifies repeated valid actions preserve a valid environment state.
+
+    Args:
+        gator_env: The environment under test.
+    """
     observation, _ = gator_env.reset(seed=42)
 
     assert gator_env.observation_space.contains(observation)
@@ -85,7 +113,11 @@ def test_multiple_random_steps_do_not_break_environment(gator_env):
 
 
 def test_reset_with_same_seed_is_reproducible(gator_env_factory):
-    """Verifies identical seeds produce identical initial observations."""
+    """Verifies identical seeds produce identical initial observations.
+
+    Args:
+        gator_env_factory: Fixture that provides the GatorEnv constructor.
+    """
     env1 = gator_env_factory()
     env2 = gator_env_factory()
 
