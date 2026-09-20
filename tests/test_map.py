@@ -71,6 +71,38 @@ def test_fall_map():
     assert high_tile.obstacle is False
     assert low_tile.obstacle is False
 
+def test_damaging_fall_map():
+    """Test the deterministic damaging-fall map."""
+    game_map = load_map_from_file(MAP_DIR / "damaging_fall_map.json")
+
+    assert game_map.width == 5
+    assert game_map.height == 3
+    assert game_map.start == (0, 1)
+    assert game_map.goal == (4, 1)
+
+    high_tile = game_map.get_tile(0, 1)
+    low_tile = game_map.get_tile(1, 1)
+
+    assert high_tile.elevation == 2
+    assert low_tile.elevation == 0
+    assert high_tile.obstacle is False
+    assert low_tile.obstacle is False
+
+
+def test_fatal_fall_map():
+    """Test the deterministic fatal-fall map."""
+    game_map = load_map_from_file(MAP_DIR / "fatal_fall_map.json")
+
+    assert game_map.width == 5
+    assert game_map.height == 3
+    assert game_map.start == (0, 1)
+    assert game_map.goal == (4, 1)
+
+    high_tile = game_map.get_tile(0, 1)
+    low_tile = game_map.get_tile(1, 1)
+
+    assert high_tile.elevation > low_tile.elevation
+
 
 def test_hazard_map():
     """Test the deterministic hazard map."""

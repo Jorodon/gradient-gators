@@ -1,0 +1,29 @@
+{
+  "width": 5,
+  "height": 3,
+  "start": [0, 1],
+  "goal": [4, 1],
+  "tiles": [
+    [
+      {"elevation": 0},
+      {"elevation": 0},
+      {"elevation": 0},
+      {"elevation": 0},
+      {"elevation": 0}
+    ],
+    [
+      {"elevation": 1},
+      {"elevation": 0},
+      {"elevation": 0},
+      {"elevation": 0},
+      {"elevation": 0}
+    ],
+    [
+      {"elevation": 0},
+      {"elevation": 0},
+      {"elevation": 0},
+      {"elevation": 0},
+      {"elevation": 0}
+    ]
+  ]
+}
