@@ -18,6 +18,7 @@ DEFAULT_MAP_PATH = (Path(__file__).parent / "maps" / "mvp_map.json")
 class GatorEnv(gym.Env):
     metadata = {"render_modes": []}
 
+    # Init
     def __init__(
             self,
             game_map: GameMap | None = None,
