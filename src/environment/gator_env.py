@@ -3,7 +3,6 @@ from dataclasses import asdict
 from pathlib import Path
 
 import gymnasium as gym
-import numpy as np
 
 from src.configs.environment_config import EnvironmentConfig, MapConfig
 from src.configs.training_config import RewardConfig
@@ -126,7 +125,7 @@ class GatorEnv(gym.Env):
         if not self._in_bounds(dst):
             return False
 
-        # Gets target and source tile date
+        # Gets target and source tile data
         target_tile = self.game_map.get_tile(dst[0], dst[1])
         source_tile = self.game_map.get_tile(src[0], src[1])
 
