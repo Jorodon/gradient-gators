@@ -12,6 +12,7 @@ from src.environment.map import GameMap, load_map_from_file
 from src.environment.observation_space import create_observation_space
 from src.environment.sparse_reward import calculate_sparse_reward
 from src.environment.step_events import StepEvents
+from src.environment.observation_builder import build_observation
 
 DEFAULT_MAP_PATH = (Path(__file__).parent / "maps" / "mvp_map.json")
 
@@ -194,13 +195,8 @@ class GatorEnv(gym.Env):
     Replace this when the observation builder is implemented. DO NOT USE FOR ACTUAL RL TRAINING! Message @Jordon if you have questions.
     """
     def _get_obs(self) -> dict:
-        # Creates observation dictionary
-        observation = {
-            key: np.zeros(space.shape, dtype=space.dtype)
-            for key, space in self.observation_space.spaces.items()
-        }
-
-        observation["agent_hp"] = np.array([self.agent_hp], dtype=np.float32)
+        # Creates observation by calling build_observation from observation_builder.py
+        observation = build_observation(game_map=self.game_map, agent_position=self.agent_position, agent_hp=self.agent_hp)
 
         return observation
 
