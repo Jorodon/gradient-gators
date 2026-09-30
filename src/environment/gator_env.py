@@ -37,6 +37,9 @@ class GatorEnv(gym.Env):
         self.game_map = (game_map if game_map is not None
                          else load_map_from_file(DEFAULT_MAP_PATH))
 
+        # Validates the map is within specifications
+        self._validate_map()
+
         # Uses the implemented space definitions
         self.action_space = deepcopy(ACTION_SPACE)
         self.observation_space = create_observation_space(
@@ -189,19 +192,17 @@ class GatorEnv(gym.Env):
 
         return info
 
-    """
-    TEMPORARY GYMNASIUM-VALID OBSERVATION
 
-    Replace this when the observation builder is implemented. DO NOT USE FOR ACTUAL RL TRAINING! Message @Jordon if you have questions.
-    """
     def _get_obs(self) -> dict:
         # Creates observation by calling build_observation from observation_builder.py
         observation = build_observation(game_map=self.game_map, agent_position=self.agent_position, agent_hp=self.agent_hp)
 
         return observation
 
-
-# TODO for the rest of Milestone 1:
-#   - decide whether the observation should be a local view instead of coordinates (This project uses full-map observation)
-#   - add an enemy (M2, shared with Mattias)
-#   - richer episode logging for the evaluation stage
+    def _validate_map(self) -> None:
+        #Loop through each row and tile: Check (0 <= elevation <= max_elevation)
+        for row in self.game_map.tiles:
+            for tile in row:
+                if not 0 <= tile.elevation <= self.map_config.max_elevation:
+                    raise ValueError(f"Tile elevation {tile.elevation} is outside the supported range of 0-{self.map_config.max_elevation}")
+    

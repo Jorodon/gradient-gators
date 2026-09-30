@@ -1,11 +1,12 @@
 """Tests for GatorEnv Gymnasium and Stable-Baselines3 API contracts."""
 
 import numbers
-
+import pytest
 import numpy as np
 from gymnasium.utils.env_checker import check_env as gym_check_env
 from stable_baselines3.common.env_checker import check_env as sb3_check_env
 from src.environment.action_space import Action
+from src.configs.environment_config import MapConfig
 
 
 def test_gymnasium_environment_checker(gator_env):
@@ -166,10 +167,22 @@ def test_reset_observation_contains_map_state(gator_env):
     # Hazard (3,3)
     assert observation["hazards"][3, 3] == 1
 
+
 def test_observation_updates_agent_pos(gator_env):
     gator_env.reset()
 
     observation, _, _, _, _ = gator_env.step(Action.RIGHT)
 
+    # Asserts that original occupancy has been updated to 0 and new occupancy to 1
     assert observation["agent_occupancy"][0, 0] == 0
     assert observation["agent_occupancy"][0, 1] == 1
+
+
+def test_environment_rejects_map_above_max_elevation(gator_env_factory, fall_map):
+    # Loads map config with elevation 1
+    lowElevationConfig = MapConfig(max_elevation=1)
+
+    # Since fall_map has an elevation of 2, this verifies the environment succesfully throws a ValueError
+    with pytest.raises(ValueError):
+        gator_env_factory(game_map=fall_map, map_config=lowElevationConfig)
+
