@@ -5,6 +5,7 @@ import numbers
 import numpy as np
 from gymnasium.utils.env_checker import check_env as gym_check_env
 from stable_baselines3.common.env_checker import check_env as sb3_check_env
+from src.environment.action_space import Action
 
 
 def test_gymnasium_environment_checker(gator_env):
@@ -145,3 +146,30 @@ def assert_observations_equal(first, second):
         return
 
     np.testing.assert_array_equal(first, second)
+
+
+def test_reset_observation_contains_map_state(gator_env):
+    observation, _ = gator_env.reset()
+
+    # Start (0,0)
+    assert observation["agent_occupancy"][0, 0] == 1
+
+    # Goal (6,6)
+    assert observation["goal"][6, 6] == 1
+
+    # Obstacle (1,1)
+    assert observation["obstacles"][1, 1] == 1
+
+    # Elevation 1 tile (2,2)
+    assert observation["elevation"][2, 2] == 1
+
+    # Hazard (3,3)
+    assert observation["hazards"][3, 3] == 1
+
+def test_observation_updates_agent_pos(gator_env):
+    gator_env.reset()
+
+    observation, _, _, _, _ = gator_env.step(Action.RIGHT)
+
+    assert observation["agent_occupancy"][0, 0] == 0
+    assert observation["agent_occupancy"][0, 1] == 1

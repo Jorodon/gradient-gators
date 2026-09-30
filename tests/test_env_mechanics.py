@@ -65,40 +65,51 @@ def test_elevation_restrictions(gator_env):
     assert gator_env.agent_position == (0, 1)
 
 
-def test_fall_damage(gator_env, fall_map):
-    """Verifies that falling applies expected damage to agent."""
+def test_fall_damage(gator_env_factory, fall_map):
+    """Verifies that falling applies expected damage to agent.
+    
+        Args:
+        gator_env_factory: pytest fixture that tests the GatorEnv class (returns a GatorEnv)
+        fall_map: Falling map JSON file that is called by gator_env_factory
+    """
 
-    gator_env.game_map = fall_map
-    gator_env.reset()
+    env = gator_env_factory(game_map=fall_map)
+    try:
+        env.reset()
 
-    # Move from (0, 1) to (1, 1), staying at elevation 2.
-    gator_env.step(1)
+        # (0,1) -> (1,1)
+        env.step(1)
+        starting_hp = env.agent_hp
 
-    starting_hp = gator_env.agent_hp
+        # (1,1) -> (2,1) (Eleveation drop of 2)
+        env.step(1)
 
-    # Move from elevation 2 to elevation 0.
-    # Safe fall height is 1, so this 2-level drop causes 1 damage.
-    gator_env.step(1)
-
-    assert gator_env.agent_position == (2, 1)
-    assert gator_env.agent_hp == starting_hp - 1.0
+        assert env.agent_position == (2, 1)
+        assert env.agent_hp == starting_hp - (1 * EnvironmentConfig.fall_damage_scale)
+    finally:
+        env.close()
 
 
-def test_hp_changes(gator_env, fall_map):
+def test_hp_changes(gator_env_factory, fall_map):
     """Verifies that damage events correctly modify agent HP.
 
     Args:
-        gator_env: environment under test.
+        gator_env_factory: pytest fixture that tests the GatorEnv class (returns a GatorEnv)
+        fall_map: Falling map JSON file that is called by gator_env_factory
     """
-    gator_env.game_map = fall_map
-    gator_env.reset()
+    env = gator_env_factory(game_map=fall_map)
 
-    starting_hp = gator_env.agent_hp
-    gator_env.step(Action.RIGHT)
-    _, _, _, _, info = gator_env.step(Action.RIGHT)
+    try:
+        env.reset()
 
-    assert gator_env.agent_hp < starting_hp
-    assert info["agent_hp"] == gator_env.agent_hp
+        starting_hp = env.agent_hp
+        env.step(Action.RIGHT)
+        _, _, _, _, info = env.step(Action.RIGHT)
+
+        assert env.agent_hp < starting_hp
+        assert info["agent_hp"] == env.agent_hp
+    finally:
+        env.close()
 
 
 def test_goal_termination(gator_env):
