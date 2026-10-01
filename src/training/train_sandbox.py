@@ -1,23 +1,22 @@
-import gymnasium as gym
-import torch
 from stable_baselines3 import PPO
 
 from src.configs.training_config import TrainingConfig
+from src.environment.gator_env import GatorEnv
 
 def main():
     config = TrainingConfig()
-    device = "cpu"
-    env = gym.make("CartPole-v1")
+    userDevice = "cpu"
+    env = GatorEnv()
 
-    print(f"Using device: {device}...")
+    print(f"Using device: {userDevice}...")
 
     model = PPO(
-        "MlpPolicy",
+        "MultiInputPolicy",
         env,
         learning_rate = config.learning_rate,
         seed = config.seed,
         verbose = 1,
-        device=device
+        device=userDevice
     )
 
     model.learn(total_timesteps = config.total_timesteps)
