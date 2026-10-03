@@ -65,6 +65,17 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+## Dashboard
+
+Run the Streamlit proof-of-concept dashboard from the project root:
+
+```bash
+streamlit run src/evaluation/dashboard_app.py
+```
+
+The dashboard is currently a prototype populated with
+mock data. It is not connected to training runs or episode logs yet.
+
 ## Current Status
 
 The project is currently in the initial planning and environment-development phase.
