@@ -68,6 +68,16 @@ def fall_map():
 
 
 @pytest.fixture
+def elevation_map():
+    """Load the deterministic map used by traversal acceptance tests.
+
+    Returns:
+        GameMap: A map containing a special-traversal elevation tile.
+    """
+    return load_map_from_file(MAP_DIR / "elevation_map.json")
+
+
+@pytest.fixture
 def gator_env_factory():
     """Return the environment constructor when GatorEnv is available.
 
