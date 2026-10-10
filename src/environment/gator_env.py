@@ -32,9 +32,28 @@ class GatorEnv(gym.Env):
         self.map_config = map_config or MapConfig()
         self.reward_config = reward_config or RewardConfig()
 
-        # Fixed-map JSON
-        self.game_map = (game_map if game_map is not None
-                         else load_map_from_file(DEFAULT_MAP_PATH))
+        # Map source logic
+        if self.map_config.map_mode not in ("fixed", "procedural"):
+            raise ValueError("map_mode in MapConfig must be either 'fixed' or 'procedural'")
+        
+        # Checks if map_mode is procedural and sets _procedural to the boolean result
+        self._procedural = self.map_config.map_mode == "procedural"
+
+        # Procedural logic
+        if self._procedural:
+            if game_map is not None:
+                raise ValueError("game_map cannot be supplied for procedural generation")
+            
+            # Seeds gymnasium's rng using config seed
+            super().reset(seed=self.map_config.seed)
+            
+            # Cant test following code till generate map logic is created
+            #self.game_map = generate_map(self.map_config, seed=self.map_config.seed)
+
+        else:
+            # Fixed-map JSON
+            self.game_map = (game_map if game_map is not None
+                            else load_map_from_file(DEFAULT_MAP_PATH))
 
         # Validates the map is within specifications
         self._validate_map()
@@ -55,6 +74,33 @@ class GatorEnv(gym.Env):
     # Resets env to initial state
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
+        # Cannot test implementation till procedural generation is finished
+        '''
+        # Procedural reset logic
+        if self._procedural:
+            # Creates a random seed from 0 to 2^32
+            # This is different from the overall gymnasium seed and allows for the same sequenece of maps to be generated
+            map_seed = int(self.np_random.integers(0, 2**32))
+
+            # Generate the map
+            generated_map = generate_map(self.map_config, seed=map_seed)
+
+            # Checks that map dimensions have not changed
+            if (generated_map.height, generated_map.width) != self.observation_space["elevation"].shape:
+                raise ValueError("Provedural map dimensions changed after init")
+
+            # Stores the game map and validates
+            self.game_map = generated_map
+            self._validate_map()
+        '''
+        # Evaluate setep limit at ep start
+        self.max_episode_steps = self.environment_config.get_episode_step_limit(
+            width=self.game_map.width, 
+            height=self.game_map.height
+            procedural=self._procedural
+        )
+        
+
         self.agent_position = self.game_map.start
         self.agent_hp = self.environment_config.max_hp
         self.steps = 0
