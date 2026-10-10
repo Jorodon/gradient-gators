@@ -12,6 +12,7 @@ from src.environment.observation_space import create_observation_space
 from src.environment.sparse_reward import calculate_sparse_reward
 from src.environment.step_events import StepEvents
 from src.environment.observation_builder import build_observation
+from src.environment.map_generator import generate_map
 
 DEFAULT_MAP_PATH = (Path(__file__).parent / "maps" / "mvp_map.json")
 
@@ -44,11 +45,9 @@ class GatorEnv(gym.Env):
             if game_map is not None:
                 raise ValueError("game_map cannot be supplied for procedural generation")
             
-            # Seeds gymnasium's rng using config seed
+            # Seeds gymnasium's rng using config seed and then generates the map
             super().reset(seed=self.map_config.seed)
-            
-            # Cant test following code till generate map logic is created
-            #self.game_map = generate_map(self.map_config, seed=self.map_config.seed)
+            self.game_map = generate_map(self.map_config, seed=self.map_config.seed)
 
         else:
             # Fixed-map JSON
@@ -74,8 +73,6 @@ class GatorEnv(gym.Env):
     # Resets env to initial state
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
-        # Cannot test implementation till procedural generation is finished
-        '''
         # Procedural reset logic
         if self._procedural:
             # Creates a random seed from 0 to 2^32
@@ -92,11 +89,10 @@ class GatorEnv(gym.Env):
             # Stores the game map and validates
             self.game_map = generated_map
             self._validate_map()
-        '''
         # Evaluate setep limit at ep start
         self.max_episode_steps = self.environment_config.get_episode_step_limit(
             width=self.game_map.width, 
-            height=self.game_map.height
+            height=self.game_map.height,
             procedural=self._procedural
         )
         
@@ -146,7 +142,7 @@ class GatorEnv(gym.Env):
         # Calculates reward and determines if environment is terminated or truncated
         reward = calculate_sparse_reward(events, self.reward_config)
         terminated = events.reached_goal or self.agent_hp <= 0
-        truncated = self.steps >= self.environment_config.max_steps and not terminated
+        truncated = self.steps >= self.max_episode_steps and not terminated
 
         # Sets specific end_reason
         end_reason = None
