@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Literal
 
 @dataclass
 class EnvironmentConfig:
@@ -25,7 +26,15 @@ class EnvironmentConfig:
 
 @dataclass
 class MapConfig:
+    # Fixed map width and height default
     width: int = 8
     height: int = 8
+
+    # Max elevation for both procedural and fixed maps
     max_elevation: int = 10
+
+    # Seed for map generation
     seed: int = 0
+
+    # Variable that only accepts "fixed" and "procedural" for map handling logic
+    map_mode: Literal["fixed", "procedural"] = "fixed"
