@@ -7,6 +7,7 @@ def build_observation(
     game_map: GameMap,
     agent_position: tuple[int, int],
     agent_hp: float,
+    enemy_position: tuple[int, int] | None = None,
 ) -> dict:
     #builds full map observation layers using current environment state
     height = game_map.height
@@ -37,7 +38,10 @@ def build_observation(
     agent_x, agent_y = agent_position
     agent_occupancy[agent_y, agent_x] = 1
 
-    #TODO: Populate enemy occupancy when enemy is implemented.
+    #marks the enemy's current tile; stays all-zero when no enemy is present
+    if enemy_position is not None:
+        enemy_x, enemy_y = enemy_position
+        enemy_occupancy[enemy_y, enemy_x] = 1
 
     return {
         "elevation": elevation,
