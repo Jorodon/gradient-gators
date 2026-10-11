@@ -13,6 +13,7 @@ from src.environment.sparse_reward import calculate_sparse_reward
 from src.environment.step_events import StepEvents
 from src.environment.observation_builder import build_observation
 from src.environment.map_generator import generate_map
+from src.environment.enemy import Enemy, create_enemy
 
 DEFAULT_MAP_PATH = (Path(__file__).parent / "maps" / "mvp_map.json")
 
@@ -25,7 +26,9 @@ class GatorEnv(gym.Env):
             game_map: GameMap | None = None,
             environment_config: EnvironmentConfig | None = None,
             map_config: MapConfig | None = None,
-            reward_config: RewardConfig | None = None
+            reward_config: RewardConfig | None = None,
+            enemy_spawn: tuple[int, int] | None = None,
+            enemy_patrol_route: list[tuple[int, int]] | None = None
     ):
         super().__init__()
 
@@ -66,9 +69,16 @@ class GatorEnv(gym.Env):
             environment_config=self.environment_config
         )
 
+        # Enemy spawn/route overrides are kept so every reset rebuilds the enemy
+        # the same way, including after a procedural map changes underneath it.
+        self._enemy_spawn = enemy_spawn
+        self._enemy_patrol_route = enemy_patrol_route
+
         self.agent_position = self.game_map.start
         self.agent_hp = self.environment_config.max_hp
         self.steps = 0
+        self.enemy: Enemy | None = None
+        self._spawn_enemy()
 
     # Resets env to initial state
     def reset(self, *, seed=None, options=None):
@@ -101,6 +111,10 @@ class GatorEnv(gym.Env):
         self.agent_hp = self.environment_config.max_hp
         self.steps = 0
 
+        # Rebuilt per episode: on a procedural map the tiles have just changed,
+        # so last episode's spawn may no longer be valid.
+        self._spawn_enemy()
+
         return self._get_obs(), self._get_info()
 
     # Advance env one timestep
@@ -132,7 +146,22 @@ class GatorEnv(gym.Env):
         else:
             events.invalid_move = True
 
+        # --- hazard interaction ---
+        # Owned by a separate issue. It belongs here in the agreed timestep
+        # order: after agent movement and fall damage, before enemy movement.
 
+        # --- enemy movement ---
+        enemy_previous_position = self.enemy.position if self.enemy is not None else None
+        self._move_enemy()
+
+        # --- enemy interaction / contact ---
+        if self._enemy_contact(old_position, enemy_previous_position):
+            contact_damage = self.enemy.contact_damage
+            self.agent_hp = max(0.0, self.agent_hp - contact_damage)
+            events.enemy_contact = True
+            events.damage_taken += contact_damage
+
+        # --- event handling ---
         new_distance = self._distance_to_goal(self.agent_position)
         events.distance_change = old_distance - new_distance
 
@@ -223,6 +252,12 @@ class GatorEnv(gym.Env):
             "steps": self.steps
         }
 
+        # Enemy state, so patrol progress can be queried without reaching
+        # into the environment's internals.
+        if self.enemy is not None:
+            info["enemy_position"] = self.enemy.position
+            info["enemy_patrol_index"] = self.enemy.patrol_index
+
         # If events exists, convert to a dictionary to display through info
         if events is not None:
             info["events"] = asdict(events)
@@ -236,9 +271,72 @@ class GatorEnv(gym.Env):
 
     def _get_obs(self) -> dict:
         # Creates observation by calling build_observation from observation_builder.py
-        observation = build_observation(game_map=self.game_map, agent_position=self.agent_position, agent_hp=self.agent_hp)
+        observation = build_observation(
+            game_map=self.game_map,
+            agent_position=self.agent_position,
+            agent_hp=self.agent_hp,
+            enemy_position=self.enemy.position if self.enemy is not None else None,
+        )
 
         return observation
+
+    def _spawn_enemy(self) -> None:
+        """Create this episode's enemy, or leave it absent when disabled."""
+        if not self.environment_config.enemy_enabled:
+            self.enemy = None
+            return
+
+        self.enemy = create_enemy(
+            self.game_map,
+            position=self._enemy_spawn,
+            patrol_route=self._enemy_patrol_route,
+            contact_damage=self.environment_config.enemy_contact_damage,
+            can_step=self._can_step,
+            # Keeping the enemy off the agent's start tile stops an episode
+            # opening with the agent already taking contact damage.
+            forbidden=(self.game_map.start,),
+        )
+
+    def _move_enemy(self) -> None:
+        """Advance the enemy one waypoint along its patrol route.
+
+        Deterministic: no RNG, so the same route always produces the same
+        sequence of positions. If the next waypoint is not reachable the enemy
+        holds position and keeps its index, so it retries the same step next
+        timestep rather than silently skipping part of its route. Routes are
+        validated at spawn, so this should only happen if the map changes
+        underneath the enemy.
+        """
+        if self.enemy is None or self.enemy.is_stationary:
+            return
+
+        target = self.enemy.next_waypoint()
+        if target == self.enemy.position or self._can_step(self.enemy.position, target):
+            self.enemy.advance_to_next_waypoint()
+
+    def _enemy_contact(
+            self,
+            agent_previous_position: tuple[int, int],
+            enemy_previous_position: tuple[int, int] | None) -> bool:
+        """Whether the agent and enemy met during this timestep.
+
+        Two ways that happens. They end the step on the same tile, which is the
+        obvious one. Or they swapped tiles - the agent moved A to B while the
+        enemy moved B to A - in which case they passed through each other and
+        never share a tile, so a same-tile check alone would miss it and an
+        enemy in a one-wide corridor would be harmless half the time.
+        """
+        if self.enemy is None:
+            return False
+
+        if self.enemy.position == self.agent_position:
+            return True
+
+        swapped = (
+            enemy_previous_position == self.agent_position
+            and self.enemy.position == agent_previous_position
+        )
+        return swapped
 
     def _validate_map(self) -> None:
         #Loop through each row and tile: Check (0 <= elevation <= max_elevation)

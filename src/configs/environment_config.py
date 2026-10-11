@@ -16,6 +16,12 @@ class EnvironmentConfig:
     # Use procedural map area to set step limit
     steps_per_tile: int = 4
 
+    # Enemy mechanics.
+    # Off by default so the Milestone 1 fixed-map tests and the sparse-reward
+    # baseline keep their existing behaviour; set True to put an enemy in the world.
+    enemy_enabled: bool = False
+    enemy_contact_damage: float = 10.0
+
     # Finds the step limit based on width, height, and the steps_per_tile multiplier variable above
     def get_episode_step_limit(self, *, width: int, height: int, procedural: bool) -> int:
         if procedural:
