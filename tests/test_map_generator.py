@@ -35,6 +35,39 @@ def test_generate_map_returns_game_map():
     assert all(len(row) == 5 for row in game_map.tiles)
 
 
+def test_generated_tile_elevations_stay_within_configured_bounds():
+    """Verifies generated elevation values stay within map config."""
+    config = MapConfig(width=6, height=5, max_elevation=3)
+    game_map = generate_map(config, seed=123)
+
+    elevations = [tile.elevation for row in game_map.tiles for tile in row]
+
+    assert all(0 <= elevation <= config.max_elevation for elevation in elevations)
+
+
+def test_generated_obstacle_and_traversal_values_are_booleans():
+    """Verifies generated obstacle + traversal fields use Boolean vals."""
+    config = MapConfig(width=6, height=5)
+    game_map = generate_map(config, seed=123)
+
+    tiles = [tile for row in game_map.tiles for tile in row]
+
+    assert all(type(tile.obstacle) is bool for tile in tiles)
+    assert all(type(tile.special_traversal) is bool for tile in tiles)
+
+
+def test_generated_start_and_goal_are_in_bounds_and_distinct():
+    """Verifies that generated start / goal coordinates are valid/distinct."""
+    config = MapConfig(width=6, height=5)
+    game_map = generate_map(config, seed=123)
+
+    for x, y in (game_map.start, game_map.goal):
+        assert 0 <= x < config.width
+        assert 0 <= y < config.height
+
+    assert game_map.start != game_map.goal
+
+
 def test_same_seed_generates_same_map():
     config = MapConfig(width=5, height=4)
 
