@@ -16,6 +16,10 @@ class EnvironmentConfig:
     # Use procedural map area to set step limit
     steps_per_tile: int = 4
 
+    # Hazard mechanics. HP removed per timestep the agent spends on a
+    # "damage" hazard tile, on entry and for as long as it remains there.
+    hazard_damage: float = 10.0
+
     # Enemy mechanics.
     # Off by default so the Milestone 1 fixed-map tests and the sparse-reward
     # baseline keep their existing behaviour; set True to put an enemy in the world.

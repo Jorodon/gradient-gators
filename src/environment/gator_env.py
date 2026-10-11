@@ -147,8 +147,12 @@ class GatorEnv(gym.Env):
             events.invalid_move = True
 
         # --- hazard interaction ---
-        # Owned by a separate issue. It belongs here in the agreed timestep
-        # order: after agent movement and fall damage, before enemy movement.
+        hazard_damage = self._hazard_damage_at(self.agent_position)
+        if self.game_map.get_tile(*self.agent_position).hazard is not None:
+            events.hazard_contact = True
+        if hazard_damage > 0:
+            self.agent_hp = max(0.0, self.agent_hp - hazard_damage)
+            events.damage_taken += hazard_damage
 
         # --- enemy movement ---
         enemy_previous_position = self.enemy.position if self.enemy is not None else None
@@ -224,6 +228,25 @@ class GatorEnv(gym.Env):
         # Finds value of unsafe_drop before multiplying fall damage weight and returning
         unsafe_drop = max(0, drop - self.environment_config.safe_fall_height)
         return self.environment_config.fall_damage_scale * unsafe_drop
+
+    # returns hazard damage for standing on this tile this timestep
+    def _hazard_damage_at(self, pos: tuple[int, int]) -> float:
+        """Damage for occupying `pos` at the end of the movement phase.
+
+        Charged per timestep, not per entry, so an agent that stays on a hazard
+        keeps taking damage - including when it stayed because its move was
+        rejected. Only "damage" hazards cost HP; other hazard types still
+        register contact but are left to whoever implements them.
+
+        Independent of the reward: this returns HP, and the reward layer reads
+        the resulting StepEvents rather than this value.
+        """
+        tile = self.game_map.get_tile(pos[0], pos[1])
+
+        if tile.hazard != "damage":
+            return 0.0
+
+        return self.environment_config.hazard_damage
 
     # Determines if a tile position is within map bounds
     def _in_bounds(self, pos: tuple[int, int]) -> bool:
@@ -344,4 +367,3 @@ class GatorEnv(gym.Env):
             for tile in row:
                 if not 0 <= tile.elevation <= self.map_config.max_elevation:
                     raise ValueError(f"Tile elevation {tile.elevation} is outside the supported range of 0-{self.map_config.max_elevation}")
-    
