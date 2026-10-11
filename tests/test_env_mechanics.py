@@ -174,3 +174,15 @@ def test_timestep_truncation(gator_env):
     assert terminated is False
     assert truncated is True
     assert info["episode_end_reason"] == "timestep_limit"
+
+
+def test_fixed_map_uses_configured_step_limit(gator_env):
+    """Verifies that fixed maps use configured max step count.
+
+    Args:
+        gator_env: environment under test.
+    """
+    gator_env.environment_config.max_steps = 17
+    gator_env.reset()
+
+    assert gator_env.max_episode_steps == 17

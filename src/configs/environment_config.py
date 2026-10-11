@@ -22,7 +22,7 @@ class EnvironmentConfig:
             multi = self.steps_per_tile
             return width * height * multi
 
-        return
+        return self.max_steps
 
 @dataclass
 class MapConfig:
