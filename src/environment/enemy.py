@@ -189,7 +189,11 @@ def create_enemy(
 
     route = [tuple(waypoint) for waypoint in (patrol_route or [])]
 
-    if can_step is not None:
+    # Ensures that if a route is provided can_step must not be None then calls validate_patrol_route
+    if route:
+        if can_step is None:
+            raise ValueError("can_step is required when patrol_route is provided.")
+        
         validate_patrol_route(route, game_map, can_step)
 
     if position is None:
