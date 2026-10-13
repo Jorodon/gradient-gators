@@ -313,7 +313,7 @@ def test_swapping_tiles_counts_as_contact():
 
 
 def test_no_contact_when_they_stay_apart():
-    env = enemy_env(enemy_spawn=(4, 4))
+    env = enemy_env(enemy_spawn=(4, 3))
     env.reset(seed=0)
     _, _, _, _, info = env.step(int(Action.RIGHT))
     assert info["events"]["enemy_contact"] is False
@@ -389,7 +389,7 @@ def test_enemy_does_not_disturb_an_enemy_free_episode():
     def run(enabled):
         config = EnvironmentConfig(enemy_enabled=enabled, enemy_contact_damage=10.0)
         env = GatorEnv(game_map=open_map(5, 5), environment_config=config,
-                       enemy_spawn=(4, 4) if enabled else None)
+                       enemy_spawn=(4, 3) if enabled else None)
         env.reset(seed=0)
         return [env.step(int(Action.RIGHT))[1:4] for _ in range(3)]
 
