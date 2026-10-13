@@ -321,7 +321,7 @@ class GatorEnv(gym.Env):
             can_step=self._can_step,
             # Keeping the enemy off the agent's start tile stops an episode
             # opening with the agent already taking contact damage.
-            forbidden=(self.game_map.start,),
+            forbidden=(self.game_map.start, self.game_map.goal),
         )
 
     def _move_enemy(self) -> None:
