@@ -144,9 +144,8 @@ class GatorEnv(gym.Env):
             self.agent_position = target_position
 
             if fall_damage > 0:
-                self.agent_hp = max(0.0, self.agent_hp - fall_damage)
                 events.fall_damage = fall_damage
-                events.damage_taken += fall_damage
+                self._apply_damage(fall_damage, events)
         else:
             events.invalid_move = True
 
@@ -155,8 +154,7 @@ class GatorEnv(gym.Env):
         if self.game_map.get_tile(*self.agent_position).hazard is not None:
             events.hazard_contact = True
         if hazard_damage > 0:
-            self.agent_hp = max(0.0, self.agent_hp - hazard_damage)
-            events.damage_taken += hazard_damage
+            self._apply_damage(hazard_damage, events)
 
         # --- enemy movement ---
         enemy_previous_position = self.enemy.position if self.enemy is not None else None
@@ -165,9 +163,8 @@ class GatorEnv(gym.Env):
         # --- enemy interaction / contact ---
         if self._enemy_contact(old_position, enemy_previous_position):
             contact_damage = self.enemy.contact_damage
-            self.agent_hp = max(0.0, self.agent_hp - contact_damage)
             events.enemy_contact = True
-            events.damage_taken += contact_damage
+            self._apply_damage(contact_damage, events)
 
         # --- event handling ---
         new_distance = self._distance_to_goal(self.agent_position)
@@ -371,3 +368,12 @@ class GatorEnv(gym.Env):
             for tile in row:
                 if not 0 <= tile.elevation <= self.map_config.max_elevation:
                     raise ValueError(f"Tile elevation {tile.elevation} is outside the supported range of 0-{self.map_config.max_elevation}")
+
+    # Helper function for applying different damage types
+    def _apply_damage(self, amount: float, events: StepEvents) -> None:
+        if amount <= 0:
+            return
+
+        # Sets agent's hp and updates damage taken to damage_taken StepEvent
+        self.agent_hp = max(0.0, self.agent_hp - amount)
+        events.damage_taken += amount
