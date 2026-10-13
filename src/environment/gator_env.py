@@ -7,7 +7,7 @@ import gymnasium as gym
 from src.configs.environment_config import EnvironmentConfig, MapConfig
 from src.configs.training_config import RewardConfig
 from src.environment.action_space import ACTION_DELTAS, ACTION_SPACE, Action
-from src.environment.map import GameMap, load_map_from_file
+from src.environment.map import GameMap, load_map_from_file, HazardType
 from src.environment.observation_space import create_observation_space
 from src.environment.sparse_reward import calculate_sparse_reward
 from src.environment.step_events import StepEvents
@@ -68,6 +68,10 @@ class GatorEnv(gym.Env):
             map_config = self.map_config,
             environment_config=self.environment_config
         )
+
+        # Ensures that static enemy spawns and routes are not used for procedural maps since they change each reset
+        if self._procedural and (enemy_spawn is not None or enemy_patrol_route is not None):
+            raise ValueError("Static enemy/patrol overrides are not supported on procedural maps.")
 
         # Enemy spawn/route overrides are kept so every reset rebuilds the enemy
         # the same way, including after a procedural map changes underneath it.
@@ -140,9 +144,8 @@ class GatorEnv(gym.Env):
             self.agent_position = target_position
 
             if fall_damage > 0:
-                self.agent_hp = max(0.0, self.agent_hp - fall_damage)
                 events.fall_damage = fall_damage
-                events.damage_taken += fall_damage
+                self._apply_damage(fall_damage, events)
         else:
             events.invalid_move = True
 
@@ -151,8 +154,7 @@ class GatorEnv(gym.Env):
         if self.game_map.get_tile(*self.agent_position).hazard is not None:
             events.hazard_contact = True
         if hazard_damage > 0:
-            self.agent_hp = max(0.0, self.agent_hp - hazard_damage)
-            events.damage_taken += hazard_damage
+            self._apply_damage(hazard_damage, events)
 
         # --- enemy movement ---
         enemy_previous_position = self.enemy.position if self.enemy is not None else None
@@ -161,9 +163,8 @@ class GatorEnv(gym.Env):
         # --- enemy interaction / contact ---
         if self._enemy_contact(old_position, enemy_previous_position):
             contact_damage = self.enemy.contact_damage
-            self.agent_hp = max(0.0, self.agent_hp - contact_damage)
             events.enemy_contact = True
-            events.damage_taken += contact_damage
+            self._apply_damage(contact_damage, events)
 
         # --- event handling ---
         new_distance = self._distance_to_goal(self.agent_position)
@@ -243,7 +244,7 @@ class GatorEnv(gym.Env):
         """
         tile = self.game_map.get_tile(pos[0], pos[1])
 
-        if tile.hazard != "damage":
+        if tile.hazard != HazardType.DAMAGE:
             return 0.0
 
         return self.environment_config.hazard_damage
@@ -317,7 +318,7 @@ class GatorEnv(gym.Env):
             can_step=self._can_step,
             # Keeping the enemy off the agent's start tile stops an episode
             # opening with the agent already taking contact damage.
-            forbidden=(self.game_map.start,),
+            forbidden=(self.game_map.start, self.game_map.goal),
         )
 
     def _move_enemy(self) -> None:
@@ -367,3 +368,12 @@ class GatorEnv(gym.Env):
             for tile in row:
                 if not 0 <= tile.elevation <= self.map_config.max_elevation:
                     raise ValueError(f"Tile elevation {tile.elevation} is outside the supported range of 0-{self.map_config.max_elevation}")
+
+    # Helper function for applying different damage types
+    def _apply_damage(self, amount: float, events: StepEvents) -> None:
+        if amount <= 0:
+            return
+
+        # Sets agent's hp and updates damage taken to damage_taken StepEvent
+        self.agent_hp = max(0.0, self.agent_hp - amount)
+        events.damage_taken += amount
