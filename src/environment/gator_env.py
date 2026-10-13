@@ -7,7 +7,7 @@ import gymnasium as gym
 from src.configs.environment_config import EnvironmentConfig, MapConfig
 from src.configs.training_config import RewardConfig
 from src.environment.action_space import ACTION_DELTAS, ACTION_SPACE, Action
-from src.environment.map import GameMap, load_map_from_file
+from src.environment.map import GameMap, load_map_from_file, HazardType
 from src.environment.observation_space import create_observation_space
 from src.environment.sparse_reward import calculate_sparse_reward
 from src.environment.step_events import StepEvents
@@ -247,7 +247,7 @@ class GatorEnv(gym.Env):
         """
         tile = self.game_map.get_tile(pos[0], pos[1])
 
-        if tile.hazard != "damage":
+        if tile.hazard != HazardType.DAMAGE:
             return 0.0
 
         return self.environment_config.hazard_damage
