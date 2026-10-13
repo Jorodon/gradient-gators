@@ -78,17 +78,13 @@ def is_valid_spawn(
     *,
     forbidden: Sequence[Position] = (),
 ) -> bool:
-    """Whether an enemy may start on this tile.
+        # Returns bool based on results of validate_spawn
+        try:
+            validate_spawn(position, game_map, forbidden=forbidden)
+            return True
+        except ValueError:
+            return False
 
-    Rejects out-of-bounds positions, obstacle tiles, and anything in
-    `forbidden` (normally the agent start, so an episode cannot open with the
-    agent already taking contact damage).
-    """
-    if not in_bounds(position, game_map):
-        return False
-    if game_map.get_tile(position[0], position[1]).obstacle:
-        return False
-    return position not in tuple(forbidden)
 
 
 def validate_spawn(
