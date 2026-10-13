@@ -152,6 +152,10 @@ class GatorEnv(gym.Env):
             else:
                 events.invalid_move = True
 
+        # Records that the agent intentionally waited
+        else:
+            events.waited = True
+
         # --- hazard interaction ---
         hazard_damage = self._hazard_damage_at(self.agent_position)
         if self.game_map.get_tile(*self.agent_position).hazard is not None:
