@@ -69,6 +69,10 @@ class GatorEnv(gym.Env):
             environment_config=self.environment_config
         )
 
+        # Ensures that static enemy spawns and routes are not used for procedural maps since they change each reset
+        if self._procedural and (enemy_spawn is not None or enemy_patrol_route is not None):
+            raise ValueError("Static enemy/patrol overrides are not supported on procedural maps.")
+
         # Enemy spawn/route overrides are kept so every reset rebuilds the enemy
         # the same way, including after a procedural map changes underneath it.
         self._enemy_spawn = enemy_spawn
