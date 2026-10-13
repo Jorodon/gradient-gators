@@ -9,4 +9,5 @@ def test_action_space_contains_all_movement_actions(action_space):
 
 
 def test_action_space_rejects_unknown_action(action_space):
-    assert not action_space.contains(4) #not in action space
+    assert action_space.contains(Action.WAIT)
+    assert not action_space.contains(5) #not in action space
