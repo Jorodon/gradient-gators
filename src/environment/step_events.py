@@ -8,5 +8,6 @@ class StepEvents:
     hazard_contact: bool = False #Agent on hazard tile
     enemy_contact: bool = False #Agent interacted with enemy on current timestep
     invalid_move: bool = False #True when attempted movement is not allowed
+    waited: bool = False #True whenever the agent chose WAIT
     step_taken: bool = False #True when a timetep was consumed (INVALID MOVES STILL CONSUME TIMESTEP)
     distance_change: float = 0.0 #Change in distance to the goal (positve = moved closer | negative = moved farther away)

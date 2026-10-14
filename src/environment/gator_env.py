@@ -134,20 +134,27 @@ class GatorEnv(gym.Env):
 
         # Based on action, determine change in x and y
         action = Action(action)
-        dx, dy = ACTION_DELTAS[action]
 
-        target_position = (old_position[0] + dx, old_position[1] + dy)
+        # Skips movement if action is WAIT
+        if action != Action.WAIT:
+            dx, dy = ACTION_DELTAS[action]
 
-        # If action is valid
-        if self._can_step(old_position, target_position):
-            fall_damage = self._calculate_fall_damage(old_position, target_position)
-            self.agent_position = target_position
+            target_position = (old_position[0] + dx, old_position[1] + dy)
 
-            if fall_damage > 0:
-                events.fall_damage = fall_damage
-                self._apply_damage(fall_damage, events)
+            # If action is valid
+            if self._can_step(old_position, target_position):
+                fall_damage = self._calculate_fall_damage(old_position, target_position)
+                self.agent_position = target_position
+
+                if fall_damage > 0:
+                    events.fall_damage = fall_damage
+                    self._apply_damage(fall_damage, events)
+            else:
+                events.invalid_move = True
+
+        # Records that the agent intentionally waited
         else:
-            events.invalid_move = True
+            events.waited = True
 
         # --- hazard interaction ---
         hazard_damage = self._hazard_damage_at(self.agent_position)
