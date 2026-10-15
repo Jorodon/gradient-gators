@@ -364,6 +364,11 @@ class GatorEnv(gym.Env):
         return swapped
 
     def _validate_map(self) -> None:
+        # Ensures map size is within padded observation max dimensions
+        if not (1 <= self.game_map.width <= MaxObsDim) and (1 <= self.game_map.height <= MaxObsDim):
+            raise ValueError(f"Map dimensions {self.game_map.width}x{self.game_map.height} are invalid in specified {MaxObsDim}x{MaxObsDim} bounds")
+
+
         #Loop through each row and tile: Check (0 <= elevation <= max_elevation)
         for row in self.game_map.tiles:
             for tile in row:
