@@ -25,7 +25,7 @@ def build_observation(
     map_mask = np.zeros(shape, dtype=np.int8)
     map_mask[:height, :width] = 1
 
-    elevation = np.zeros(shape, dtype=np.float32)
+    elevation = np.zeros(shape, dtype=np.int8)
     obstacles = np.zeros(shape, dtype=np.int8)
     hazards = np.zeros(shape, dtype=np.int8)
     special_traversal = np.zeros(shape, dtype=np.int8)

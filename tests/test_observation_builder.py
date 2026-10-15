@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.configs.environment_config import EnvironmentConfig, MapConfig
+from src.configs.environment_config import EnvironmentConfig, MapConfig, MAX_OBSERVATION_DIMENSION as MaxObsDim
 from src.environment.map import GameMap, Tile
 from src.environment.observation_builder import build_observation
 from src.environment.observation_space import create_observation_space
@@ -25,7 +25,7 @@ def test_build_observation():
     )
 
     assert observation["elevation"].shape == (2, 2)
-    assert observation["elevation"].dtype == np.float32
+    assert observation["elevation"].dtype == np.int8
     assert observation["obstacles"].dtype == np.int8
     assert observation["agent_hp"].shape == (1,)
     assert observation["agent_hp"].dtype == np.float32

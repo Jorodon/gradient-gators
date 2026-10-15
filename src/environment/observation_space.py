@@ -18,7 +18,7 @@ def create_observation_space(
             low=0,
             high=map_config.max_elevation,
             shape=shape,
-            dtype=np.float32,
+            dtype=np.int8,
         ),
         #0 = none, 1 = present
         "obstacles": spaces.Box(
