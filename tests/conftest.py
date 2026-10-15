@@ -8,6 +8,7 @@ import pytest
 from src.environment.action_space import ACTION_SPACE
 from src.environment.map import load_map_from_file
 from src.environment.observation_space import create_observation_space
+from src.configs.environment_config import MAX_OBSERVATION_DIMENSION as MaxObsDim
 
 
 MAP_DIR = Path(__file__).resolve().parents[1] / "src" / "environment" / "maps"
@@ -31,8 +32,6 @@ def observation_space():
         gymnasium.spaces.Dict: The default environment observation space.
     """
     return create_observation_space(
-        width=8,
-        height=8,
         map_config=MapConfig(),
         environment_config=EnvironmentConfig(),
     )
@@ -45,14 +44,20 @@ def valid_observation():
     Returns:
         dict: An observation with the expected fields, shapes, and dtypes.
     """
+    # Initializes padded shape and creates mask for an 8x8 map
+    shape = (MaxObsDim, MaxObsDim)
+    mask = np.zeros(shape, dtype=np.int8)
+    mask[:8, :8] = 1
+
     return {
-        "elevation": np.zeros((8, 8), dtype=np.float32),
-        "obstacles": np.zeros((8, 8), dtype=np.int8),
-        "hazards": np.zeros((8, 8), dtype=np.int8),
-        "special_traversal": np.zeros((8, 8), dtype=np.int8),
-        "goal": np.zeros((8, 8), dtype=np.int8),
-        "enemy_occupancy": np.zeros((8, 8), dtype=np.int8),
-        "agent_occupancy": np.zeros((8, 8), dtype=np.int8),
+        "elevation": np.zeros(shape, dtype=np.float32),
+        "obstacles": np.zeros(shape, dtype=np.int8),
+        "hazards": np.zeros(shape, dtype=np.int8),
+        "special_traversal": np.zeros(shape, dtype=np.int8),
+        "goal": np.zeros(shape, dtype=np.int8),
+        "enemy_occupancy": np.zeros(shape, dtype=np.int8),
+        "agent_occupancy": np.zeros(shape, dtype=np.int8),
+        "map_mask": mask,
         "agent_hp": np.array([100.0], dtype=np.float32),
     }
 
