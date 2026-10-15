@@ -4,7 +4,7 @@ from pathlib import Path
 
 import gymnasium as gym
 
-from src.configs.environment_config import EnvironmentConfig, MapConfig
+from src.configs.environment_config import EnvironmentConfig, MapConfig, MAX_OBSERVATION_DIMENSION as MaxObsDim
 from src.configs.training_config import RewardConfig
 from src.environment.action_space import ACTION_DELTAS, ACTION_SPACE, Action
 from src.environment.map import GameMap, load_map_from_file, HazardType
@@ -63,8 +63,6 @@ class GatorEnv(gym.Env):
         # Uses the implemented space definitions
         self.action_space = deepcopy(ACTION_SPACE)
         self.observation_space = create_observation_space(
-            width = self.game_map.width,
-            height = self.game_map.height,
             map_config = self.map_config,
             environment_config=self.environment_config
         )

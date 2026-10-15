@@ -8,8 +8,6 @@ from src.configs.environment_config import EnvironmentConfig, MapConfig, MAX_OBS
 #configurable defaults
 def create_observation_space(
     #width/height determined by JSON game map, config files provide other global variables
-    width: int,
-    height: int,
     map_config: MapConfig,
     environment_config: EnvironmentConfig,
 ):
