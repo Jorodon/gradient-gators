@@ -94,10 +94,6 @@ class GatorEnv(gym.Env):
             # Generate the map
             generated_map = generate_map(self.map_config, seed=map_seed)
 
-            # Checks that map dimensions have not changed
-            if (generated_map.height, generated_map.width) != self.observation_space["elevation"].shape:
-                raise ValueError("Provedural map dimensions changed after init")
-
             # Stores the game map and validates
             self.game_map = generated_map
             self._validate_map()
