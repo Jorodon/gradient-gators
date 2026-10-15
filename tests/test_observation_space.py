@@ -1,3 +1,5 @@
+from src.configs.environment_config import MAX_OBSERVATION_DIMENSION as MaxObsDim
+
 #verifies obsv space has all fields
 def test_observation_space_structure(observation_space):
 
@@ -9,20 +11,28 @@ def test_observation_space_structure(observation_space):
         "goal",
         "enemy_occupancy",
         "agent_occupancy",
+        "map_mask",
         "agent_hp",
     }
 
     assert set(observation_space.spaces.keys()) == expected_keys
 
-#using map default 8x8
+# Ensures that the shape for all spacial keys are within padded boundaries and verifies HP shape
 def test_observation_space_shapes(observation_space):
-    assert observation_space["elevation"].shape == (8, 8)
-    assert observation_space["obstacles"].shape == (8, 8)
-    assert observation_space["hazards"].shape == (8, 8)
-    assert observation_space["special_traversal"].shape == (8, 8)
-    assert observation_space["goal"].shape == (8, 8)
-    assert observation_space["enemy_occupancy"].shape == (8, 8)
-    assert observation_space["agent_occupancy"].shape == (8, 8)
+    spacial_keys = {
+        "elevation",
+        "obstacles",
+        "hazards",
+        "special_traversal",
+        "goal",
+        "enemy_occupancy",
+        "agent_occupancy",
+        "map_mask",
+    }
+
+    for key in spacial_keys:
+        assert observation_space[key].shape == (MaxObsDim, MaxObsDim)
+
     assert observation_space["agent_hp"].shape == (1,)
 
 #NumPy observation is accepted by gymnasium
