@@ -45,3 +45,37 @@ def test_build_observation():
     )
     #checks that observation matches gymnasium space
     assert observation_space.contains(observation)
+
+def test_build_observation_with_enemy():
+    game_map = GameMap(
+        width=2,
+        height=2,
+        tiles=[
+            [Tile(elevation=0), Tile(elevation=0)],
+            [Tile(elevation=0), Tile(elevation=0)],
+        ],
+        start=(0, 0),
+        goal=(1, 1),
+    )
+    #builds observation (enemy at (1,0))
+    observation = build_observation(
+        game_map=game_map,
+        agent_position=(0, 0),
+        agent_hp=75.0,
+        enemy_position=(1,0),
+    )
+    #ensures enemy is placed in correct tile
+    assert observation["enemy_occupancy"][0,1] == 1
+    #ensures enemy occupancy matches map shape
+    assert observation["enemy_occupancy"].shape == (2, 2)
+    #ensures required dtype
+    assert observation["enemy_occupancy"].dtype == np.int8
+
+    observation_space = create_observation_space(
+        width=2,
+        height=2,
+        map_config=MapConfig(),
+        environment_config=EnvironmentConfig(),
+    )
+    #ensures observation still matches gymnasium space
+    assert observation_space.contains(observation)
