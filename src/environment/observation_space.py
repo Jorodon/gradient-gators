@@ -1,6 +1,6 @@
 import numpy as np
 from gymnasium import spaces
-from src.configs.environment_config import EnvironmentConfig, MapConfig
+from src.configs.environment_config import EnvironmentConfig, MapConfig, MAX_OBSERVATION_DIMENSION as MaxObsDim
 
 
 
@@ -13,7 +13,7 @@ def create_observation_space(
     map_config: MapConfig,
     environment_config: EnvironmentConfig,
 ):
-    shape = (height, width)
+    shape = (MaxObsDim, MaxObsDim)
 
     return spaces.Dict({
         "elevation": spaces.Box(
@@ -58,6 +58,12 @@ def create_observation_space(
             high=1,
             shape=shape,
             dtype=np.int8,
+        ),
+        "map_mask": spaces.Box(
+            low=0,
+            high=1,
+            shape=shape,
+            dtype=np.int8
         ),
         "agent_hp": spaces.Box(
             low=0,
