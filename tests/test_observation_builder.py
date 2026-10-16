@@ -118,7 +118,7 @@ def test_build_observation_with_enemy():
 
 # Test for invalid map dimensions
 @pytest.mark.parametrize(
-    "width,height",
+    "i_width,i_height",
     [(11,5), (5,11), (11,11), (0,5), (0,5)]
 )
 def test_reject_invalid_map_dims(i_width, i_height):
