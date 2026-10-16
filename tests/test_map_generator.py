@@ -1,7 +1,14 @@
+
 import pytest
+from unittest.mock import patch
+
 from src.configs.environment_config import MapConfig
 from src.environment.map import GameMap, HazardType
-from src.environment.map_generator import generate_map
+from src.environment.map_generator import (
+    MAX_GENERATION_ATTEMPTS,
+    generate_map,
+    has_valid_route,
+)
 
 
 def map_signature(game_map):
@@ -25,6 +32,7 @@ def map_signature(game_map):
         ],
     )
 
+
 def test_generate_map_returns_game_map():
     game_map = generate_map(MapConfig(width=5, height=4), seed=123)
 
@@ -42,8 +50,12 @@ def test_generated_tile_elevations_stay_within_configured_bounds():
 
     elevations = [tile.elevation for row in game_map.tiles for tile in row]
 
-    assert all(0 <= elevation <= config.max_elevation for elevation in elevations)
+    assert all(
+        0 <= elevation <= config.max_elevation
+        for elevation in elevations
+    )
     assert len(set(elevations)) > 1
+
 
 def test_generated_obstacle_and_traversal_values_are_booleans():
     """Verifies generated obstacle + traversal fields use Boolean vals."""
@@ -61,6 +73,7 @@ def test_generated_obstacle_and_traversal_values_are_booleans():
     assert obstacle_count > 0
     assert traversal_count > 0
 
+
 def test_generated_start_and_goal_are_in_bounds_and_distinct():
     """Verifies that generated start / goal coordinates are valid/distinct."""
     config = MapConfig(width=6, height=5)
@@ -71,6 +84,14 @@ def test_generated_start_and_goal_are_in_bounds_and_distinct():
         assert 0 <= y < config.height
 
     assert game_map.start != game_map.goal
+
+
+def test_generated_map_has_valid_route():
+    """The generated goal must be reachable from the start."""
+    config = MapConfig(width=8, height=8)
+    game_map = generate_map(config, seed=123)
+
+    assert has_valid_route(game_map)
 
 
 def test_same_seed_generates_same_map():
@@ -99,6 +120,7 @@ def test_default_seed_uses_map_config():
 
     assert map_signature(first) == map_signature(second)
 
+
 def test_zero_width_rejected():
     config = MapConfig(width=0, height=5)
 
@@ -119,6 +141,7 @@ def test_single_cell_map_rejected():
     with pytest.raises(ValueError):
         generate_map(config, seed=123)
 
+
 def test_equivalent_configs_with_same_seed_match():
     config_a = MapConfig(width=5, height=4, seed=42)
     config_b = MapConfig(width=5, height=4, seed=42)
@@ -127,6 +150,7 @@ def test_equivalent_configs_with_same_seed_match():
     map_b = generate_map(config_b)
 
     assert map_signature(map_a) == map_signature(map_b)
+
 
 def test_obstacles_and_special_traversal_do_not_overlap():
     """Verifies obstacles and special traversal use separate tiles."""
@@ -139,6 +163,7 @@ def test_obstacles_and_special_traversal_do_not_overlap():
         not (tile.obstacle and tile.special_traversal)
         for tile in tiles
     )
+
 
 def test_start_and_goal_are_not_obstacles_or_hazards():
     """Start and goal should be safe, distinct positions."""
@@ -197,3 +222,20 @@ def test_same_seed_and_hazard_density_generate_same_map():
     map_b = generate_map(config, seed=123)
 
     assert map_signature(map_a) == map_signature(map_b)
+
+
+def test_generation_stops_after_max_attempts():
+    """Generation raises an error when no candidate has a valid route."""
+    config = MapConfig(width=5, height=5)
+
+    with patch(
+        "src.environment.map_generator.has_valid_route",
+        return_value=False,
+    ) as route_check:
+        with pytest.raises(
+            ValueError,
+            match="Unable to generate a valid map with a reachable goal",
+        ):
+            generate_map(config, seed=123)
+
+    assert route_check.call_count == MAX_GENERATION_ATTEMPTS
