@@ -43,7 +43,7 @@ def test_generated_tile_elevations_stay_within_configured_bounds():
     elevations = [tile.elevation for row in game_map.tiles for tile in row]
 
     assert all(0 <= elevation <= config.max_elevation for elevation in elevations)
-
+    assert len(set(elevations)) > 1
 
 def test_generated_obstacle_and_traversal_values_are_booleans():
     """Verifies generated obstacle + traversal fields use Boolean vals."""
@@ -55,6 +55,11 @@ def test_generated_obstacle_and_traversal_values_are_booleans():
     assert all(type(tile.obstacle) is bool for tile in tiles)
     assert all(type(tile.special_traversal) is bool for tile in tiles)
 
+    obstacle_count = sum(tile.obstacle for tile in tiles)
+    traversal_count = sum(tile.special_traversal for tile in tiles)
+
+    assert obstacle_count > 0
+    assert traversal_count > 0
 
 def test_generated_start_and_goal_are_in_bounds_and_distinct():
     """Verifies that generated start / goal coordinates are valid/distinct."""
@@ -122,3 +127,15 @@ def test_equivalent_configs_with_same_seed_match():
     map_b = generate_map(config_b)
 
     assert map_signature(map_a) == map_signature(map_b)
+
+def test_obstacles_and_special_traversal_do_not_overlap():
+    """Verifies obstacles and special traversal use separate tiles."""
+    config = MapConfig(width=6, height=5)
+    game_map = generate_map(config, seed=123)
+
+    tiles = [tile for row in game_map.tiles for tile in row]
+
+    assert all(
+        not (tile.obstacle and tile.special_traversal)
+        for tile in tiles
+    )

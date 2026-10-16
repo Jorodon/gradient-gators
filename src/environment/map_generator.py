@@ -38,10 +38,29 @@ def generate_map(config: MapConfig, seed: int | None = None) -> GameMap:
     actual_seed = config.seed if seed is None else seed
     rng = np.random.default_rng(actual_seed)
 
-    tiles = [
-        [Tile() for _ in range(config.width)]
-        for _ in range(config.height)
-    ]
+    tiles = []
+
+    for _ in range(config.height):
+        row = []
+
+        for _ in range(config.width):
+            elevation = int(rng.integers(0, config.max_elevation + 1))
+            obstacle = bool(rng.random() < 0.15)
+
+            # Only allow special traversal on non-obstacle tiles.
+            special_traversal = (
+                not obstacle and bool(rng.random() < 0.15)
+            )
+
+            row.append(
+                Tile(
+                    elevation=elevation,
+                    obstacle=obstacle,
+                    special_traversal=special_traversal,
+                )
+            )
+
+        tiles.append(row)
 
     # Choose distinct start and goal positions using the seeded RNG.
     positions = rng.choice(config.width * config.height, size=2, replace=False)
