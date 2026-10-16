@@ -15,7 +15,7 @@ def build_observation(
     width = game_map.width
 
     # Ensures map is within allowed observation (10x10) dimension
-    if not (1 <= width <= MaxObsDim) and (1 <= height <= MaxObsDim):
+    if not ((1 <= width <= MaxObsDim) and (1 <= height <= MaxObsDim)):
         raise ValueError(f"Map dimensions {width}x{height} are invalid in specified {MaxObsDim}x{MaxObsDim} bounds")
 
     # Padded shape
