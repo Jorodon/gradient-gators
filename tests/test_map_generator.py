@@ -1,6 +1,6 @@
 import pytest
 from src.configs.environment_config import MapConfig
-from src.environment.map import GameMap
+from src.environment.map import GameMap, HazardType
 from src.environment.map_generator import generate_map
 
 
@@ -139,3 +139,61 @@ def test_obstacles_and_special_traversal_do_not_overlap():
         not (tile.obstacle and tile.special_traversal)
         for tile in tiles
     )
+
+def test_start_and_goal_are_not_obstacles_or_hazards():
+    """Start and goal should be safe, distinct positions."""
+    config = MapConfig(width=8, height=8, hazard_density=0.5)
+    game_map = generate_map(config, seed=123)
+
+    assert game_map.start != game_map.goal
+
+    for position in (game_map.start, game_map.goal):
+        x, y = position
+        tile = game_map.get_tile(x, y)
+
+        assert not tile.obstacle
+        assert tile.hazard is None
+
+
+def test_hazards_do_not_overlap_obstacles_or_special_traversal():
+    """Hazards should only appear on eligible tiles."""
+    config = MapConfig(width=8, height=8, hazard_density=0.5)
+    game_map = generate_map(config, seed=123)
+
+    for row in game_map.tiles:
+        for tile in row:
+            if tile.hazard is not None:
+                assert not tile.obstacle
+                assert not tile.special_traversal
+                assert tile.hazard == HazardType.DAMAGE
+
+
+def test_zero_hazard_density_generates_no_hazards():
+    """A density of zero should disable hazard placement."""
+    config = MapConfig(width=8, height=8, hazard_density=0.0)
+    game_map = generate_map(config, seed=123)
+
+    assert all(
+        tile.hazard is None
+        for row in game_map.tiles
+        for tile in row
+    )
+
+
+@pytest.mark.parametrize("density", [-0.1, 1.1, True, "0.5"])
+def test_invalid_hazard_density_is_rejected(density):
+    """Hazard density must be a number between zero and one."""
+    config = MapConfig(width=5, height=5, hazard_density=density)
+
+    with pytest.raises(ValueError, match="Hazard density"):
+        generate_map(config, seed=123)
+
+
+def test_same_seed_and_hazard_density_generate_same_map():
+    """Hazard placement should be reproducible."""
+    config = MapConfig(width=8, height=8, hazard_density=0.25)
+
+    map_a = generate_map(config, seed=123)
+    map_b = generate_map(config, seed=123)
+
+    assert map_signature(map_a) == map_signature(map_b)

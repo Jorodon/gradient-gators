@@ -51,3 +51,6 @@ class MapConfig:
 
     # Variable that only accepts "fixed" and "procedural" for map handling logic
     map_mode: Literal["fixed", "procedural"] = "fixed"
+
+    # Fraction of eligible tiles that can receive hazards (0.0 to 1.0)
+    hazard_density: float = 0.10
