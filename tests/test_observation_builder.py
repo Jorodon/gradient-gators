@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from src.configs.environment_config import EnvironmentConfig, MapConfig, MAX_OBSERVATION_DIMENSION as MaxObsDim
 from src.environment.map import GameMap, Tile, HazardType
@@ -113,3 +114,21 @@ def test_build_observation_with_enemy():
     )
     #ensures observation still matches gymnasium space
     assert observation_space.contains(observation)
+
+
+# Test for invalid map dimensions
+@pytest.mark.parametrize(
+    "width,height",
+    [(11,5), (5,11), (11,11), (0,5), (0,5)]
+)
+def test_reject_invalid_map_dims(i_width, i_height):
+    game_map = GameMap(
+        width = i_width,
+        height = i_height,
+        tiles = [[Tile() for _ in range(i_width)] for _ in range(i_height)],
+        start = (0,0),
+        goal = (0, 0),
+    )
+
+    with pytest.raises(ValueError, match="Map dimensions"):
+        build_observation(game_map = game_map, agent_position = (0,0), agent_hp = 100.0)
