@@ -120,6 +120,16 @@ def test_enemy_appears_in_the_observation():
     assert observation["enemy_occupancy"][2, 2] == 1
     assert env.observation_space.contains(observation)
 
+def test_movement_updates_observation():
+    env = enemy_env(enemy_patrol_route=[(2,2), (3, 2)])
+    env.reset(seed=0)
+
+    observation, _,_,_, _ = env.step(int(Action.DOWN))
+
+    assert observation["enemy_occupancy"][2, 2] == 0
+    assert observation["enemy_occupancy"][2,3] == 1
+    assert observation["enemy_occupancy"].sum() == 1
+    assert env.observation_space.contains(observation)
 
 def test_observation_has_no_enemy_when_disabled():
     env = GatorEnv(game_map=open_map(5, 5), environment_config=EnvironmentConfig())
