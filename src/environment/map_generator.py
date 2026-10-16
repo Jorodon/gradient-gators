@@ -2,15 +2,52 @@
 """Seeded procedural map-generation framework."""
 
 from collections import deque
+from dataclasses import replace
 
 import numpy as np
 
 from src.configs.environment_config import MapConfig
+from src.configs.map_generation_config import MapGenerationConfig
 from src.environment.map import GameMap, HazardType, Tile
 
 
 MAX_GENERATION_ATTEMPTS = 20
 
+# Map-area buckets
+AREA_BOUNDS = {
+    "small": (25, 49),
+    "medium": (50, 74),
+    "large": (75, 100)
+}
+
+# Creates dictionary entry where band name maps to collection of dimension pairs
+AREA_BAND_PAIRS = {
+    band: tuple(
+        (width, height)
+        for width in range (5, 11)
+        for height in range(5, 11)
+        if min_area <= width * height <= max_area
+    )
+    for band, (min_area, max_area) in AREA_BOUNDS.items()
+}
+
+# Returns a seeded (width, height, area_band) sample
+def sample_map_dimensions(rng: np.random.Generator) -> tuple[int, int, str]:
+    # Creates a tuple with all band names
+    bands = tuple(AREA_BAND_PAIRS)
+
+    # Gets an integer 0, 1, 2 with equal probability and uses that to pick band
+    band_index = int(rng.integers(0, len(bands)))
+    selected_band = bands[band_index]
+
+    # Gets valid dimension pairs from bucket selected above
+    available_pairs = AREA_BAND_PAIRS[selected_band]
+
+    # Samples index into selected bands available pairs and then grabs selected witdh and height
+    pair_index = int(rng.integers(0, len(available_pairs)))
+    width, height = available_pairs[pair_index]
+
+    return width, height, selected_band
 
 def validate_config(config: MapConfig) -> None:
     """Validate dimensions and values required for map generation."""
@@ -46,10 +83,8 @@ def validate_config(config: MapConfig) -> None:
         raise ValueError("Hazard density must be between 0.0 and 1.0.")
 
 
-def _generate_candidate(config: MapConfig, seed: int) -> GameMap:
-    """Generate one map candidate using a deterministic seed."""
-    rng = np.random.default_rng(seed)
-
+def _generate_candidate(config: MapConfig, rng: np.random.Generator) -> GameMap:
+    """Generate one map candidate using supplied random generator."""
     tiles = []
 
     for _ in range(config.height):
@@ -144,16 +179,29 @@ def _generate_candidate(config: MapConfig, seed: int) -> GameMap:
     )
 
 
-def generate_map(config: MapConfig, seed: int | None = None) -> GameMap:
+def generate_map(config: MapConfig, seed: int | None = None, *, generation_config: MapGenerationConfig | None = None) -> GameMap:
     """Generate a reproducible map with a reachable goal."""
     validate_config(config)
 
     actual_seed = config.seed if seed is None else seed
 
+    rng = np.random.default_rng(actual_seed)
+
+    # Original fixed dimensions
+    canidate_config = config
+
+    if generation_config is not None:
+        if generation_config.dimension_mode not in ("fixed", "area_bucket"):
+            raise ValueError("Invalid dimension_mode")
+
+        if generation_config.dimension_mode == "area_bucket":
+            # Select dimensions before retries and preserve all other mapconfig properties
+            width, height, _ = sample_map_dimensions(rng)
+            canidate_config = replace(config, width = width, height = height)
+
+    # Rejected candidates consume further RNG. Sample dimensions remain unchanged
     for attempt in range(MAX_GENERATION_ATTEMPTS):
-        # Derive each attempt's seed deterministically.
-        attempt_seed = actual_seed + attempt
-        game_map = _generate_candidate(config, attempt_seed)
+        game_map = _generate_candidate(canidate_config, rng)
 
         if has_valid_route(game_map):
             return game_map
