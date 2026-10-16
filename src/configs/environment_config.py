@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from typing import Literal
 
+# Defines max width and height for PPO observation
+MAX_OBSERVATION_DIMENSION = 10
+
 @dataclass
 class EnvironmentConfig:
     # Fixed map max steps

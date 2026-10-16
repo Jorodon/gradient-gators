@@ -4,7 +4,7 @@ from pathlib import Path
 
 import gymnasium as gym
 
-from src.configs.environment_config import EnvironmentConfig, MapConfig
+from src.configs.environment_config import EnvironmentConfig, MapConfig, MAX_OBSERVATION_DIMENSION as MaxObsDim
 from src.configs.training_config import RewardConfig
 from src.environment.action_space import ACTION_DELTAS, ACTION_SPACE, Action
 from src.environment.map import GameMap, load_map_from_file, HazardType
@@ -63,8 +63,6 @@ class GatorEnv(gym.Env):
         # Uses the implemented space definitions
         self.action_space = deepcopy(ACTION_SPACE)
         self.observation_space = create_observation_space(
-            width = self.game_map.width,
-            height = self.game_map.height,
             map_config = self.map_config,
             environment_config=self.environment_config
         )
@@ -95,10 +93,6 @@ class GatorEnv(gym.Env):
 
             # Generate the map
             generated_map = generate_map(self.map_config, seed=map_seed)
-
-            # Checks that map dimensions have not changed
-            if (generated_map.height, generated_map.width) != self.observation_space["elevation"].shape:
-                raise ValueError("Provedural map dimensions changed after init")
 
             # Stores the game map and validates
             self.game_map = generated_map
@@ -370,6 +364,11 @@ class GatorEnv(gym.Env):
         return swapped
 
     def _validate_map(self) -> None:
+        # Ensures map size is within padded observation max dimensions
+        if not ((1 <= self.game_map.width <= MaxObsDim) and (1 <= self.game_map.height <= MaxObsDim)):
+            raise ValueError(f"Map dimensions {self.game_map.width}x{self.game_map.height} are invalid in specified {MaxObsDim}x{MaxObsDim} bounds")
+
+
         #Loop through each row and tile: Check (0 <= elevation <= max_elevation)
         for row in self.game_map.tiles:
             for tile in row:

@@ -1,6 +1,6 @@
 """Tests for GatorEnv gameplay mechanics + episode behavior."""
 
-from src.configs.environment_config import EnvironmentConfig
+from src.configs.environment_config import EnvironmentConfig, MAX_OBSERVATION_DIMENSION as MaxObsDim
 from src.environment.action_space import Action
 
 
@@ -12,10 +12,11 @@ def test_map_dimensions(gator_env):
     """
     assert gator_env.game_map.width > 0
     assert gator_env.game_map.height > 0
-    assert gator_env.observation_space["elevation"].shape == (
-        gator_env.game_map.height,
-        gator_env.game_map.width,
-    )
+    assert gator_env.observation_space["elevation"].shape == (MaxObsDim, MaxObsDim)
+
+    observation, _ = gator_env.reset()
+    # Validates that mask has correct # of tiles for map dimension
+    assert observation["map_mask"].sum() == (gator_env.game_map.width * gator_env.game_map.height)
 
 
 def test_movement_at_boundary(gator_env):
