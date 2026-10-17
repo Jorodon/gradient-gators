@@ -9,6 +9,7 @@ import numpy as np
 from src.configs.environment_config import MapConfig
 from src.configs.map_generation_config import MapGenerationConfig
 from src.environment.map import GameMap, HazardType, Tile
+from src.environment.traversal import can_step_on_map
 
 
 MAX_GENERATION_ATTEMPTS = 20
@@ -247,28 +248,15 @@ def has_valid_route(game_map: GameMap) -> bool:
         if (x, y) == goal:
             return True
 
-        source_tile = game_map.get_tile(x, y)
 
         for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
             nx, ny = x + dx, y + dy
-
-            if not (0 <= nx < width and 0 <= ny < height):
-                continue
-
             neighbor = (nx, ny)
 
             if neighbor in visited:
                 continue
 
-            target_tile = game_map.get_tile(nx, ny)
-
-            if target_tile.obstacle:
-                continue
-
-            elevation_change = target_tile.elevation - source_tile.elevation
-
-            # Uphill movement requires special traversal on the destination.
-            if elevation_change > 0 and not target_tile.special_traversal:
+            if not can_step_on_map(game_map, (x,y), neighbor):
                 continue
 
             visited.add(neighbor)
