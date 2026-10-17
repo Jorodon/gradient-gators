@@ -29,7 +29,8 @@ class GatorEnv(gym.Env):
             map_config: MapConfig | None = None,
             reward_config: RewardConfig | None = None,
             enemy_spawn: tuple[int, int] | None = None,
-            enemy_patrol_route: list[tuple[int, int]] | None = None
+            enemy_patrol_route: list[tuple[int, int]] | None = None,
+            enemy_patrol_index: int | None = None,
     ):
         super().__init__()
 
@@ -69,13 +70,18 @@ class GatorEnv(gym.Env):
         )
 
         # Ensures that static enemy spawns and routes are not used for procedural maps since they change each reset
-        if self._procedural and (enemy_spawn is not None or enemy_patrol_route is not None):
+        if self._procedural and (
+            enemy_spawn is not None 
+            or enemy_patrol_route is not None
+            or enemy_patrol_index is not None
+            ):
             raise ValueError("Static enemy/patrol overrides are not supported on procedural maps.")
 
         # Enemy spawn/route overrides are kept so every reset rebuilds the enemy
         # the same way, including after a procedural map changes underneath it.
         self._enemy_spawn = enemy_spawn
         self._enemy_patrol_route = enemy_patrol_route
+        self._enemy_patrol_index = enemy_patrol_index
 
         self.agent_position = self.game_map.start
         self.agent_hp = self.environment_config.max_hp
@@ -301,6 +307,7 @@ class GatorEnv(gym.Env):
             self.game_map,
             position=self._enemy_spawn,
             patrol_route=self._enemy_patrol_route,
+            patrol_index=self._enemy_patrol_index,
             contact_damage=self.environment_config.enemy_contact_damage,
             can_step=self._can_step,
             # Keeping the enemy off the agent's start tile stops an episode
