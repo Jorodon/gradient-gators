@@ -1,13 +1,18 @@
 
 import pytest
+import numpy as np
 from unittest.mock import patch
 
 from src.configs.environment_config import MapConfig
+from src.configs.map_generation_config import MapGenerationConfig
 from src.environment.map import GameMap, HazardType
 from src.environment.map_generator import (
     MAX_GENERATION_ATTEMPTS,
+    AREA_BAND_PAIRS,
+    AREA_BOUNDS,
     generate_map,
     has_valid_route,
+    sample_map_dimensions,
 )
 
 
@@ -239,3 +244,73 @@ def test_generation_stops_after_max_attempts():
             generate_map(config, seed=123)
 
     assert route_check.call_count == MAX_GENERATION_ATTEMPTS
+
+
+def test_area_band_dimension_pairs():
+    # Verify that the three bands contain correct sizes
+
+    expected_counts = {
+        "small": 15,
+        "medium": 15,
+        "large": 6,
+    }
+
+    # Iterate over each band and its dim pairs
+    for band, pairs in AREA_BAND_PAIRS.items():
+        assert len(pairs) == expected_counts[band]
+
+        min_area, max_area = AREA_BOUNDS[band]
+
+        for width, height in pairs:
+            assert 5 <= width <= 10
+            assert 5 <= height <= 10
+            assert min_area <= width * height <= max_area
+
+def test_dimension_sampling_is_reproducible():
+    # Verifies the same seed must produce the same sequence of sizes
+
+    rng1 = np.random.default_rng(42)
+    rng2 = np.random.default_rng(42)
+
+    samps1 = [sample_map_dimensions(rng1) for _ in range(100)]
+    samps2 = [sample_map_dimensions(rng2) for _ in range(100)]
+
+    assert samps1 == samps2
+
+def test_dimension_sampling_balances_area_bands():
+    # Verifies approximate equal sampling among s, m, l
+
+    rng = np.random.default_rng(123)
+
+    counts = {band: 0 for band in AREA_BOUNDS}
+    observed_pairs = {band: set() for band in AREA_BOUNDS}
+
+    for _ in range(6000):
+        width, height, band = sample_map_dimensions(rng)
+
+        counts[band] += 1
+        observed_pairs[band].add((width, height))
+
+    for band, count in counts.items():
+        assert abs(count - 2000) < 180
+        assert observed_pairs[band] == set(AREA_BAND_PAIRS[band])
+
+# Runs the test three times (once per seed)
+@pytest.mark.parametrize("seed", [17, 42, 123])
+def test_stratified_generate_map(seed):
+    # Verify the generator uses sampled sizes reproducibly
+
+    config = MapConfig(max_elevation=0)
+    gen_config = MapGenerationConfig()
+
+    # Uses fresh seeded RNG to compute which dims should be selected
+    expected_width, expected_height, _ = sample_map_dimensions(np.random.default_rng(seed))
+
+    # Creates generated maps using new config
+    first = generate_map(config, seed = seed, generation_config = gen_config)
+    second = generate_map(config, seed = seed, generation_config = gen_config)
+
+    # Configrms that the map has the expected dims and that the two generated maps are reproduceable
+    assert (first.width, first.height) == (expected_width, expected_height)
+    assert map_signature(first) == map_signature(second)
+    assert has_valid_route(first)
