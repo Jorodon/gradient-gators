@@ -14,6 +14,7 @@ from src.environment.step_events import StepEvents
 from src.environment.observation_builder import build_observation
 from src.environment.map_generator import generate_map
 from src.environment.enemy import Enemy, create_enemy
+from src.environment.traversal import can_step_on_map
 
 DEFAULT_MAP_PATH = (Path(__file__).parent / "maps" / "mvp_map.json")
 
@@ -198,24 +199,9 @@ class GatorEnv(gym.Env):
 
     # return whether movement from source to target is allowed
     def _can_step(self, src: tuple[int, int], dst: tuple[int, int]) -> bool:
-        # Bound checking w/ helper function
-        if not self._in_bounds(dst):
-            return False
+        # Calls helper function that returns whether a step between provided positions are valid
+        return can_step_on_map(self.game_map, src, dst)
 
-        # Gets target and source tile data
-        target_tile = self.game_map.get_tile(dst[0], dst[1])
-        source_tile = self.game_map.get_tile(src[0], src[1])
-
-        if target_tile.obstacle:
-            return False
-
-        # Finds change in elevation (change < 0 means it's a valid move but is falling)
-        elevation_change = (target_tile.elevation - source_tile.elevation)
-        if elevation_change <= 0:
-            return True
-
-        # Any other movement is trying to move up elevation so we return if target tile is special traversal tile to allow upward traversal
-        return target_tile.special_traversal
 
     # returns fall damage taken from step
     def _calculate_fall_damage(self, src: tuple[int, int], dst: tuple[int, int]) -> float:
