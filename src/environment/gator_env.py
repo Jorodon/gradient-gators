@@ -14,6 +14,7 @@ from src.environment.step_events import StepEvents
 from src.environment.observation_builder import build_observation
 from src.environment.map_generator import generate_map
 from src.environment.enemy import Enemy, create_enemy
+from src.environment.traversal import can_step_on_map
 
 DEFAULT_MAP_PATH = (Path(__file__).parent / "maps" / "mvp_map.json")
 
@@ -28,7 +29,8 @@ class GatorEnv(gym.Env):
             map_config: MapConfig | None = None,
             reward_config: RewardConfig | None = None,
             enemy_spawn: tuple[int, int] | None = None,
-            enemy_patrol_route: list[tuple[int, int]] | None = None
+            enemy_patrol_route: list[tuple[int, int]] | None = None,
+            enemy_patrol_index: int | None = None,
     ):
         super().__init__()
 
@@ -68,13 +70,18 @@ class GatorEnv(gym.Env):
         )
 
         # Ensures that static enemy spawns and routes are not used for procedural maps since they change each reset
-        if self._procedural and (enemy_spawn is not None or enemy_patrol_route is not None):
+        if self._procedural and (
+            enemy_spawn is not None 
+            or enemy_patrol_route is not None
+            or enemy_patrol_index is not None
+            ):
             raise ValueError("Static enemy/patrol overrides are not supported on procedural maps.")
 
         # Enemy spawn/route overrides are kept so every reset rebuilds the enemy
         # the same way, including after a procedural map changes underneath it.
         self._enemy_spawn = enemy_spawn
         self._enemy_patrol_route = enemy_patrol_route
+        self._enemy_patrol_index = enemy_patrol_index
 
         self.agent_position = self.game_map.start
         self.agent_hp = self.environment_config.max_hp
@@ -198,24 +205,9 @@ class GatorEnv(gym.Env):
 
     # return whether movement from source to target is allowed
     def _can_step(self, src: tuple[int, int], dst: tuple[int, int]) -> bool:
-        # Bound checking w/ helper function
-        if not self._in_bounds(dst):
-            return False
+        # Calls helper function that returns whether a step between provided positions are valid
+        return can_step_on_map(self.game_map, src, dst)
 
-        # Gets target and source tile data
-        target_tile = self.game_map.get_tile(dst[0], dst[1])
-        source_tile = self.game_map.get_tile(src[0], src[1])
-
-        if target_tile.obstacle:
-            return False
-
-        # Finds change in elevation (change < 0 means it's a valid move but is falling)
-        elevation_change = (target_tile.elevation - source_tile.elevation)
-        if elevation_change <= 0:
-            return True
-
-        # Any other movement is trying to move up elevation so we return if target tile is special traversal tile to allow upward traversal
-        return target_tile.special_traversal
 
     # returns fall damage taken from step
     def _calculate_fall_damage(self, src: tuple[int, int], dst: tuple[int, int]) -> float:
@@ -315,6 +307,7 @@ class GatorEnv(gym.Env):
             self.game_map,
             position=self._enemy_spawn,
             patrol_route=self._enemy_patrol_route,
+            patrol_index=self._enemy_patrol_index,
             contact_damage=self.environment_config.enemy_contact_damage,
             can_step=self._can_step,
             # Keeping the enemy off the agent's start tile stops an episode

@@ -174,6 +174,7 @@ def create_enemy(
     *,
     position: Position | None = None,
     patrol_route: Sequence[Position] | None = None,
+    patrol_index: int | None = None,
     contact_damage: float = 0.0,
     can_step: CanStep | None = None,
     forbidden: Sequence[Position] = (),
@@ -196,10 +197,21 @@ def create_enemy(
         
         validate_patrol_route(route, game_map, can_step)
 
-    if position is None:
+    if patrol_index is not None:
+        if (type(patrol_index) is not int or not route or not (0 <= patrol_index < len(route))):
+            raise ValueError("Invalid patrol_index for patrol route")
+        
+        spawn = route[patrol_index]
+
+        if position is not None and tuple(position) != spawn:
+            raise ValueError("Position does not match patrol_index")
+
+    elif position is None:
         spawn = route[0] if route else default_spawn(game_map, forbidden=forbidden)
+
     else:
         spawn = tuple(position)
+
 
     validate_spawn(spawn, game_map, forbidden=forbidden)
 
@@ -208,9 +220,14 @@ def create_enemy(
             f"Enemy spawn {spawn} is not on its patrol route {route}."
         )
 
+    res_index = (patrol_index if patrol_index is not None 
+                 else route.index(spawn) if route
+                 else 0
+                 )
+
     return Enemy(
         position=spawn,
         patrol_route=route,
-        patrol_index=route.index(spawn) if route else 0,
+        patrol_index=res_index,
         contact_damage=float(contact_damage),
     )
