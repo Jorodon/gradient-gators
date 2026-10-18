@@ -60,7 +60,7 @@ def generate_enemy_spec(
             if result is not None:
                 return result
 
-            return None
+        return None
 
     # --- Route Generator Function Logic --- #
     if type(max_outward_steps) is not int or max_outward_steps < 2:
@@ -116,10 +116,10 @@ def generate_enemy_spec(
             validate_patrol_route(route, game_map, lambda src, dst: can_step_on_map(game_map, src, dst))
 
             # Randomizes the initial route starting position
-            initial_patrol_pos = int(rng.integers(0, len(route)))
+            initial_patrol_index = int(rng.integers(0, len(route)))
 
             # Returns EnemySpec object with valid route and enemy spawn
-            return EnemySpec(patrol_route=route, initial_index=initial_patrol_pos)
+            return EnemySpec(patrol_route=route, initial_patrol_index=initial_patrol_index)
 
     # If all candidates are exhausted, raise ValueError
     raise ValueError("Unable to generate a moving enemy patrol")

@@ -29,7 +29,7 @@ def can_step_on_map(game_map: GameMap, src: Position, dst: Position) -> bool:
         return False
     
     # Ensures that the destination is lower or target is special traversal
-    if dest_tile.elevation >= source_tile.elevation and not dest_tile.special_traversal:
+    if dest_tile.elevation > source_tile.elevation and not dest_tile.special_traversal:
         return False
 
     return True
