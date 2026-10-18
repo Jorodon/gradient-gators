@@ -12,11 +12,11 @@ DIRECTIONS = ((0, -1), (1, 0), (0, 1), (-1, 0))
 @dataclass(frozen = True)
 class EnemySpec:
     patrol_route: tuple[Position, ...]
-    init_patrol_index: int
+    initial_patrol_index: int
     
     @property
     def initial_position(self) -> Position:
-        return self.patrol_route[self.init_patrol_index]
+        return self.patrol_route[self.initial_patrol_index]
 
 # Generate a seeded patrol route that is also reverseable
 def generate_enemy_spec(
