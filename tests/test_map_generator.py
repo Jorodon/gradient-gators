@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from src.configs.environment_config import MapConfig
 from src.configs.map_generation_config import MapGenerationConfig
-from src.environment.map import GameMap, HazardType
+from src.environment.map import GameMap, HazardType, Tile
 from src.environment.map_generator import (
     MAX_GENERATION_ATTEMPTS,
     AREA_BAND_PAIRS,
@@ -91,6 +91,28 @@ def test_generated_start_and_goal_are_in_bounds_and_distinct():
     assert game_map.start != game_map.goal
 
 
+@pytest.mark.parametrize("seed", range(10))
+def test_generated_start_and_goal_remain_safe_across_seeds(seed):
+    """Verify repeated generation keeps start/goal valid as well as safe.
+
+    Args:
+        seed: Seed used to generate the procedural map.
+    """
+    config = MapConfig(width=8, height=8, hazard_density=0.5)
+    game_map = generate_map(config, seed=seed)
+
+    for position in (game_map.start, game_map.goal):
+        x, y = position
+        tile = game_map.get_tile(x, y)
+
+        assert 0 <= x < game_map.width
+        assert 0 <= y < game_map.height
+        assert not tile.obstacle
+        assert tile.hazard is None
+
+    assert game_map.start != game_map.goal
+
+
 def test_generated_map_has_valid_route():
     """The generated goal must be reachable from the start."""
     config = MapConfig(width=8, height=8)
@@ -99,12 +121,65 @@ def test_generated_map_has_valid_route():
     assert has_valid_route(game_map)
 
 
+def test_route_validation_allows_uphill_special_traversal():
+    """Verifies route may climb when destination allows traversal."""
+    game_map = GameMap(
+        width=2,
+        height=1,
+        tiles=[[
+            Tile(elevation=0),
+            Tile(elevation=1, special_traversal=True),
+        ]],
+        start=(0, 0),
+        goal=(1, 0),
+    )
+
+    assert has_valid_route(game_map)
+
+
+def test_route_validation_rejects_uphill_movement_without_traversal():
+    """Verifies uphill route is blocked w/o  special traversal."""
+    game_map = GameMap(
+        width=2,
+        height=1,
+        tiles=[[
+            Tile(elevation=0),
+            Tile(elevation=1),
+        ]],
+        start=(0, 0),
+        goal=(1, 0),
+    )
+
+    assert not has_valid_route(game_map)
+
+
 def test_same_seed_generates_same_map():
     config = MapConfig(width=5, height=4)
 
     first = generate_map(config, seed=123)
     second = generate_map(config, seed=123)
 
+    assert map_signature(first) == map_signature(second)
+
+
+def test_retry_after_invalid_candidate_is_deterministic():
+    """Verifies that rejected candidates don't make seeded retries nondeterministic."""
+    config = MapConfig(width=8, height=8)
+
+    with patch(
+        "src.environment.map_generator.has_valid_route",
+        side_effect=[False, True],
+    ) as first_check:
+        first = generate_map(config, seed=123)
+
+    with patch(
+        "src.environment.map_generator.has_valid_route",
+        side_effect=[False, True],
+    ) as second_check:
+        second = generate_map(config, seed=123)
+
+    assert first_check.call_count == 2
+    assert second_check.call_count == 2
     assert map_signature(first) == map_signature(second)
 
 
@@ -196,6 +271,23 @@ def test_hazards_do_not_overlap_obstacles_or_special_traversal():
                 assert not tile.obstacle
                 assert not tile.special_traversal
                 assert tile.hazard == HazardType.DAMAGE
+
+
+def test_positive_hazard_density_places_generated_hazards():
+    """Verifies positive density produces hazards (on eligible maps)."""
+    config = MapConfig(width=8, height=8, hazard_density=1.0)
+    game_map = generate_map(config, seed=123)
+
+    hazards = [
+        (x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.hazard is not None
+    ]
+
+    assert hazards
+    assert game_map.start not in hazards
+    assert game_map.goal not in hazards
 
 
 def test_zero_hazard_density_generates_no_hazards():
