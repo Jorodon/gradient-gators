@@ -379,10 +379,17 @@ class GatorEnv(gym.Env):
                     raise ValueError(f"Tile elevation {tile.elevation} is outside the supported range of 0-{self.map_config.max_elevation}")
 
     # Helper function for applying different damage types
-    def _apply_damage(self, amount: float, events: StepEvents) -> None:
-        if amount <= 0:
-            return
+    def _apply_damage(self, amount: float, events: StepEvents) -> float:
+        if amount <= 0 or self.agent_hp <= 0:
+            return 0.0
 
-        # Sets agent's hp and updates damage taken to damage_taken StepEvent
-        self.agent_hp = max(0.0, self.agent_hp - amount)
-        events.damage_taken += amount
+        # Saves previous hp before updating so that event damage can be tracked accurately
+        prev_hp = float(self.agent_hp)
+        self.agent_hp = max(0.0, prev_hp - float(amount))
+
+        # Finds actual damage taken (e.g. if amount is 5 but agent's hp is only 3, event_damage = 3)
+        event_damage = prev_hp - self.agent_hp
+
+        # Updates overall damage_taken and then returns event damage
+        events.damage_taken += event_damage
+        return event_damage
