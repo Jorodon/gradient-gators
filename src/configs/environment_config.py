@@ -4,6 +4,9 @@ from typing import Literal
 # Defines max width and height for PPO observation
 MAX_OBSERVATION_DIMENSION = 10
 
+# Weight for research ep horizon
+RESEARCH_STEPS_PER_TILE = 4
+
 @dataclass
 class EnvironmentConfig:
     # Fixed map max steps
@@ -29,11 +32,40 @@ class EnvironmentConfig:
     enemy_enabled: bool = False
     enemy_contact_damage: float = 10.0
 
-    # Finds the step limit based on width, height, and the steps_per_tile multiplier variable above
+    #Episode horizon behavior (legacy preserves existing max_steps and can be modified via config, research always uses 4 * actual map area)
+    episode_limit_mode: Literal["legacy", "research"] = "legacy"
+
+    # Finds the step limit based on width, height, and RESEARCH_STEPS_PER_TILE. Also validates
     def get_episode_step_limit(self, *, width: int, height: int, procedural: bool) -> int:
+        # Config and argument validations
+        if (
+            type(width) is not int
+            or type(height) is not int
+            or width <= 0
+            or height <= 0
+        ):
+            raise ValueError("Map dimensions must be positive ints")
+        if self.episode_limit_mode not in ("legacy", "research"):
+            raise ValueError("episode_limit_mode must be 'legacy' or 'research'")
+
+        area = width * height
+
+        # --- FIXED, PROCEDURAL, AND RESEARCH RETURNS --- #
+        # RESEARCH
+        if self.episode_limit_mode == "research":
+            return RESEARCH_STEPS_PER_TILE * area
+
+        # PROCEDURAL
         if procedural:
+            if type(self.steps_per_tile) is not int or self.steps_per_tile <= 0:
+                raise ValueError("steps_per_tile must be a positive int")
+            
             multi = self.steps_per_tile
-            return width * height * multi
+            return area * multi
+
+        # FIXED
+        if type(self.max_steps) is not int or self.max_steps <= 0:
+            raise ValueError("max_steps must be a positive int")
 
         return self.max_steps
 
