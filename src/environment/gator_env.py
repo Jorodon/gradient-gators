@@ -148,8 +148,7 @@ class GatorEnv(gym.Env):
                 self.agent_position = target_position
 
                 if fall_damage > 0:
-                    events.fall_damage = fall_damage
-                    self._apply_damage(fall_damage, events)
+                    events.fall_damage += self._apply_damage(fall_damage, events)
             else:
                 events.invalid_move = True
 
@@ -157,24 +156,24 @@ class GatorEnv(gym.Env):
         else:
             events.waited = True
 
-        # --- hazard interaction ---
+        # --- hazard interaction --- #
         hazard_damage = self._hazard_damage_at(self.agent_position)
         if self.game_map.get_tile(*self.agent_position).hazard is not None:
             events.hazard_contact = True
         if hazard_damage > 0:
-            self._apply_damage(hazard_damage, events)
+            events.hazard_damage += self._apply_damage(hazard_damage, events)
 
-        # --- enemy movement ---
+        # --- enemy movement --- #
         enemy_previous_position = self.enemy.position if self.enemy is not None else None
         self._move_enemy()
 
-        # --- enemy interaction / contact ---
+        # --- enemy interaction / contact --- #
         if self._enemy_contact(old_position, enemy_previous_position):
             contact_damage = self.enemy.contact_damage
             events.enemy_contact = True
-            self._apply_damage(contact_damage, events)
+            events.enemy_damage += self._apply_damage(contact_damage, events)
 
-        # --- event handling ---
+        # --- event handling --- #
         new_distance = self._distance_to_goal(self.agent_position)
         events.distance_change = old_distance - new_distance
 
