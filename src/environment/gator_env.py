@@ -270,7 +270,16 @@ class GatorEnv(gym.Env):
         info = {
             "agent_position": self.agent_position,
             "agent_hp": self.agent_hp,
-            "steps": self.steps
+            "steps": self.steps,
+
+            # Actual map geometry and ep horizon
+            "map_width": self.game_map.width,
+            "map_height": self.game_map.height,
+            "map_area": self.game_map.width * self.game_map.height,
+            "max_episode_steps": self.max_episode_steps,
+
+            # Shows the timestep policy used
+            "episode_limit_mode": self.environment_config.episode_limit_mode,
         }
 
         # Enemy state, so patrol progress can be queried without reaching
