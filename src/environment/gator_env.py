@@ -148,8 +148,7 @@ class GatorEnv(gym.Env):
                 self.agent_position = target_position
 
                 if fall_damage > 0:
-                    events.fall_damage = fall_damage
-                    self._apply_damage(fall_damage, events)
+                    events.fall_damage += self._apply_damage(fall_damage, events)
             else:
                 events.invalid_move = True
 
@@ -157,40 +156,45 @@ class GatorEnv(gym.Env):
         else:
             events.waited = True
 
-        # --- hazard interaction ---
+        # --- hazard interaction --- #
         hazard_damage = self._hazard_damage_at(self.agent_position)
         if self.game_map.get_tile(*self.agent_position).hazard is not None:
             events.hazard_contact = True
         if hazard_damage > 0:
-            self._apply_damage(hazard_damage, events)
+            events.hazard_damage += self._apply_damage(hazard_damage, events)
 
-        # --- enemy movement ---
+        # --- enemy movement --- #
         enemy_previous_position = self.enemy.position if self.enemy is not None else None
         self._move_enemy()
 
-        # --- enemy interaction / contact ---
+        # --- enemy interaction / contact --- #
         if self._enemy_contact(old_position, enemy_previous_position):
             contact_damage = self.enemy.contact_damage
             events.enemy_contact = True
-            self._apply_damage(contact_damage, events)
+            events.enemy_damage += self._apply_damage(contact_damage, events)
 
-        # --- event handling ---
+        # --- event handling --- #
         new_distance = self._distance_to_goal(self.agent_position)
         events.distance_change = old_distance - new_distance
 
-        if self.agent_position == self.game_map.goal:
-            events.reached_goal = True
+        # Check for death before goal check and modifies end_reason
+        if self.agent_hp <= 0:
+            end_reason = "death"
+        elif self.agent_position == self.game_map.goal:
+            end_reason = "goal"
+        else:
+            end_reason = None
+
+        # Sets events.reached_goal and terminated/truncated variables
+        events.reached_goal = (end_reason == "goal")
+        terminated = (end_reason in ("goal", "death"))
+        truncated = ((not terminated) and (self.steps >= self.max_episode_steps))
+
+        if truncated:
+            end_reason = "timestep_limit"
 
         # Calculates reward and determines if environment is terminated or truncated
         reward = calculate_sparse_reward(events, self.reward_config)
-        terminated = events.reached_goal or self.agent_hp <= 0
-        truncated = self.steps >= self.max_episode_steps and not terminated
-
-        # Sets specific end_reason
-        end_reason = None
-        if events.reached_goal: end_reason = "goal"
-        elif self.agent_hp <= 0: end_reason = "death"
-        elif truncated: end_reason = "timestep_limit"
 
         observation = self._get_obs()
         info = self._get_info(events=events, end_reason=end_reason)
@@ -369,10 +373,17 @@ class GatorEnv(gym.Env):
                     raise ValueError(f"Tile elevation {tile.elevation} is outside the supported range of 0-{self.map_config.max_elevation}")
 
     # Helper function for applying different damage types
-    def _apply_damage(self, amount: float, events: StepEvents) -> None:
-        if amount <= 0:
-            return
+    def _apply_damage(self, amount: float, events: StepEvents) -> float:
+        if amount <= 0 or self.agent_hp <= 0:
+            return 0.0
 
-        # Sets agent's hp and updates damage taken to damage_taken StepEvent
-        self.agent_hp = max(0.0, self.agent_hp - amount)
-        events.damage_taken += amount
+        # Saves previous hp before updating so that event damage can be tracked accurately
+        prev_hp = float(self.agent_hp)
+        self.agent_hp = max(0.0, prev_hp - float(amount))
+
+        # Finds actual damage taken (e.g. if amount is 5 but agent's hp is only 3, event_damage = 3)
+        event_damage = prev_hp - self.agent_hp
+
+        # Updates overall damage_taken and then returns event damage
+        events.damage_taken += event_damage
+        return event_damage
