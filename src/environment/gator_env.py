@@ -177,13 +177,24 @@ class GatorEnv(gym.Env):
         new_distance = self._distance_to_goal(self.agent_position)
         events.distance_change = old_distance - new_distance
 
-        if self.agent_position == self.game_map.goal:
-            events.reached_goal = True
+        # Check for death before goal check and modifies end_reason
+        if self.agent_hp <= 0:
+            end_reason = "death"
+        elif self.agent_position == self.game_map.goal:
+            end_reason = "goal"
+        else:
+            end_reason = None
+
+        # Sets events.reached_goal and terminated/truncated variables
+        events.reached_goal = (end_reason == "goal")
+        terminated = (end_reason in ("goal", "death"))
+        truncated = ((not terminated) and (self.steps >= self.max_episode_steps))
+
+        if truncated:
+            end_reason = "timestep_limit"
 
         # Calculates reward and determines if environment is terminated or truncated
         reward = calculate_sparse_reward(events, self.reward_config)
-        terminated = events.reached_goal or self.agent_hp <= 0
-        truncated = self.steps >= self.max_episode_steps and not terminated
 
         # Sets specific end_reason
         end_reason = None
