@@ -13,9 +13,9 @@ from src.environment.sparse_reward import calculate_sparse_reward
 from src.environment.step_events import StepEvents
 from src.environment.observation_builder import build_observation
 from src.environment.map_generator import generate_map
-from src.environment.enemy import Enemy, create_enemy
+from src.environment.enemy import Enemy, create_enemy, advance_enemy
 from src.environment.traversal import can_step_on_map
-from src.environment.transition_rules import *
+from src.environment.transition_rules import fall_damage_on_map, hazard_damage_at, enemy_contact, apply_damage_to_hp, classify_outcome
 
 DEFAULT_MAP_PATH = (Path(__file__).parent / "maps" / "mvp_map.json")
 
@@ -306,27 +306,10 @@ class GatorEnv(gym.Env):
         )
 
     def _move_enemy(self) -> None:
-        """Advance the enemy one waypoint along its patrol route.
-
-        Deterministic: no RNG, so the same route always produces the same
-        sequence of positions. If the next waypoint is not reachable the enemy
-        holds position and keeps its index, so it retries the same step next
-        timestep rather than silently skipping part of its route. Routes are
-        validated at spawn, so this should only happen if the map changes
-        underneath the enemy.
-        """
-        if self.enemy is None or self.enemy.is_stationary:
-            return
-
-        target = self.enemy.next_waypoint()
-        if target == self.enemy.position or self._can_step(self.enemy.position, target):
-            self.enemy.advance_to_next_waypoint()
+        advance_enemy(self.enemy, self._can_step)
 
     # Returns whether agent and enemy contact occured
-    def _enemy_contact(
-            self,
-            agent_previous_position: tuple[int, int],
-            enemy_previous_position: tuple[int, int] | None) -> bool:
+    def _enemy_contact(self, agent_previous_position: tuple[int, int], enemy_previous_position: tuple[int, int] | None) -> bool:
         enemy_pos = self.enemy.position if self.enemy is not None else None
         return enemy_contact(agent_previous_position, self.agent_position, enemy_previous_position, enemy_pos)
 
@@ -344,16 +327,8 @@ class GatorEnv(gym.Env):
 
     # Helper function for applying different damage types
     def _apply_damage(self, amount: float, events: StepEvents) -> float:
-        if amount <= 0 or self.agent_hp <= 0:
-            return 0.0
-
-        # Saves previous hp before updating so that event damage can be tracked accurately
-        prev_hp = float(self.agent_hp)
-        self.agent_hp = max(0.0, prev_hp - float(amount))
-
-        # Finds actual damage taken (e.g. if amount is 5 but agent's hp is only 3, event_damage = 3)
-        event_damage = prev_hp - self.agent_hp
+        self.agent_hp, actual_damage = apply_damage_to_hp(self.agent_hp, amount)
 
         # Updates overall damage_taken and then returns event damage
-        events.damage_taken += event_damage
-        return event_damage
+        events.damage_taken += actual_damage
+        return actual_damage

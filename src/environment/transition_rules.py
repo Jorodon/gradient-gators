@@ -1,7 +1,6 @@
 from src.configs.environment_config import EnvironmentConfig
 from src.environment.map import GameMap, HazardType
-
-Position = tuple[int, int]
+from src.environment.enemy import Position
 
 # --- FUNCTIONS FOR SHARED ENVIRONMENT TRANSITIONS --- #
 
@@ -32,6 +31,7 @@ def enemy_contact(agent_previous: Position, agent_current: Position, enemy_previ
     if enemy_current == agent_current:
         return True
 
+    # If crossed over each other
     return (enemy_previous == agent_current and enemy_current == agent_previous)
 
 # Function that determines result of simulator
@@ -47,3 +47,13 @@ def classify_outcome(agent_position: Position, goal: Position, hp: float, steps:
         return "timestep_limit"
 
     return None
+
+# Returns updated HP and actual damage taken
+def apply_damage_to_hp(hp: float, amount: float,) -> tuple[float, float]:
+    if amount <= 0 or hp <= 0:
+        return hp, 0.0
+
+    new_hp = max(0.0, float(hp) - float(amount))
+    actual_damage = float(hp) - new_hp
+
+    return new_hp, actual_damage

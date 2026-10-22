@@ -65,6 +65,19 @@ class Enemy:
         self.patrol_index = self.next_patrol_index()
         self.position = self.patrol_route[self.patrol_index]
 
+# Helper function to advance one legal patrol step
+def advance_enemy(enemy: Enemy | None, can_step: CanStep) -> None:
+    if enemy is None or enemy.is_stationary:
+        return
+
+    target = enemy.next_waypoint()
+
+    if target is None:
+        return
+
+    if target == enemy.position or can_step(enemy.position, target):
+        enemy.advance_to_next_waypoint()
+
 
 def in_bounds(position: Position, game_map: GameMap) -> bool:
     """Whether a position lies inside the map."""
