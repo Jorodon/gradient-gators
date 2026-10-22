@@ -2,11 +2,12 @@
 """Seeded procedural map-generation framework."""
 
 from collections import deque
-from dataclasses import replace
+from dataclasses import replace, dataclass
+from math import floor, isfinite
 
 import numpy as np
 
-from src.configs.environment_config import MapConfig
+from src.configs.environment_config import MapConfig, MAX_OBSERVATION_DIMENSION
 from src.configs.map_generation_config import MapGenerationConfig
 from src.environment.map import GameMap, HazardType, Tile
 from src.environment.traversal import can_step_on_map
@@ -263,3 +264,28 @@ def has_valid_route(game_map: GameMap) -> bool:
             queue.append(neighbor)
 
     return False
+
+
+# --- Research map candidate generation for structurally valid candidates --- #
+
+# DATACLASSES
+# Patches
+@dataclass(frozen=True)
+class RectanglePatch:
+    x: int
+    y: int
+    width: int
+    height: int
+    elevation: int
+
+# Candidate
+@dataclass(frozen=False)
+class ResearchMapCandidate:
+    game_map: GameMap
+    patches: tuple[RectanglePatch, ...]
+    sampled_densities: dict[str, float]
+    feature_counts: dict[str, int]
+
+# Functions
+# Validate settings
+# Generate candidate
