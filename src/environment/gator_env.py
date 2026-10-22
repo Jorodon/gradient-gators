@@ -15,6 +15,7 @@ from src.environment.observation_builder import build_observation
 from src.environment.map_generator import generate_map
 from src.environment.enemy import Enemy, create_enemy
 from src.environment.traversal import can_step_on_map
+from src.environment.transition_rules import *
 
 DEFAULT_MAP_PATH = (Path(__file__).parent / "maps" / "mvp_map.json")
 
@@ -178,12 +179,13 @@ class GatorEnv(gym.Env):
         events.distance_change = old_distance - new_distance
 
         # Check for death before goal check and modifies end_reason
-        if self.agent_hp <= 0:
-            end_reason = "death"
-        elif self.agent_position == self.game_map.goal:
-            end_reason = "goal"
-        else:
-            end_reason = None
+        end_reason = classify_outcome(
+            self.agent_position,
+            self.game_map.goal,
+            self.agent_hp,
+            self.steps,
+            self.max_episode_steps
+        )
 
         # Sets events.reached_goal and terminated/truncated variables
         events.reached_goal = (end_reason == "goal")
@@ -215,36 +217,11 @@ class GatorEnv(gym.Env):
 
     # returns fall damage taken from step
     def _calculate_fall_damage(self, src: tuple[int, int], dst: tuple[int, int]) -> float:
-        src_elevation = self.game_map.get_tile(src[0], src[1]).elevation
-        dst_elevation = self.game_map.get_tile(dst[0], dst[1]).elevation
+        return fall_damage_on_map(self.game_map, self.environment_config, src, dst)
 
-        drop = src_elevation - dst_elevation
-
-        if drop <= 0:
-            return 0.0
-
-        # Finds value of unsafe_drop before multiplying fall damage weight and returning
-        unsafe_drop = max(0, drop - self.environment_config.safe_fall_height)
-        return self.environment_config.fall_damage_scale * unsafe_drop
-
-    # returns hazard damage for standing on this tile this timestep
+    # returns hazard damage for specified tile
     def _hazard_damage_at(self, pos: tuple[int, int]) -> float:
-        """Damage for occupying `pos` at the end of the movement phase.
-
-        Charged per timestep, not per entry, so an agent that stays on a hazard
-        keeps taking damage - including when it stayed because its move was
-        rejected. Only "damage" hazards cost HP; other hazard types still
-        register contact but are left to whoever implements them.
-
-        Independent of the reward: this returns HP, and the reward layer reads
-        the resulting StepEvents rather than this value.
-        """
-        tile = self.game_map.get_tile(pos[0], pos[1])
-
-        if tile.hazard != HazardType.DAMAGE:
-            return 0.0
-
-        return self.environment_config.hazard_damage
+        return hazard_damage_at(self.game_map, self.environment_config, pos)
 
     # Determines if a tile position is within map bounds
     def _in_bounds(self, pos: tuple[int, int]) -> bool:
@@ -345,29 +322,13 @@ class GatorEnv(gym.Env):
         if target == self.enemy.position or self._can_step(self.enemy.position, target):
             self.enemy.advance_to_next_waypoint()
 
+    # Returns whether agent and enemy contact occured
     def _enemy_contact(
             self,
             agent_previous_position: tuple[int, int],
             enemy_previous_position: tuple[int, int] | None) -> bool:
-        """Whether the agent and enemy met during this timestep.
-
-        Two ways that happens. They end the step on the same tile, which is the
-        obvious one. Or they swapped tiles - the agent moved A to B while the
-        enemy moved B to A - in which case they passed through each other and
-        never share a tile, so a same-tile check alone would miss it and an
-        enemy in a one-wide corridor would be harmless half the time.
-        """
-        if self.enemy is None:
-            return False
-
-        if self.enemy.position == self.agent_position:
-            return True
-
-        swapped = (
-            enemy_previous_position == self.agent_position
-            and self.enemy.position == agent_previous_position
-        )
-        return swapped
+        enemy_pos = self.enemy.position if self.enemy is not None else None
+        return enemy_contact(agent_previous_position, self.agent_position, enemy_previous_position, enemy_pos)
 
     def _validate_map(self) -> None:
         # Ensures map size is within padded observation max dimensions
