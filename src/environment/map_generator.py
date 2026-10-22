@@ -286,6 +286,86 @@ class ResearchMapCandidate:
     sampled_densities: dict[str, float]
     feature_counts: dict[str, int]
 
-# Functions
+# FUNCTIONS
 # Validate settings
+def validate_research_settings(
+        map_config: MapConfig,
+        settings: MapGenerationConfig,
+        width: int,
+        height: int,
+) -> None:
+    # --- Map and config validations --- #
+    # Width and height validation
+    if(
+        type(width) is not int
+        or type(height) is not int
+        or not 5 <= width <= MAX_OBSERVATION_DIMENSION
+        or not 5 <= height <= MAX_OBSERVATION_DIMENSION
+    ):
+        raise ValueError("Research map dims must be ints from 5 to 10")
+
+    # Max elevation validation
+    if (type(map_config.max_elevation) is not int or map_config.max_elevation < 0):
+        raise ValueError("max_elevation must be positive int")
+
+    # Generation config validation
+    # Loops through each attribute in MapGenerationConfig and sets value
+    for name in (
+        "patch_count",
+        "patch_min_size",
+        "patch_max_size",
+        "generated_max_elevation",
+    ):
+        value = getattr(settings, name)
+
+        if type(value) is not int or value < 0:
+            raise ValueError(f"{name} must be positive int")
+
+        if name == "patch_min_size":
+            if value < 1:
+                raise ValueError("patch_min_size must be at least 1")
+
+        elif name == "patch_max_size":
+            if value < settings.patch_min_size:
+                raise ValueError("patch_max_size must be >= patch_min_size")
+
+        elif name == "patch_count":
+            if value > 0 and settings.patch_min_size > min(width, height):
+                raise ValueError("Min patch size exceeds map dimensions")
+
+    # Manhattan distance seperation fraction validation
+    fraction = settings.min_start_goal
+    if (
+        not isinstance(fraction, (int, float))
+        or not isfinite(fraction)
+        or not 0.0 <= fraction <= 1.0
+    ):
+        raise ValueError("Invalid min_start_goal fraction")
+
+    # Tile density validations
+    density_fields = (
+        "obstacle_densitiy_range",
+        "hazard_density_range",
+        "traversal_density_range"
+    )
+
+    for name in density_fields:
+        bounds = getattr(settings, name)
+
+        if not isinstance(bounds, tuple) or len(bounds) != 2:
+            raise ValueError(f"{name} must be a tuple containing two values")
+
+        low, high = bounds
+
+        if any(
+            not isinstance(value, (int, float))
+            or not isfinite(value)
+            for value in (low, high)
+        ):
+            raise ValueError(f"Invalid {name} bound type")
+
+        if not 0.0 <= low <= high <= 1.0:
+            raise ValueError(f"Invalid {name} bounds of [{low}, {high}]. Bounds must be floats between 0 and 1")
+
+
 # Generate candidate
