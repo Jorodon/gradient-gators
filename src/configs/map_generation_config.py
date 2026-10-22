@@ -13,7 +13,7 @@ class MapGenerationConfig:
 
     # Density ranges
     obstacle_density_range: tuple[float, float] = (0.05, 0.15)
-    hazard_desnity_range: tuple[float, float] = (0.05, 0.10)
+    hazard_density_range: tuple[float, float] = (0.05, 0.10)
     traversal_density_range: tuple[float, float] = (0.05, 0.10)
 
     # Min start to goal relative to max possible manhattan dist

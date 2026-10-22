@@ -344,7 +344,7 @@ def validate_research_settings(
 
     # Tile density validations
     density_fields = (
-        "obstacle_densitiy_range",
+        "obstacle_density_range",
         "hazard_density_range",
         "traversal_density_range"
     )
@@ -453,7 +453,7 @@ def generate_research_candidate(
     # --- Sample feature densities and tile counts --- #
     density_ranges = {
         "obstacle": settings.obstacle_density_range,
-        "hazard": settings.hazard_desnity_range,
+        "hazard": settings.hazard_density_range,
         "special_traversal": settings.traversal_density_range
     }
 

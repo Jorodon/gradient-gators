@@ -173,7 +173,7 @@ def test_features_have_exact_counts_and_no_overlaps():
 # Ensures that the start and goal are far enough away and verifies that start and goal do not have other feature tiles
 def test_start_goal_are_safe_and_sufficiently_separated():
     settings = MapGenerationConfig(
-        min_start_goal_fraction=0.40
+        min_start_goal=0.40
     )
 
     for seed in range(20):
@@ -200,8 +200,8 @@ def test_start_goal_are_safe_and_sufficiently_separated():
 
 # Ensures that impossible configs are rejected
 def test_impossible_separation_is_rejected():
-    # min_start_goal_fraction == 1 means that the distance between start and goal have to be > than the max distance, which is impossible
-    settings = MapGenerationConfig(min_start_goal_fraction=1.0)
+    # min_start_goal == 1 means that the distance between start and goal have to be > than the max distance, which is impossible
+    settings = MapGenerationConfig(min_start_goal=1.0)
 
     with pytest.raises(ValueError, match="No start/goal pair"):
         build_candidate(settings=settings)
@@ -230,7 +230,7 @@ def test_oversubscribed_feature_counts_are_rejected():
 )
 # Ensures that invalid dimensions are rejected
 def test_invalid_research_dimensions_are_rejected(width, height):
-    with pytest.raises(ValueError, match="Research map dimensions"):
+    with pytest.raises(ValueError, match="Research map dims"):
         build_candidate(width=width, height=height)
 
 
