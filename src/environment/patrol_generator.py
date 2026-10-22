@@ -9,6 +9,11 @@ from src.environment.traversal import can_step_on_map
 # Defines the 4 movement directions
 DIRECTIONS = ((0, -1), (1, 0), (0, 1), (-1, 0))
 
+# Raised when a valid moving patrol can't be constructed
+# This will be used for ensuring proper except logic handling
+class PatrolGenerationError(ValueError):
+    pass
+
 @dataclass(frozen = True)
 class EnemySpec:
     patrol_route: tuple[Position, ...]
@@ -79,7 +84,7 @@ def generate_enemy_spec(
 
     # Rejects a map that cannot provide three distinct, eligible positions and then converts positions into a set for fast checks
     if len(allowed) < 3:
-        raise ValueError("Map has fewer than 3 eligible patrol tiles")
+        raise PatrolGenerationError("Map has fewer than 3 eligible patrol tiles")
 
     allowed_set = set(allowed)
 
@@ -122,7 +127,7 @@ def generate_enemy_spec(
             return EnemySpec(patrol_route=route, initial_patrol_index=initial_patrol_index)
 
     # If all candidates are exhausted, raise ValueError
-    raise ValueError("Unable to generate a moving enemy patrol")
+    raise PatrolGenerationError("Unable to generate a moving enemy patrol")
 
 
         

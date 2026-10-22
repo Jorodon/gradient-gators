@@ -18,3 +18,13 @@ class MapGenerationConfig:
 
     # Min start to goal relative to max possible manhattan dist
     min_start_goal: float = 0.40
+
+    # --- Enemy settings --- #
+    enemy_required: bool = True
+
+    # Limits for seeded patrols
+    patrol_max_outward_steps: int = 4
+    patrol_max_spawn_attempts: int = 32
+
+    # Max number of map + patrol comps that are attempted before giving up
+    world_max_attempts: int = 20
