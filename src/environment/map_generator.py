@@ -2,11 +2,12 @@
 """Seeded procedural map-generation framework."""
 
 from collections import deque
-from dataclasses import replace
+from dataclasses import replace, dataclass
+from math import floor, isfinite
 
 import numpy as np
 
-from src.configs.environment_config import MapConfig
+from src.configs.environment_config import MapConfig, MAX_OBSERVATION_DIMENSION
 from src.configs.map_generation_config import MapGenerationConfig
 from src.environment.map import GameMap, HazardType, Tile
 from src.environment.traversal import can_step_on_map
@@ -263,3 +264,251 @@ def has_valid_route(game_map: GameMap) -> bool:
             queue.append(neighbor)
 
     return False
+
+
+# --- Research map candidate generation for structurally valid candidates --- #
+
+# DATACLASSES
+# Patches
+@dataclass(frozen=True)
+class RectanglePatch:
+    x: int
+    y: int
+    width: int
+    height: int
+    elevation: int
+
+# Candidate
+@dataclass(frozen=False)
+class ResearchMapCandidate:
+    game_map: GameMap
+    patches: tuple[RectanglePatch, ...]
+    sampled_densities: dict[str, float]
+    feature_counts: dict[str, int]
+
+# FUNCTIONS
+# Validate settings
+def validate_research_settings(
+        map_config: MapConfig,
+        settings: MapGenerationConfig,
+        width: int,
+        height: int,
+) -> None:
+    # --- Map and config validations --- #
+    # Width and height validation
+    if(
+        type(width) is not int
+        or type(height) is not int
+        or not 5 <= width <= MAX_OBSERVATION_DIMENSION
+        or not 5 <= height <= MAX_OBSERVATION_DIMENSION
+    ):
+        raise ValueError("Research map dims must be ints from 5 to 10")
+
+    # Max elevation validation
+    if (type(map_config.max_elevation) is not int or map_config.max_elevation < 0):
+        raise ValueError("max_elevation must be positive int")
+
+    # Generation config validation
+    # Loops through each attribute in MapGenerationConfig and sets value
+    for name in (
+        "patch_count",
+        "patch_min_size",
+        "patch_max_size",
+        "generated_max_elevation",
+    ):
+        value = getattr(settings, name)
+
+        if type(value) is not int or value < 0:
+            raise ValueError(f"{name} must be positive int")
+
+        if name == "patch_min_size":
+            if value < 1:
+                raise ValueError("patch_min_size must be at least 1")
+
+        elif name == "patch_max_size":
+            if value < settings.patch_min_size:
+                raise ValueError("patch_max_size must be >= patch_min_size")
+
+        elif name == "patch_count":
+            if value > 0 and settings.patch_min_size > min(width, height):
+                raise ValueError("Min patch size exceeds map dimensions")
+
+    # Manhattan distance seperation fraction validation
+    fraction = settings.min_start_goal
+    if (
+        not isinstance(fraction, (int, float))
+        or not isfinite(fraction)
+        or not 0.0 <= fraction <= 1.0
+    ):
+        raise ValueError("Invalid min_start_goal fraction")
+
+    # Tile density validations
+    density_fields = (
+        "obstacle_density_range",
+        "hazard_density_range",
+        "traversal_density_range"
+    )
+
+    for name in density_fields:
+        bounds = getattr(settings, name)
+
+        if not isinstance(bounds, tuple) or len(bounds) != 2:
+            raise ValueError(f"{name} must be a tuple containing two values")
+
+        low, high = bounds
+
+        if any(
+            not isinstance(value, (int, float))
+            or not isfinite(value)
+            for value in (low, high)
+        ):
+            raise ValueError(f"Invalid {name} bound type")
+
+        if not 0.0 <= low <= high <= 1.0:
+            raise ValueError(f"Invalid {name} bounds of [{low}, {high}]. Bounds must be floats between 0 and 1")
+
+# Converts target density into exact tile count
+def sample_exact_count(density: float, eligible_count: int) -> int:
+    return floor(density * eligible_count + 0.5)
+
+# Builds one deterministic map candidate. Caller owns RNG and selects dims before calling
+def generate_research_candidate(
+        map_config: MapConfig,
+        settings: MapGenerationConfig,
+        rng: np.random.Generator,
+        *,
+        width: int,
+        height: int,
+) -> ResearchMapCandidate:
+    # Validates settings using above helper function
+    validate_research_settings(map_config, settings, width, height)
+
+    tiles = [[Tile() for _ in range(width)] for _ in range(height)]
+
+    # --- Rectangular elevation patches --- #
+    patches = []
+    max_height = min(settings.generated_max_elevation, map_config.max_elevation)
+
+    if max_height > 0:
+        for _ in range(settings.patch_count):
+            # Creates patch size
+            patch_width = int(rng.integers(
+                settings.patch_min_size,
+                min(settings.patch_max_size, width) + 1
+                ))
+            patch_height = int(rng.integers(
+                settings.patch_min_size,
+                min(settings.patch_max_size, height) + 1
+                ))
+
+            # Selects top left corner tile for patch
+            x0 = int(rng.integers(0, width - patch_width + 1))
+            y0 = int(rng.integers(0, height - patch_height + 1))
+            elevation = int(rng.integers(1, max_height + 1))
+
+            # Creates rectangle patch object and appends it to patches
+            patch = RectanglePatch(
+                x=x0,
+                y=y0,
+                width=patch_width,
+                height=patch_height,
+                elevation=elevation
+            )
+            patches.append(patch)
+
+            # Retain the highest elevation
+            for y in range(y0, y0 + patch_height):
+                for x in range(x0, x0 + patch_width):
+                    tiles[y][x].elevation = max(tiles[y][x].elevation, elevation)
+
+    # --- Start and goal selection with manhattan seperation --- #
+    # All available tiles
+    positions = [
+        (x,y)
+        for y in range(height)
+        for x in range(width)
+    ]
+
+    max_distance = (width - 1) + (height - 1)
+    min_distance = (settings.min_start_goal * max_distance)
+
+    # Creates valid pairs by adding two tile positions after ensuring manhattan distance between two points > min_distance
+    valid_pairs = [
+        (start, goal)
+        for start in positions
+        for goal in positions
+        if (
+            start != goal
+            and (abs(start[0] - goal[0]) + abs(start[1] - goal[1])) > min_distance
+        )
+    ]
+
+    if not valid_pairs:
+        raise ValueError(f"No start/goal pair satisfied min_distance of {min_distance}")
+
+    # Selects an index of a valid pair using rng generator
+    pair_index = int(rng.integers(0, len(valid_pairs)))
+    start, goal = valid_pairs[pair_index]
+
+    # --- Sample feature densities and tile counts --- #
+    density_ranges = {
+        "obstacle": settings.obstacle_density_range,
+        "hazard": settings.hazard_density_range,
+        "special_traversal": settings.traversal_density_range
+    }
+
+    # For each tile feature, uses rng to pick density fraction
+    sampled_densities = {
+        name: float(rng.uniform(low, high)) for name, (low, high) in density_ranges.items()
+    }
+
+    # Ensures obstacles, hazards, and special traversal not craeted on spawn or goal
+    valid_tiles = [
+        position for position in positions
+        if position not in (start, goal)
+    ]
+
+    valid_count = len(valid_tiles)
+
+    # Calls helper function to create dict of feature name and # of tiles
+    feature_counts = {
+        name: sample_exact_count(density, valid_count)
+        for name, density in sampled_densities.items()
+    }
+
+    if sum(feature_counts.values()) > valid_count:
+        raise ValueError("Requested feature counts exceed eligible cells")
+
+    # --- Place features --- #
+    indices = rng.permutation(valid_count)
+    shuffled_indices = [valid_tiles[int(i)] for i in indices]
+
+    ptr = 0
+
+    # Loop through each feature to select count # of shuffled indices, then sets tile data based on current feature
+    for name in ("obstacle", "hazard", "special_traversal"):
+        count = feature_counts[name]
+        selected = shuffled_indices[ptr:ptr + count]
+        ptr += count
+
+        for x, y in selected:
+            tile = tiles[y][x]
+
+            if name == "obstacle":
+                tile.obstacle = True
+            elif name == "hazard":
+                tile.hazard = HazardType.DAMAGE
+            else:
+                tile.special_traversal = True
+
+    # Creates game_map object
+    game_map = GameMap(
+        width=width,
+        height=height,
+        tiles=tiles,
+        start=start,
+        goal=goal
+    )
+
+    # Returns research map candidate object
+    return ResearchMapCandidate(game_map=game_map, patches=tuple(patches), sampled_densities=sampled_densities, feature_counts=feature_counts)
