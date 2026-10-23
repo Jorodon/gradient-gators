@@ -1,4 +1,7 @@
+from collections.abc import Iterable
+
 from src.environment.map import GameMap
+from src.environment.action_space import Action, ACTION_DELTAS
 
 Position = tuple[int, int]
 
@@ -33,3 +36,17 @@ def can_step_on_map(game_map: GameMap, src: Position, dst: Position) -> bool:
         return False
 
     return True
+
+def legal_moves(game_map: GameMap, pos: Position) -> Iterable[tuple[Action, Position]]:
+    x, y = pos
+
+    # For each action and direction, update destination
+    for action, (dx, dy) in ACTION_DELTAS.items():
+        if action == Action.WAIT:
+            continue
+
+        dst = (x + dx, y + dy)
+
+        # If can step from pos to dst, pauses function and returns value
+        if can_step_on_map(game_map, pos, dst):
+            yield action, dst
