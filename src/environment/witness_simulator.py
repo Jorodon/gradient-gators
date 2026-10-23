@@ -41,6 +41,8 @@ def simulate_actions(game_map: GameMap, enemy_spec: EnemySpec | None, config: En
 
     if config.enemy_enabled != (enemy_spec is not None):
         raise ValueError("Enemy configuration and EnemySpec disagree")
+
+    enemy: Enemy | None = None
     
     if enemy_spec  is not None:
         route = enemy_spec.patrol_route
@@ -49,8 +51,9 @@ def simulate_actions(game_map: GameMap, enemy_spec: EnemySpec | None, config: En
         # Reverifies proper patrol settings
         if (
             not route
-            or not 0 <= enemy_index < len(route)
+            or not 0 <= phase < len(route)
             or len(set(route)) < 3
+            or type(phase) is not int
         ):
             raise ValueError("Invalid patrol route")
 

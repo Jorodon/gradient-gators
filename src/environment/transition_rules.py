@@ -10,6 +10,10 @@ def fall_damage_on_map(game_map: GameMap, config: EnvironmentConfig, src: Positi
     target_height = game_map.get_tile(*dst).elevation
 
     drop = source_height - target_height
+
+    if drop <= 0:
+        return 0.0
+
     unsafe_drop = max(0, drop - config.safe_fall_height)
 
     return config.fall_damage_scale * unsafe_drop

@@ -190,10 +190,7 @@ class GatorEnv(gym.Env):
         # Sets events.reached_goal and terminated/truncated variables
         events.reached_goal = (end_reason == "goal")
         terminated = (end_reason in ("goal", "death"))
-        truncated = ((not terminated) and (self.steps >= self.max_episode_steps))
-
-        if truncated:
-            end_reason = "timestep_limit"
+        truncated = (end_reason == "timestep_limit")
 
         # Calculates reward and determines if environment is terminated or truncated
         reward = calculate_sparse_reward(events, self.reward_config)
