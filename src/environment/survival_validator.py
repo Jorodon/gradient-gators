@@ -10,7 +10,6 @@ from src.configs.map_generation_config import MapGenerationConfig
 from src.environment.action_space import Action
 from src.environment.enemy import Position
 from src.environment.map import GameMap
-from src.environment.map_generator import find_shortest_route
 from src.environment.patrol_generator import EnemySpec
 from src.environment.research_world_generator import ResearchWorldCandidate, generate_research_world_candidate
 from src.environment.transition_rules import fall_damage_on_map, hazard_damage_at
@@ -181,7 +180,7 @@ def action_variants(path: tuple[Action, ...], max_wait_variants: int) -> tuple[t
     # Wait variations
     proposed = (
         ("wait_start", (Action.WAIT,) + path), # WAIT -> path
-        ("wait_middle", path[:len(path) // 2] + (Action.WAIT,) + path[len(path) // 2:]) # Half path -> WAIT -> Rest path
+        ("wait_middle", path[:len(path) // 2] + (Action.WAIT,) + path[len(path) // 2:]), # Half path -> WAIT -> Rest path
         ("wait_before_goal",path[:-1] + (Action.WAIT,) + path[-1:]), # path -> WAIT -> goal
         ("wait_twice_start", (Action.WAIT, Action.WAIT) + path), # WAIT -> WAIT -> path
     )

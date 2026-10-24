@@ -9,10 +9,6 @@ import numpy as np
 from src.configs.environment_config import MapConfig, MAX_OBSERVATION_DIMENSION
 from src.configs.map_generation_config import MapGenerationConfig
 from src.environment.map import GameMap, HazardType, Tile
-from src.environment.traversal import can_step_on_map
-from src.environment.action_space import Action
-from src.environment.traversal import legal_moves
-from src.environment.survival_validator import find_shortest_route, find_damage_aware_route
 
 
 MAX_GENERATION_ATTEMPTS = 20
@@ -218,6 +214,8 @@ def generate_map(config: MapConfig, seed: int | None = None, *, generation_confi
 
 # If has_valid_route returned a tuple, True; else false
 def has_valid_route(game_map: GameMap) -> bool:
+    from src.environment.survival_validator import find_shortest_route
+    
     return find_shortest_route(game_map) is not None
 
 
