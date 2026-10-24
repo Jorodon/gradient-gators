@@ -26,5 +26,8 @@ class MapGenerationConfig:
     patrol_max_outward_steps: int = 4
     patrol_max_spawn_attempts: int = 32
 
+    # Witness WAIT max
+    witness_max_wait_variants: int = 4
+
     # Max number of map + patrol comps that are attempted before giving up
     world_max_attempts: int = 20

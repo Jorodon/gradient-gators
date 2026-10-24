@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from collections.abc import Callable
 
 import numpy as np
 
@@ -42,8 +43,19 @@ def validate_world_settings(settings: MapGenerationConfig) -> None:
         if type(value) is not int or value < minimum:
             raise ValueError(f"{name} must be an integer >= {minimum}")
 
+    value = settings.witness_max_wait_variants
+
+    if type(value) is not int or not 0 <= value <= 4:
+        raise ValueError("witness_max_wait_variants must be int between 0 & 4")
+
 # Creates a map and seeded patrol using one RNG generator
-def generate_research_world_candidate(map_config: MapConfig, settings: MapGenerationConfig, root_seed: int) -> ResearchWorldCandidate:
+def generate_research_world_candidate(
+        map_config: MapConfig,
+        settings: MapGenerationConfig,
+        root_seed: int,
+        *,
+        accept_candidate: (Callable[[ResearchWorldCandidate], str | None] | None) = None
+    ) -> ResearchWorldCandidate:
     if type(root_seed) is not int or root_seed < 0:
         raise ValueError("root_seed must be a positive int")
 
@@ -89,8 +101,7 @@ def generate_research_world_candidate(map_config: MapConfig, settings: MapGenera
                 rejected.append(f"attempt {attempt}: patrol unavailable ({error})")
                 continue
 
-        # Patrol exists if required. Still only a candidate since survival still needs to be validated.
-        return ResearchWorldCandidate(
+        candidate = ResearchWorldCandidate(
             map_candidate=map_candidate,
             enemy_spec=enemy_spec,
             root_seed=root_seed,
@@ -99,10 +110,16 @@ def generate_research_world_candidate(map_config: MapConfig, settings: MapGenera
             rejection_reasons=tuple(rejected)
         )
 
+        # Calls function that verifies if map is surviveable
+        if accept_candidate is not None:
+            rejection_reason = accept_candidate(candidate)
+
+            # If it is rejected, append reason and attempt to 'rejected' and continue generating
+            if rejection_reason is not None:
+                rejected.append(f"attempt {attempt}: {rejection_reason}")
+                continue
+
+        return candidate
+
     # Raises ValueError if generating a candidate was unsuccessful
-    raise ValueError(
-        "Unable to construct a research world with a moving patrol"
-        f" after {settings.world_max_attempts} attempts "
-        f"in the {area_band} area band. "
-        f"Rejections: {rejected}"
-    )
+    raise ValueError(f"Unable to construct a research world after {settings.world_max_attempts} attempts in the {area_band} area band. Rejections: {rejected}")

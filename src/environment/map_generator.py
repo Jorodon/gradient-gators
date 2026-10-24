@@ -1,7 +1,6 @@
 
 """Seeded procedural map-generation framework."""
 
-from collections import deque
 from dataclasses import replace, dataclass
 from math import floor, isfinite
 
@@ -10,7 +9,6 @@ import numpy as np
 from src.configs.environment_config import MapConfig, MAX_OBSERVATION_DIMENSION
 from src.configs.map_generation_config import MapGenerationConfig
 from src.environment.map import GameMap, HazardType, Tile
-from src.environment.traversal import can_step_on_map
 
 
 MAX_GENERATION_ATTEMPTS = 20
@@ -214,56 +212,11 @@ def generate_map(config: MapConfig, seed: int | None = None, *, generation_confi
     )
 
 
+# If has_valid_route returned a tuple, True; else false
 def has_valid_route(game_map: GameMap) -> bool:
-    """Return whether the goal is reachable from the start."""
-    width = game_map.width
-    height = game_map.height
-
-    if (
-        width <= 0
-        or height <= 0
-        or len(game_map.tiles) != height
-        or any(len(row) != width for row in game_map.tiles)
-    ):
-        return False
-
-    start = game_map.start
-    goal = game_map.goal
-
-    for x, y in (start, goal):
-        if not (0 <= x < width and 0 <= y < height):
-            return False
-
-        if game_map.get_tile(x, y).obstacle:
-            return False
-
-    if start == goal:
-        return False
-
-    visited = {start}
-    queue = deque([start])
-
-    while queue:
-        x, y = queue.popleft()
-
-        if (x, y) == goal:
-            return True
-
-
-        for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
-            nx, ny = x + dx, y + dy
-            neighbor = (nx, ny)
-
-            if neighbor in visited:
-                continue
-
-            if not can_step_on_map(game_map, (x,y), neighbor):
-                continue
-
-            visited.add(neighbor)
-            queue.append(neighbor)
-
-    return False
+    from src.environment.survival_validator import find_shortest_route
+    
+    return find_shortest_route(game_map) is not None
 
 
 # --- Research map candidate generation for structurally valid candidates --- #
