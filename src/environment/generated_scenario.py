@@ -40,6 +40,7 @@ def build_generated_scenario(
         "collection_id": collection_id,
         "split": split,
         "code_version": code_version,
+        "config_version": 1,
         "root_seed": world.root_seed,
         "area_band": world.area_band,
         "accepted_attempt": world.attempt_index,
