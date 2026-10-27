@@ -58,13 +58,13 @@ class GatorEnv(gym.Env):
 
         # Fixed map enemy override
         self._enemy_spawn = enemy_spawn
-        self._ennemy_patrol_route = enemy_patrol_route
+        self._enemy_patrol_route = enemy_patrol_route
         self._enemy_patrol_index = enemy_patrol_index
 
         # Frozen research source
         self._scenario_dir = Path(scenario_collection_dir) if scenario_collection_dir is not None else None
         self._scenario_manifest = None
-        self._secario_entries = {}
+        self._scenario_entries = {}
         self._scenario_schedule = None
         self._model_seed_slot = model_seed_slot
 
@@ -75,7 +75,7 @@ class GatorEnv(gym.Env):
         self._active_snapshot_checksum = None
 
         # MCaller config must agree with stored mechanics
-        self._provided_env_config = deepcopy(environment_config) if environment_config is not None else None
+        self._provided_environment_config = deepcopy(environment_config) if environment_config is not None else None
 
         # Ensures that static enemy spawns and routes are not used for procedural maps since they change each reset
         if self._procedural and (
@@ -87,7 +87,7 @@ class GatorEnv(gym.Env):
 
         # Scenario logic
         if self._scenario_dir is not None:
-            if self._procedural or game_map is not None:
+            if not self._procedural or game_map is not None:
                     raise ValueError("Frozen scenarios require procedural map without directly supplied game_map")
 
             self._scenario_manifest = load_collection_manifest(self._scenario_dir)
@@ -173,7 +173,7 @@ class GatorEnv(gym.Env):
                 if scenario_id is None:
                     raise ValueError("Evaluation resets require options = {'scenario_id': ...}")
 
-            self._load_saved_secnario(scenario_id)
+            self._load_saved_scenario(scenario_id)
             self._validate_map()
 
             # Increments episode
@@ -218,9 +218,9 @@ class GatorEnv(gym.Env):
             or re.fullmatch(r"scn_[0-9a-f]{64}", scenario_id) is None
             or scenario_id not in self._scenario_entries
         ):
-            raise ValueError("Unknown or invalid scenario id")
+            raise ValueError("Unknown or invalid scenario_id")
 
-        entry = self._secario_entries[scenario_id]
+        entry = self._scenario_entries[scenario_id]
         scenario = load_scenario(self._scenario_dir / f"{scenario_id}.json")
         record = scenario_to_dict(scenario)
 
