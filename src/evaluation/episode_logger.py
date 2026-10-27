@@ -245,7 +245,7 @@ class EpisodeLogger:
             "final_hp": None,
             "total_distance_change": 0.0,
             "end_reason": None,
-            "scenario_id": scenario_id,
+            "scenario_id": selected_id or scenario_id,
             "distribution_label": distribution_label,
             "episode_id": episode_id,
             "collection_id": reset_info.get("collection_id", ""),
