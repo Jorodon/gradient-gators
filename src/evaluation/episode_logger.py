@@ -40,6 +40,14 @@ EPISODE_LOG_COLUMNS = (
     "end_reason",
     "scenario_id",
     "distribution_label",
+    "episode_id",
+    "collection_id",
+    "split",
+    "snapshot_checksum",
+    "source_code_version",
+    "episode_index",
+    "model_seed_slot",
+    "map_area",
 )
 
 ACTION_COUNT_FIELDS = {
@@ -84,6 +92,14 @@ class EpisodeRecord:
         end_reason: Goal, death, timestep-limit, or other episode outcome.
         scenario_id: Identifier for the evaluated scenario, when available.
         distribution_label: Distribution label such as ID or OOD, when available.
+        episode_id: Identifier for individual episode
+        collection_id: Identifier for frozen collection
+        split: Identifies the dataset role (e.g. TRAIN, CHECKPOINT_VALIDATION, ...)
+        snapshot_checksum: The checksum of the exact saved scenario snapshot
+        source_code_version: Records version of code used to generate
+        episode_index: The zero-based index used to select the scenario
+        model_seed_slot: Identifies which matched training-scenario schedule a model is assigned
+        map_area: The number of actual playable tiles (Seperate from 10x0 obs space)
     """
 
     experiment_id: str
@@ -115,6 +131,14 @@ class EpisodeRecord:
     end_reason: str | None = None
     scenario_id: str = ""
     distribution_label: str = ""
+    episode_id: str = ""
+    collection_id: str = ""
+    split: str = ""
+    snapshot_checksum: str = ""
+    source_code_version: str = ""
+    episode_index: int | None = None
+    model_seed_slot: int | None = None
+    map_area: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert record to a schema compatible dict.
@@ -161,8 +185,13 @@ class EpisodeLogger:
         episode: int,
         scenario_id: str = "",
         distribution_label: str = "",
+        episode_id: str = "",
+        reset_info: Mapping[str, Any] | None = None,
     ) -> None:
-        """Start aggregating 1 episode from environment step results.
+        """Start aggregating 1 episode from environment step results. 
+        Optionally captures exact frozen-world reset metadata.
+
+        Will use the same episode_id in TrajectoryRecorder for any selected trace.
 
         Args:
             experiment_id: Identifier shared by episodes in a experiment.
@@ -175,9 +204,18 @@ class EpisodeLogger:
 
         Raises:
             RuntimeError: If another episode is already being aggregated.
+            TypeError: If reset_info is provided but is not a mapping
+            ValueError: If scenario_id and selected_id to not match
         """
         if self._active is not None:
             raise RuntimeError("An episode is already being aggregated")
+        if reset_info is not None and not isinstance(reset_info, Mapping):
+            raise TypeError("reset_info must be a mapping")
+
+        reset_info = reset_info if reset_info is not None else {}
+        selected_id = reset_info.get("scenario_id", "")
+        if scenario_id and selected_id and scenario_id != selected_id:
+            raise ValueError("Explicitly provided scenario_id does not match with reset_info")
 
         self._active = {
             "experiment_id": experiment_id,
@@ -207,8 +245,16 @@ class EpisodeLogger:
             "final_hp": None,
             "total_distance_change": 0.0,
             "end_reason": None,
-            "scenario_id": scenario_id,
+            "scenario_id": selected_id or scenario_id,
             "distribution_label": distribution_label,
+            "episode_id": episode_id,
+            "collection_id": reset_info.get("collection_id", ""),
+            "split": reset_info.get("split", ""),
+            "snapshot_checksum": reset_info.get("snapshot_checksum", ""),
+            "source_code_version": reset_info.get("source_code_version", ""),
+            "episode_index": reset_info.get("episode_index"),
+            "model_seed_slot": reset_info.get("model_seed_slot"),
+            "map_area": reset_info.get("map_area"),
         }
 
     def record_step(
@@ -228,9 +274,26 @@ class EpisodeLogger:
         Raises:
             RuntimeError: If no episode has been started.
             ValueError: If the action is not part of the action space.
+            ValueError: If scenario and step disagree (e.g. two different episodes or env)
         """
         if self._active is None:
             raise RuntimeError("Call start_episode before record_step")
+
+        for key in (
+            "scenario_id",
+            "collection_id",
+            "split",
+            "snapshot_checksum",
+            "source_code_version",
+            "episode_index",
+            "model_seed_slot",
+            "map_area",
+        ):
+            expected = self._active[key]
+
+            if expected is not None and expected != "" and key in info:
+                if info[key] != expected:
+                    raise ValueError(f"Step info {key} disagrees with episode reset")
 
         try:
             action_value = Action(action)
@@ -335,6 +398,113 @@ class EpisodeLogger:
             columns=EPISODE_LOG_COLUMNS,
         )
 
+    
+    def scenario_exposure_summary(
+        self,
+        manifest: Mapping[str, Any],
+    ) -> pd.DataFrame:
+        """Summarize recorded completed episodes by run and area band.
+
+        Notes: 
+            completed_episode_timesteps excludes unfinished PPO rollout steps.
+        
+        Args:
+            mainfest: Frozen scenario collection's manifest (shows all scenarios available)
+
+        Returns:
+            pd.DataFrame: A table containing scenario exposure statistics
+
+        Raises:
+            ValueError: If ep record is not from collection
+        """
+        columns = [
+            "experiment_id",
+            "reward_type",
+            "training_seed",
+            "model_seed_slot",
+            "collection_id",
+            "split",
+            "area_band",
+            "eligible_scenarios",
+            "completed_episodes",
+            "completed_episode_timesteps",
+            "unique_scenarios",
+            "repeat_exposures",
+            "coverage_fraction",
+        ]
+
+        # Reuses an already verified collection manifest
+        collection_id = manifest["collection_id"]
+        split = manifest["split"]
+
+        scenario_bands = {
+            entry["scenario_id"]: entry["area_band"]
+            for entry in manifest["entries"]
+        }
+
+        groups: dict[tuple, list[EpisodeRecord]] = {}
+
+        # Keep different runs and reward structures separate
+        for record in self._records:
+            if record.collection_id != collection_id:
+                continue
+
+            if (record.split != split or record.scenario_id not in scenario_bands):
+                raise ValueError("Episode record does not belong to the supplied collection")
+
+            key = (
+                record.experiment_id,
+                record.reward_type,
+                record.training_seed,
+                record.model_seed_slot,
+            )
+            groups.setdefault(key, []).append(record)
+
+        # Include eligible scenarios that were never encountered.
+        eligible_sets: dict[str, set[str]] = {"ALL": set(scenario_bands)}
+
+        for scenario_id, area_band in scenario_bands.items():
+            eligible_sets.setdefault(area_band, set()).add(scenario_id)
+
+        rows = []
+
+        # Produce overall and individual area-band exposure summaries.
+        for key, records in groups.items():
+            experiment_id, reward_type, training_seed, model_seed_slot = key
+
+            for area_band, eligible_ids in eligible_sets.items():
+                matching = [
+                    record
+                    for record in records
+                    if record.scenario_id in eligible_ids
+                ]
+
+                unique_ids = {
+                    record.scenario_id for record in matching
+                }
+
+                completed = len(matching)
+                eligible = len(eligible_ids)
+
+                rows.append({
+                    "experiment_id": experiment_id,
+                    "reward_type": reward_type,
+                    "training_seed": training_seed,
+                    "model_seed_slot": model_seed_slot,
+                    "collection_id": collection_id,
+                    "split": split,
+                    "area_band": area_band,
+                    "eligible_scenarios": eligible,
+                    "completed_episodes": completed,
+                    "completed_episode_timesteps": sum(record.episode_length for record in matching),
+                    "unique_scenarios": len(unique_ids),
+                    "repeat_exposures": completed - len(unique_ids),
+                    "coverage_fraction": (len(unique_ids) / eligible if eligible else 0.0),
+                })
+
+        return pd.DataFrame(rows, columns=columns)
+
+
     def write_csv(self, path: str | Path) -> Path:
         """Write all logged episodes to a CSV.
 
@@ -392,7 +562,18 @@ class EpisodeLogger:
             for column in ("end_reason", "final_hp"):
                 if column in values and pd.isna(values[column]):
                     values[column] = None
-            for column in ("scenario_id", "distribution_label"):
+            for column in ("episode_index", "model_seed_slot", "map_area"):
+                if column in values:
+                    values[column] = (None if pd.isna(values[column]) else int(values[column]))
+            for column in (
+                "scenario_id", 
+                "distribution_label",
+                "episode_id",
+                "collection_id",
+                "split",
+                "snapshot_checksum",
+                "source_code_version",
+            ):
                 if column in values and pd.isna(values[column]):
                     values[column] = ""
             logger.log_episode(EpisodeRecord(**values))
