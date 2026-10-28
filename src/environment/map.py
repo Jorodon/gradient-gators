@@ -2,6 +2,18 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+from enum import Enum
+
+# Enum that defines valid hazard identifiers used by Tile and env mechanics
+class HazardType(str, Enum):
+    DAMAGE = "damage"
+    """
+    Putting for conversation, possible extra hazards we could add:
+    SLOW = "slow"
+    POISON = "poison"
+    FREEZE = "freeze"
+    LAUNCH = "launch"
+    """
 
 
 @dataclass
@@ -10,7 +22,7 @@ class Tile:
 
     elevation: int = 0
     obstacle: bool = False
-    hazard: Optional[str] = None
+    hazard: HazardType | None = None
     special_traversal: bool = False
 
 
@@ -37,7 +49,9 @@ def load_map(data: dict) -> GameMap:
             Tile(
                 elevation=tile.get("elevation", 0),
                 obstacle=tile.get("obstacle", False),
-                hazard=tile.get("hazard"),
+                # Checks if hazard string is in defined HazardType Enum otherwise set it as None
+                hazard=(HazardType(tile["hazard"]) if tile.get("hazard") is not None
+                        else None),
                 special_traversal=tile.get("special_traversal", False),
             )
             for tile in row
