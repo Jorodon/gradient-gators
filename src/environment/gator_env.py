@@ -9,6 +9,11 @@ import gymnasium as gym
 from src.configs.environment_config import EnvironmentConfig, MapConfig, MAX_OBSERVATION_DIMENSION as MaxObsDim
 from src.configs.training_config import RewardConfig
 
+from src.rewards.transition_context import (
+    StepEventsSnapshot,
+    TransitionContext,
+    TransitionState,
+)
 # Environment src files
 from src.environment.action_space import ACTION_DELTAS, ACTION_SPACE, Action
 from src.environment.map import GameMap, load_map_from_file, HazardType
@@ -271,6 +276,9 @@ class GatorEnv(gym.Env):
         old_position = self.agent_position
         old_distance = self._distance_to_goal(old_position)
 
+        #saves agent HP before action occurs
+        old_hp = self.agent_hp
+
         # Based on action, determine change in x and y
         action = Action(action)
 
@@ -329,8 +337,34 @@ class GatorEnv(gym.Env):
         terminated = (end_reason in ("goal", "death"))
         truncated = (end_reason == "timestep_limit")
 
+        #creates read only snapshot of agent state before action occurs
+        previous_state = TransitionState(
+            position=old_position,
+            hp=old_hp,
+            distance_to_goal=old_distance,
+        )
+
+        #read only snapshot after action occurs
+        next_state = TransitionState(
+            position=self.agent_position,
+            hp=self.agent_hp,
+            distance_to_goal=new_distance,
+        )
+
+        #immutable transition record for reward calculations
+        transition_context = TransitionContext(
+            previous=previous_state,
+            next=next_state,
+            events=StepEventsSnapshot.from_events(events),
+            step_number=self.steps,
+            max_episode_steps=self.max_episode_steps,
+            terminated=terminated,
+            truncated=truncated,
+            end_reason=end_reason,
+        )
+
         # Calculates reward and determines if environment is terminated or truncated
-        reward = calculate_sparse_reward(events, self.reward_config)
+        reward = calculate_sparse_reward(transition_context, self.reward_config)
 
         observation = self._get_obs()
         info = self._get_info(events=events, end_reason=end_reason)
