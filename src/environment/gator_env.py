@@ -24,7 +24,14 @@ from src.environment.sparse_reward import calculate_sparse_reward
 from src.environment.step_events import StepEvents
 from src.environment.observation_builder import build_observation
 from src.environment.map_generator import generate_map
-from src.environment.enemy import Enemy, create_enemy, advance_enemy
+from src.environment.enemy import (
+    ENEMY_BEHAVIORS,
+    PATROL_BEHAVIOR_VERSION,
+    Enemy,
+    EnemyBehavior,
+    create_enemy,
+    move_enemy,
+)
 from src.environment.traversal import can_step_on_map
 from src.environment.transition_rules import fall_damage_on_map, hazard_damage_at, enemy_contact, apply_damage_to_hp, classify_outcome
 
@@ -44,6 +51,7 @@ class GatorEnv(gym.Env):
             enemy_patrol_route: list[tuple[int, int]] | None = None,
             enemy_patrol_index: int | None = None,
             *,
+            enemy_behavior: EnemyBehavior = PATROL_BEHAVIOR_VERSION,
             scenario_collection_dir: str | Path | None = None,
             scenario_schedule_path: str | Path | None = None,
             model_seed_slot: int | None = None
@@ -65,6 +73,15 @@ class GatorEnv(gym.Env):
         self._enemy_spawn = enemy_spawn
         self._enemy_patrol_route = enemy_patrol_route
         self._enemy_patrol_index = enemy_patrol_index
+
+        if enemy_behavior not in ENEMY_BEHAVIORS:
+            raise ValueError(f"Unknown enemy behavior: {enemy_behavior!r}")
+
+        # Only honoured for directly constructed environments. A scenario
+        # collection overwrites this from its EnemySpec on every load, so a
+        # frozen scenario always runs the behavior it was validated under and
+        # this argument cannot be used to run a saved scenario off-spec.
+        self._enemy_behavior = enemy_behavior
 
         # Frozen research source
         self._scenario_dir = Path(scenario_collection_dir) if scenario_collection_dir is not None else None
@@ -258,9 +275,24 @@ class GatorEnv(gym.Env):
 
         enemy_spec = scenario.enemy_spec
 
+        # Pursuit is an evaluation-only behavior, enforced here rather than left
+        # to convention. Without this, a pursuit scenario dropped into a TRAIN
+        # collection would train against the held-out condition and quietly
+        # invalidate the robustness comparison it exists to measure.
+        if (
+            enemy_spec is not None
+            and enemy_spec.behavior != PATROL_BEHAVIOR_VERSION
+            and provenance.get("split") == "TRAIN"
+        ):
+            raise ValueError(
+                f"Enemy behavior {enemy_spec.behavior!r} is evaluation-only "
+                "and cannot appear in a TRAIN collection"
+            )
+
         self._enemy_spawn = enemy_spec.initial_position if enemy_spec is not None else None
         self._enemy_patrol_route = list(enemy_spec.patrol_route) if enemy_spec is not None else None
         self._enemy_patrol_index = enemy_spec.initial_patrol_index if enemy_spec is not None else None
+        self._enemy_behavior = enemy_spec.behavior if enemy_spec is not None else PATROL_BEHAVIOR_VERSION
 
         self._active_scenario_id = scenario_id
         self._active_snapshot_checksum = entry["checksum"]
@@ -433,6 +465,10 @@ class GatorEnv(gym.Env):
             info["enemy_position"] = self.enemy.position
             info["enemy_patrol_index"] = self.enemy.patrol_index
 
+            # Exposed so an evaluation run records which behavior produced its
+            # episodes instead of inferring it from the split name.
+            info["enemy_behavior"] = self._enemy_behavior
+
         if self._active_scenario_id is not None:
             info.update({
                 "scenario_id": self._active_scenario_id,
@@ -485,7 +521,20 @@ class GatorEnv(gym.Env):
         )
 
     def _move_enemy(self) -> None:
-        advance_enemy(self.enemy, self._can_step)
+        """Advance the enemy under this scenario's behavior.
+
+        Called after the agent has moved and hazards have resolved, so
+        `self.agent_position` is the post-move tile a pursuer chases. Contact is
+        resolved by the caller immediately afterwards, which is what keeps
+        same-cell and swap semantics identical for both behaviors.
+        """
+        move_enemy(
+            self.enemy,
+            self._can_step,
+            behavior=self._enemy_behavior,
+            game_map=self.game_map,
+            agent_position=self.agent_position,
+        )
 
     # Returns whether agent and enemy contact occured
     def _enemy_contact(self, agent_previous_position: tuple[int, int], enemy_previous_position: tuple[int, int] | None) -> bool:

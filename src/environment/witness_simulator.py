@@ -3,7 +3,7 @@ from collections.abc import Sequence
 
 from src.configs.environment_config import EnvironmentConfig
 from src.environment.action_space import Action, ACTION_DELTAS, ACTION_SPACE
-from src.environment.enemy import validate_patrol_route, Position, Enemy, advance_enemy
+from src.environment.enemy import PATROL_BEHAVIOR_VERSION, validate_patrol_route, Position, Enemy, move_enemy
 from src.environment.map import GameMap
 from src.environment.patrol_generator import EnemySpec
 from src.environment.step_events import StepEvents
@@ -43,7 +43,13 @@ def simulate_actions(game_map: GameMap, enemy_spec: EnemySpec | None, config: En
         raise ValueError("Enemy configuration and EnemySpec disagree")
 
     enemy: Enemy | None = None
-    
+
+    # Behavior comes from the spec, never from a caller argument, so a witness
+    # can only ever be simulated under the behavior its scenario declares.
+    enemy_behavior = (
+        enemy_spec.behavior if enemy_spec is not None else PATROL_BEHAVIOR_VERSION
+    )
+
     if enemy_spec  is not None:
         route = enemy_spec.patrol_route
         phase = enemy_spec.initial_patrol_index
@@ -110,7 +116,15 @@ def simulate_actions(game_map: GameMap, enemy_spec: EnemySpec | None, config: En
         # --- Enemy movement --- #
         previous_enemy_pos = enemy.position if enemy is not None else None
 
-        advance_enemy(enemy, can_step)
+        # `position` is the agent's tile after its own move, which is what a
+        # pursuer chases. Patrol ignores both extra arguments.
+        move_enemy(
+            enemy,
+            can_step,
+            behavior=enemy_behavior,
+            game_map=game_map,
+            agent_position=position,
+        )
 
         current_enemy_pos = enemy.position if enemy is not None else None
 

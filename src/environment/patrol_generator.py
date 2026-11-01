@@ -2,7 +2,13 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from src.environment.enemy import Position, validate_patrol_route
+from src.environment.enemy import (
+    ENEMY_BEHAVIORS,
+    PATROL_BEHAVIOR_VERSION,
+    EnemyBehavior,
+    Position,
+    validate_patrol_route,
+)
 from src.environment.map import GameMap
 from src.environment.traversal import can_step_on_map
 
@@ -18,7 +24,22 @@ class PatrolGenerationError(ValueError):
 class EnemySpec:
     patrol_route: tuple[Position, ...]
     initial_patrol_index: int
-    
+
+    # How this enemy moves. Part of the spec rather than a runtime switch on
+    # GatorEnv, for two reasons that both decide research validity:
+    #
+    # 1. The spec is inside the scenario_id digest, so a pursuit scenario and a
+    #    patrol scenario built on the same map are distinct scenarios and an OOD
+    #    condition cannot be mislabelled.
+    # 2. Snapshot loading re-simulates the stored survival witness and demands
+    #    an exact match, so the behavior has to reach the witness simulator.
+    #    A runtime flag would leave pursuit scenarios carrying witnesses that
+    #    were only ever proven survivable under patrol.
+    #
+    # A pursuer does not walk its route, but the route is still what defines its
+    # saved spawn and is still validated on load, so it stays required.
+    behavior: EnemyBehavior = PATROL_BEHAVIOR_VERSION
+
     @property
     def initial_position(self) -> Position:
         return self.patrol_route[self.initial_patrol_index]
@@ -31,7 +52,11 @@ def generate_enemy_spec(
         spawn: Position | None = None,
         max_outward_steps: int = 4,
         max_spawn_attempts: int = 32,
+        behavior: EnemyBehavior = PATROL_BEHAVIOR_VERSION,
 ) -> EnemySpec:
+    if behavior not in ENEMY_BEHAVIORS:
+        raise ValueError(f"Unknown enemy behavior: {behavior!r}")
+
     # --- Helper functions --- #
     # Depth first search algoritihm with randomized neighbor odering
     def search(path: list[Position], target_steps: int) -> list[Position] | None:
@@ -124,7 +149,7 @@ def generate_enemy_spec(
             initial_patrol_index = int(rng.integers(0, len(route)))
 
             # Returns EnemySpec object with valid route and enemy spawn
-            return EnemySpec(patrol_route=route, initial_patrol_index=initial_patrol_index)
+            return EnemySpec(patrol_route=route, initial_patrol_index=initial_patrol_index, behavior=behavior)
 
     # If all candidates are exhausted, raise ValueError
     raise PatrolGenerationError("Unable to generate a moving enemy patrol")
