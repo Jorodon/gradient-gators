@@ -219,3 +219,21 @@ def test_invalid_wait_variant_limit_is_rejected(bad_limit):
 
     with pytest.raises(ValueError, match="witness_max_wait_variants"):
         world_generator.validate_world_settings(simple_settings(witness_max_wait_variants=bad_limit))
+
+@pytest.mark.parametrize("area_band", ["small", "medium", "large"])
+def test_surviving_world_respects_requested_area_band(area_band):
+    world, witness = validator.generate_surviving_research_world(
+        MapConfig(max_elevation=0),
+        simple_settings(),
+        research_config(),
+        root_seed=123,
+        area_band=area_band,
+    )
+
+    area = world.game_map.width * world.game_map.height
+    minimum, maximum = world_generator.AREA_BOUNDS[area_band]
+
+    assert world.area_band == area_band
+    assert minimum <= area <= maximum
+    assert witness.replay.successful
+    assert witness.final_hp > 0
