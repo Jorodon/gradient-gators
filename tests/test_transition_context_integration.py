@@ -3,6 +3,7 @@ from src.environment.action_space import Action
 from src.environment.gator_env import GatorEnv
 from src.environment.map import GameMap, HazardType, Tile
 from src.environment.sparse_reward import calculate_sparse_reward
+from src.rewards.registry import REWARD_CALCULATORS
 
 
 #creates a basic flat map
@@ -21,14 +22,20 @@ def make_flat_map(width=3, height=3, *, start=(0, 0), goal=None):
 
 #captures each TransitionContext that is passed to sparse reward
 def capture_contexts(monkeypatch):
+    # GatorEnv no longer imports a calculator directly; it resolves one from the
+    # reward registry at construction, so the recorder is patched into the
+    # registry entry rather than onto a name in gator_env. Patching the registry
+    # also means the recorder is picked up by whichever variant is configured,
+    # not only by sparse.
     contexts = []
 
     def recording_sparse_reward(context, reward_config):
         contexts.append(context)
         return calculate_sparse_reward(context, reward_config)
 
-    monkeypatch.setattr(
-        "src.environment.gator_env.calculate_sparse_reward",
+    monkeypatch.setitem(
+        REWARD_CALCULATORS,
+        "sparse",
         recording_sparse_reward,
     )
 
