@@ -6,7 +6,7 @@ import numpy as np
 from src.configs.environment_config import MapConfig
 from src.configs.map_generation_config import MapGenerationConfig
 from src.environment.map import GameMap
-from src.environment.map_generator import AREA_BOUNDS, ResearchMapCandidate, generate_research_candidate, sample_map_dimensions, validate_research_settings
+from src.environment.map_generator import AREA_BOUNDS, ResearchMapCandidate, generate_research_candidate, sample_map_dimensions, sample_map_dimensions_for_band, validate_research_settings
 from src.environment.patrol_generator import EnemySpec, PatrolGenerationError, generate_enemy_spec
 
 
@@ -54,6 +54,7 @@ def generate_research_world_candidate(
         settings: MapGenerationConfig,
         root_seed: int,
         *,
+        area_band: str | None = None,
         accept_candidate: (Callable[[ResearchWorldCandidate], str | None] | None) = None
     ) -> ResearchWorldCandidate:
     if type(root_seed) is not int or root_seed < 0:
@@ -65,11 +66,17 @@ def generate_research_world_candidate(
     rng = np.random.default_rng(root_seed)
 
     if settings.dimension_mode == "area_bucket":
-        width, height, area_band = sample_map_dimensions(rng)
+        if area_band is None:
+            width, height, area_band = sample_map_dimensions(rng)
+        else:
+            width, height, area_band = sample_map_dimensions_for_band(rng, area_band)
     else:
+        if area_band is not None:
+            raise ValueError("area_band requires dimension_mode='area_bucket'")
+
         width = map_config.width
         height = map_config.height
-        area_band = ""  # Will get filled after validating dimensions
+        area_band = ""
 
     # Fails on invalid structural config
     validate_research_settings(map_config, settings, width, height)

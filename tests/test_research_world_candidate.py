@@ -226,3 +226,57 @@ def test_invalid_world_settings_are_rejected(name, value):
 def test_invalid_root_seed_is_rejected(bad_seed):
     with pytest.raises(ValueError, match="root_seed"):
         build_world(seed=bad_seed)
+
+@pytest.mark.parametrize("area_band", ["small", "medium", "large"])
+def test_requested_area_band_is_respected(area_band):
+    world = world_generator.generate_research_world_candidate(
+        MapConfig(max_elevation=0),
+        simple_settings(),
+        root_seed=123,
+        area_band=area_band,
+    )
+
+    area = world.game_map.width * world.game_map.height
+    minimum, maximum = world_generator.AREA_BOUNDS[area_band]
+
+    assert world.area_band == area_band
+    assert minimum <= area <= maximum
+
+
+@pytest.mark.parametrize("area_band", ["small", "medium", "large"])
+def test_requested_area_band_is_deterministic(area_band):
+    first = world_generator.generate_research_world_candidate(
+        MapConfig(max_elevation=0),
+        simple_settings(),
+        root_seed=123,
+        area_band=area_band,
+    )
+
+    second = world_generator.generate_research_world_candidate(
+        MapConfig(max_elevation=0),
+        simple_settings(),
+        root_seed=123,
+        area_band=area_band,
+    )
+
+    assert world_signature(first) == world_signature(second)
+
+
+def test_invalid_area_band_is_rejected():
+    with pytest.raises(ValueError, match="Invalid area band"):
+        world_generator.generate_research_world_candidate(
+            MapConfig(max_elevation=0),
+            simple_settings(),
+            root_seed=123,
+            area_band="extra-large",
+        )
+
+
+def test_area_band_cannot_be_used_with_fixed_dimensions():
+    with pytest.raises(ValueError, match="area_band requires"):
+        world_generator.generate_research_world_candidate(
+            MapConfig(width=7, height=8, max_elevation=0),
+            simple_settings(dimension_mode="fixed"),
+            root_seed=123,
+            area_band="medium",
+        )

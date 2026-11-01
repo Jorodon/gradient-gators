@@ -49,6 +49,22 @@ def sample_map_dimensions(rng: np.random.Generator) -> tuple[int, int, str]:
 
     return width, height, selected_band
 
+
+# Returns seeded dimensions from a specifically requested area band
+def sample_map_dimensions_for_band(
+    rng: np.random.Generator,
+    area_band: str,
+) -> tuple[int, int, str]:
+    if area_band not in AREA_BAND_PAIRS:
+        raise ValueError(f"Invalid area band: {area_band}")
+
+    available_pairs = AREA_BAND_PAIRS[area_band]
+    pair_index = int(rng.integers(0, len(available_pairs)))
+
+    width, height = available_pairs[pair_index]
+
+    return width, height, area_band
+
 def validate_config(config: MapConfig) -> None:
     """Validate dimensions and values required for map generation."""
     if (
