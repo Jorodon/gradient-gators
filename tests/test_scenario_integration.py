@@ -83,7 +83,7 @@ def test_frozen_schedule_loads_matching_worlds(tmp_path, monkeypatch):
         first_space = first.observation_space
         second_space = second.observation_space
 
-        for episode_index in range(3):
+        for episode_index in range(len(schedule["slot_orders"]["0"])):
             obs_a, info_a = first.reset(seed=11)
             obs_b, info_b = second.reset(seed=99)
 
@@ -187,3 +187,157 @@ def test_collection_snapshot_mismatch_is_rejected(tmp_path):
     # Ensures our GatorEnv rejects the inconsisteny before using the world
     with pytest.raises(ValueError, match="Scenario does not match collection manifest"):
         GatorEnv(map_config=MapConfig(map_mode="procedural"), scenario_collection_dir=collection)
+
+
+def test_five_seed_slot_schedule_integrity(tmp_path):
+    collection = make_collection(tmp_path)
+
+    slot_seeds = {
+        0: 101,
+        1: 202,
+        2: 303,
+        3: 404,
+        4: 505,
+    }
+
+    schedule_path = write_training_schedule(
+        collection,
+        tmp_path / "five-slot-schedule.json",
+        slot_seeds,
+    )
+
+    manifest = load_collection_manifest(collection)
+    schedule = load_training_schedule(schedule_path, manifest)
+
+    scenario_ids = {
+        entry["scenario_id"] for entry in manifest["entries"]
+    }
+
+    assert schedule["slot_seeds"] == {
+        str(slot): seed for slot, seed in slot_seeds.items()
+    }
+
+    assert set(schedule["slot_orders"]) == {
+        "0", "1", "2", "3", "4"
+    }
+
+    for slot in range(5):
+        order = schedule["slot_orders"][str(slot)]
+
+        # Every slot must contain every training scenario exactly once.
+        assert len(order) == len(scenario_ids)
+        assert set(order) == scenario_ids
+
+        # The schedule must cycle back to the first scenario.
+        assert scheduled_scenario_id(schedule, slot, 0) == order[0]
+        assert scheduled_scenario_id(schedule, slot, len(order)) == order[0]
+
+    # Recreating the schedule with the same seeds must reproduce
+    # exactly the same scenario ordering.
+    second_path = write_training_schedule(
+        collection,
+        tmp_path / "five-slot-schedule-second.json",
+        slot_seeds,
+    )
+
+    second_schedule = load_training_schedule(second_path, manifest)
+
+    assert schedule["slot_orders"] == second_schedule["slot_orders"]
+
+
+def test_frozen_schedule_loads_all_five_seed_slots(tmp_path, monkeypatch):
+    collection = make_collection(tmp_path)
+    slot_seeds = {
+        0: 101,
+        1: 202,
+        2: 303,
+        3: 404,
+        4: 505,
+    }
+
+    schedule_path = write_training_schedule(
+        collection,
+        tmp_path / "all-slots-schedule.json",
+        slot_seeds,
+    )
+
+    manifest = load_collection_manifest(collection)
+    schedule = load_training_schedule(schedule_path, manifest)
+
+    def unexpected_generation(*args, **kwargs):
+        raise AssertionError("Frozen training regenerated a map")
+
+    monkeypatch.setattr(
+        "src.environment.gator_env.generate_map",
+        unexpected_generation,
+    )
+
+    for slot in range(5):
+        env = GatorEnv(
+            map_config=MapConfig(map_mode="procedural"),
+            scenario_collection_dir=collection,
+            scenario_schedule_path=schedule_path,
+            model_seed_slot=slot,
+        )
+
+        try:
+            order = schedule["slot_orders"][str(slot)]
+
+            for episode_index, expected_id in enumerate(order):
+                _, info = env.reset()
+
+                assert info["scenario_id"] == expected_id
+                assert info["episode_index"] == episode_index
+                assert env._active_scenario_id == expected_id
+
+        finally:
+            env.close()
+
+def test_frozen_schedule_loads_all_five_seed_slots(tmp_path, monkeypatch):
+    collection = make_collection(tmp_path)
+
+    slot_seeds = {
+        0: 101,
+        1: 202,
+        2: 303,
+        3: 404,
+        4: 505,
+    }
+
+    schedule_path = write_training_schedule(
+        collection,
+        tmp_path / "all-slots-schedule.json",
+        slot_seeds,
+    )
+
+    manifest = load_collection_manifest(collection)
+    schedule = load_training_schedule(schedule_path, manifest)
+
+    def unexpected_generation(*args, **kwargs):
+        raise AssertionError("Frozen training regenerated a map")
+
+    monkeypatch.setattr(
+        "src.environment.gator_env.generate_map",
+        unexpected_generation,
+    )
+
+    for slot in range(5):
+        env = GatorEnv(
+            map_config=MapConfig(map_mode="procedural"),
+            scenario_collection_dir=collection,
+            scenario_schedule_path=schedule_path,
+            model_seed_slot=slot,
+        )
+
+        try:
+            order = schedule["slot_orders"][str(slot)]
+
+            for episode_index, expected_id in enumerate(order):
+                _, info = env.reset()
+
+                assert info["scenario_id"] == expected_id
+                assert info["episode_index"] == episode_index
+                assert env._active_scenario_id == expected_id
+
+        finally:
+            env.close()
