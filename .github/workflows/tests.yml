@@ -41,9 +41,25 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
+      
+      # Records python and depndency versions
+      - name: Record Python and dependency versions
+        run: |
+          python --version
+          python -m pip freeze
 
       # Runs pytest suite
       - name: Run all tests
         env:
           MPLBACKEND: Agg # Tells matplotlib to use a noninteractive backend
-        run: python -m pytest -q
+        run: python -m pytest -q -ra --durations=10 --junitxml=test-results.xml
+      
+      # Creates report for test that can be reviewed later
+      - name: Upload pytest report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: pytest-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: test-results.xml
+          if-no-files-found: warn
+          retention-days: 14
