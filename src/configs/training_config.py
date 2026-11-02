@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 from math import isfinite
 
@@ -48,3 +48,32 @@ class TrainingConfig:
     seed: int = 0
     total_timesteps: int = 10000
     learning_rate: float = 0.0003
+
+@dataclass(frozen=True)
+class PPOSettings:
+    learning_rate: float = 3e-4
+    n_steps: int = 250
+    n_envs: int = 1
+    batch_size: int = 125
+    n_epochs: int = 2
+    gamma: float = 0.99
+    gae_lambda: float = 0.95
+    clip_range: float = 0.2
+    ent_coef: float = 0.0
+    vf_coef: float = 0.5
+    device: str = "cpu"
+
+
+@dataclass(frozen=True)
+class ExperimentConfig:
+    reward: RewardConfig
+    model_seed_slot: int
+    model_seed: int
+    train_collection_dir: str
+    train_schedule_path: str
+    checkpoint_validation_dir: str
+    output_root: str
+    total_timesteps: int
+    mode: Literal["pilot", "final"] = "pilot"
+    checkpoint_interval: int = 25_000
+    ppo: PPOSettings = field(default_factory=PPOSettings)
