@@ -7,7 +7,7 @@ from pathlib import Path
 
 from src.configs.environment_config import EnvironmentConfig, MAX_OBSERVATION_DIMENSION
 from src.environment.action_space import Action
-from src.environment.enemy import validate_patrol_route
+from src.environment.enemy import ENEMY_BEHAVIORS, validate_patrol_route
 from src.environment.generated_scenario import GeneratedScenario
 from src.environment.map import GameMap, Tile, load_map
 from src.environment.patrol_generator import EnemySpec
@@ -16,7 +16,10 @@ from src.environment.survival_validator import SurvivalWitness
 from src.environment.traversal import can_step_on_map
 from src.environment.witness_simulator import ActionReplay, SimulatedFrame, simulate_actions
 
-SCHEMA_VERSION = 1
+# 2 adds the `behavior` field to EnemySpec and the enemy-behavior and
+# spawn-diagnostic keys to provenance. `require_fields` demands exact key-set
+# equality, so schema 1 files do not load and collections must be regenerated.
+SCHEMA_VERSION = 2
 
 # --- Helper function --- #
 
@@ -158,7 +161,17 @@ def scenario_from_dict(data: dict) -> GeneratedScenario:
         
         validate_patrol_route(route, game_map, lambda src, dst: can_step_on_map(game_map, src, dst)
                               )
-        enemy_spec = EnemySpec(route, phase)
+
+        behavior = raw_enemy["behavior"]
+
+        if behavior not in ENEMY_BEHAVIORS:
+            raise ValueError(f"Unknown enemy behavior: {behavior!r}")
+
+        # Reconstructed from the file, never defaulted. Defaulting here would
+        # load every pursuit scenario as a patrol scenario, and the witness
+        # re-simulation below would then be the only thing standing between that
+        # and a silently wrong evaluation run.
+        enemy_spec = EnemySpec(route, phase, behavior)
 
     if config.enemy_enabled != (enemy_spec is not None):
         raise ValueError("EnemySpec and environment configuration disagree")
@@ -207,10 +220,27 @@ def scenario_from_dict(data: dict) -> GeneratedScenario:
     required_provenance = {"collection_id", "split", "code_version", "config_version",
                            "root_seed", "area_band", "accepted_attempt", "rejection_reasons",
                            "map_config", "generation_config", "patches",
-                           "sampled_densities", "feature_counts"}
-    
+                           "sampled_densities", "feature_counts",
+                           # Behavior identity, duplicated from the EnemySpec so a
+                           # mismatch between the two is detectable rather than silent.
+                           "enemy_behavior", "enemy_tie_break",
+                           # Spawn diagnostics. These exist because bounded witness
+                           # search rejects maps where the enemy starts on the agent's
+                           # route, which biases an enemy split toward harmless spawns.
+                           # Recording them for every enemy scenario, patrol included,
+                           # is what makes that selection effect measurable instead of
+                           # an unfalsifiable worry in the writeup.
+                           "enemy_spawn_route_distance", "enemy_spawn_route_index",
+                           "enemy_first_contact_step"}
+
     if not isinstance(provenance, dict) or not required_provenance <= provenance.keys():
         raise ValueError("Incomplete scenario provenance")
+
+    recorded_behavior = provenance["enemy_behavior"]
+    spec_behavior = enemy_spec.behavior if enemy_spec is not None else None
+
+    if recorded_behavior != spec_behavior:
+        raise ValueError("Scenario provenance disagrees with the enemy specification")
     
     if not all(isinstance(provenance[key], str) and provenance[key]
                for key in ("collection_id", "split", "code_version")):

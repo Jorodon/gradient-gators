@@ -12,11 +12,26 @@ same movement rules as the agent without this module importing GatorEnv.
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from typing import Literal
 
 from src.environment.map import GameMap
+from src.environment.pursuit import PURSUIT_BEHAVIOR_VERSION, pursuit_target
 
 Position = tuple[int, int]
 CanStep = Callable[[Position, Position], bool]
+
+# Identifier for the original patrol behavior. Written explicitly onto every
+# EnemySpec rather than left implicit, so a scenario file states how its enemy
+# moves instead of leaving a reader to infer it from the absence of a field.
+PATROL_BEHAVIOR_VERSION = "patrol_v1"
+
+EnemyBehavior = Literal["patrol_v1", "pursuit_bfs_v1"]
+
+# Every behavior a frozen scenario may name.
+ENEMY_BEHAVIORS: tuple[str, ...] = (
+    PATROL_BEHAVIOR_VERSION,
+    PURSUIT_BEHAVIOR_VERSION,
+)
 
 
 @dataclass
@@ -77,6 +92,64 @@ def advance_enemy(enemy: Enemy | None, can_step: CanStep) -> None:
 
     if target == enemy.position or can_step(enemy.position, target):
         enemy.advance_to_next_waypoint()
+
+
+def move_enemy(
+    enemy: Enemy | None,
+    can_step: CanStep,
+    *,
+    behavior: EnemyBehavior = PATROL_BEHAVIOR_VERSION,
+    game_map: GameMap | None = None,
+    agent_position: Position | None = None,
+) -> None:
+    """Advance the enemy one turn under the named behavior.
+
+    The single movement seam for both GatorEnv and the witness simulator, so
+    the two cannot drift apart. Patrol keeps its original code path untouched;
+    pursuit is a separate branch that recomputes its route every turn.
+
+    Args:
+        enemy: The enemy to move, or None when the scenario has no enemy.
+        can_step: Predicate `can_step(src, dst)` giving the shared directed
+            movement rule.
+        behavior: Which movement rule to apply. Carried on the scenario's
+            EnemySpec, so a frozen scenario always moves the same way.
+        game_map: Required for pursuit, which searches the map. Unused by patrol.
+        agent_position: The agent's tile *after* its own move this step.
+            Required for pursuit, unused by patrol.
+
+    Raises:
+        ValueError: If `behavior` is unknown, or if pursuit is requested
+            without the map and agent position it needs. Failing loudly here
+            matters more than it looks: silently falling back to patrol would
+            make an evaluation run report pursuit results from patrol episodes.
+    """
+    if enemy is None:
+        return
+
+    if behavior == PATROL_BEHAVIOR_VERSION:
+        advance_enemy(enemy, can_step)
+        return
+
+    if behavior == PURSUIT_BEHAVIOR_VERSION:
+        if game_map is None or agent_position is None:
+            raise ValueError(
+                "Pursuit requires game_map and agent_position"
+            )
+
+        # patrol_index is deliberately left alone. The route still defines the
+        # enemy's saved spawn and takes part in scenario identity, but a
+        # pursuer does not walk it, so the index stays frozen at its initial
+        # value for the whole episode.
+        enemy.position = pursuit_target(
+            game_map,
+            enemy.position,
+            agent_position,
+            can_step,
+        )
+        return
+
+    raise ValueError(f"Unknown enemy behavior: {behavior!r}")
 
 
 def in_bounds(position: Position, game_map: GameMap) -> bool:

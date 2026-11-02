@@ -8,7 +8,7 @@ from collections import deque
 from src.configs.environment_config import EnvironmentConfig, MapConfig
 from src.configs.map_generation_config import MapGenerationConfig
 from src.environment.action_space import Action
-from src.environment.enemy import Position
+from src.environment.enemy import PATROL_BEHAVIOR_VERSION, EnemyBehavior, Position
 from src.environment.map import GameMap
 from src.environment.patrol_generator import EnemySpec
 from src.environment.research_world_generator import ResearchWorldCandidate, generate_research_world_candidate
@@ -264,7 +264,7 @@ def validate_world_survival(game_map: GameMap, enemy_spec: EnemySpec | None, con
     return SurvivalCheck(witness=None, tested_count=tested_count, failure_reason="no_living_witness_in_bounded_search",)
 
 # Generates a research world that requires that it passes survival checks before returning (ResearchWorldCandidate is the world and SurvivalWitness is demonstrated successful route)
-def generate_surviving_research_world(map_config: MapConfig, settings: MapGenerationConfig, environment_config: EnvironmentConfig, root_seed: int, *, area_band: str | None = None,) -> tuple[ResearchWorldCandidate, SurvivalWitness]:
+def generate_surviving_research_world(map_config: MapConfig, settings: MapGenerationConfig, environment_config: EnvironmentConfig, root_seed: int, *, area_band: str | None = None, enemy_behavior: EnemyBehavior = PATROL_BEHAVIOR_VERSION) -> tuple[ResearchWorldCandidate, SurvivalWitness]:
     if environment_config.episode_limit_mode != "research":
         raise ValueError("Research episode limits are required")
 
@@ -288,7 +288,9 @@ def generate_surviving_research_world(map_config: MapConfig, settings: MapGenera
         return None
 
     # Generates worlda and then checks candidate using nested helper
-    world = generate_research_world_candidate(map_config, settings, root_seed, area_band=area_band, accept_candidate=check_candidate)
+    # The witness is therefore proven against the behavior the scenario will
+    # actually run, which is the property the pursuit OOD split depends on.
+    world = generate_research_world_candidate(map_config, settings, root_seed, area_band=area_band, accept_candidate=check_candidate, enemy_behavior=enemy_behavior)
 
     if accepted_witness is None:
         raise RuntimeError("World accepted without a living witness")
