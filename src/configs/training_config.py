@@ -116,40 +116,40 @@ class ExperimentConfig:
     mode: Literal["pilot", "final"] = "pilot"
     checkpoint_interval: int = 25_000
     ppo: PPOSettings = field(default_factory=PPOSettings)
-def __post_init__(self):
-        """
-        Automatically called after initializing fields to verify constraints
-        """
-        if (not isinstance(self.reward, RewardConfig) or not isinstance(self.ppo, PPOSettings)):
-            raise TypeError("reward and ppo must be typed configuration objects")
+    def __post_init__(self):
+            """
+            Automatically called after initializing fields to verify constraints
+            """
+            if (not isinstance(self.reward, RewardConfig) or not isinstance(self.ppo, PPOSettings)):
+                raise TypeError("reward and ppo must be typed configuration objects")
 
-        if (type(self.model_seed_slot) is not int or not 0 <= self.model_seed_slot < 5):
-            raise ValueError("model_seed_slot must be in 0..4")
+            if (type(self.model_seed_slot) is not int or not 0 <= self.model_seed_slot < 5):
+                raise ValueError("model_seed_slot must be in 0..4")
 
-        if (type(self.model_seed) is not int or self.model_seed < 0):
-            raise ValueError("model_seed must be a nonnegative integer")
+            if (type(self.model_seed) is not int or self.model_seed < 0):
+                raise ValueError("model_seed must be a nonnegative integer")
 
-        for name in (
-            "train_collection_dir",
-            "train_schedule_path",
-            "checkpoint_validation_dir",
-            "output_root",
-        ):
-            value = getattr(self, name)
+            for name in (
+                "train_collection_dir",
+                "train_schedule_path",
+                "checkpoint_validation_dir",
+                "output_root",
+            ):
+                value = getattr(self, name)
 
-            if not isinstance(value, str) or not value.strip():
-                raise ValueError(f"{name} must be a nonempty path")
+                if not isinstance(value, str) or not value.strip():
+                    raise ValueError(f"{name} must be a nonempty path")
 
-        if self.mode not in ("pilot", "final"):
-            raise ValueError("Invalid experiment mode")
+            if self.mode not in ("pilot", "final"):
+                raise ValueError("Invalid experiment mode")
 
-        if (type(self.total_timesteps) is not int or self.total_timesteps <= 0):
-            raise ValueError("total_timesteps must be a positive integer")
+            if (type(self.total_timesteps) is not int or self.total_timesteps <= 0):
+                raise ValueError("total_timesteps must be a positive integer")
 
-        if (type(self.checkpoint_interval) is not int or self.checkpoint_interval != 25_000):
-            raise ValueError("Checkpoint boundary is fixed at 25,000 steps")
+            if (type(self.checkpoint_interval) is not int or self.checkpoint_interval != 25_000):
+                raise ValueError("Checkpoint boundary is fixed at 25,000 steps")
 
-        rollout = self.ppo.n_steps * self.ppo.n_envs
+            rollout = self.ppo.n_steps * self.ppo.n_envs
 
-        if (self.checkpoint_interval % rollout or self.total_timesteps % rollout):
-            raise ValueError("PPO rollout must divide 25,000 and total_timesteps exactly")
+            if (self.checkpoint_interval % rollout or self.total_timesteps % rollout):
+                raise ValueError("PPO rollout must divide 25,000 and total_timesteps exactly")
