@@ -24,7 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # --- HELPER FUNCTIONS --- #
 
-def load_config(path: str | Path) -> ExperimentConfig:
+def _load_config(path: str | Path) -> ExperimentConfig:
     '''
     Converts external JSON config into the existing reward config and new typed experimental config.
     '''
@@ -75,7 +75,7 @@ def _write_manifest(run_dir: Path, data: dict) -> None:
     temp.write_text(json.dumps(data, indent=2, sort_keys=True, allow_nan=False), encoding="utf-8")
     temp.replace(run_dir / "manifest.json")
 
-def verify_inputs(config: ExperimentConfig) -> tuple[dict, dict, dict]:
+def _verify_inputs(config: ExperimentConfig) -> tuple[dict, dict, dict]:
     '''
     Rejects experiments whose dataset inputs are not aligned with established protocol for research runs
     '''
@@ -84,7 +84,6 @@ def verify_inputs(config: ExperimentConfig) -> tuple[dict, dict, dict]:
 
     train = load_collection_manifest(train_dir)
     validation = load_collection_manifest(validation_dir)
-    schedule = load_training_schedule(config.train_schedule_path, train)
 
     # Ensure training and validation are seperate
     if train_dir.resolve() == validation_dir.resolve():
@@ -99,6 +98,7 @@ def verify_inputs(config: ExperimentConfig) -> tuple[dict, dict, dict]:
         raise ValueError("TRAIN and validation must share the same recorded source version")
 
     # Verifies that the model seed slot actually exists
+    schedule = load_training_schedule(config.train_schedule_path, train)
     if str(config.model_seed_slot) not in schedule["slot_orders"]:
         raise ValueError("No schedule for requested model seed slot")
 
@@ -188,7 +188,7 @@ def run(config: ExperimentConfig) -> Path:
         raise RuntimeError("FINAL runs are disabled until dataset/reward/calibration/benchmark gates pass")
 
     # Verifies the datasets and records the source revision
-    train, validation, schedule = verify_inputs(config)
+    train, validation, schedule = _verify_inputs(config)
     revision = _code_revision()
 
     if config.reward.variant != "sparse":
@@ -362,7 +362,7 @@ def main() -> None:
 
     # Loads the JSON, validates it, and runs experiment
     args = parser.parse_args()
-    print(run(load_config(args.config)))
+    print(run(_load_config(args.config)))
 
 
 if __name__ == "__main__":
