@@ -20,7 +20,7 @@ from src.environment.map import GameMap, load_map_from_file, HazardType
 from src.environment.observation_space import create_observation_space
 from src.environment.scenario_collections import load_collection_manifest, load_training_schedule, scheduled_scenario_id
 from src.environment.scenario_serialization import digest, load_scenario, scenario_to_dict
-from src.environment.sparse_reward import calculate_sparse_reward
+from src.rewards.registry import get_reward_calculator
 from src.environment.step_events import StepEvents
 from src.environment.observation_builder import build_observation
 from src.environment.map_generator import generate_map
@@ -61,6 +61,13 @@ class GatorEnv(gym.Env):
         self.environment_config = environment_config or EnvironmentConfig()
         self.map_config = map_config or MapConfig()
         self.reward_config = reward_config or RewardConfig()
+
+        # Resolved once, here rather than per step. RewardConfig validates the
+        # variant name against all five declared variants, so a config naming an
+        # unimplemented one is valid config; looking the calculator up now turns
+        # that into a construction error instead of a failure on the first step
+        # of a training run.
+        self._reward_calculator = get_reward_calculator(self.reward_config.variant)
 
         # Map source logic
         if self.map_config.map_mode not in ("fixed", "procedural"):
@@ -395,8 +402,12 @@ class GatorEnv(gym.Env):
             end_reason=end_reason,
         )
 
-        # Calculates reward and determines if environment is terminated or truncated
-        reward = calculate_sparse_reward(transition_context, self.reward_config)
+        # Scores the finalized transition. The calculator was resolved at
+        # construction from reward_config.variant, so there is no branch on the
+        # variant here and no way for a reward choice to reach the simulation
+        # above: everything it reads is an immutable snapshot taken after damage
+        # and outcome classification.
+        reward = self._reward_calculator(transition_context, self.reward_config)
 
         observation = self._get_obs()
         info = self._get_info(events=events, end_reason=end_reason)
