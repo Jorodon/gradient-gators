@@ -12,6 +12,7 @@
   "total_timesteps": 500,
   "mode": "pilot",
   "checkpoint_interval": 25000,
+  "trajectory_episode_indices": [],
   "ppo": {
     "learning_rate": 0.0003,
     "n_steps": 250,

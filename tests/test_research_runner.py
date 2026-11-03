@@ -51,6 +51,7 @@ def prepare_inputs(tmp_path):
         train_schedule_path=str(schedule),
         checkpoint_validation_dir=str(root / "pilot_validation"),
         output_root=str(tmp_path / "runs"), total_timesteps=500,
+        trajectory_episode_indices=(0,),
     )
     return config
 
@@ -178,8 +179,16 @@ def test_short_ppo_run_checkpoint_manifest_and_reload(tmp_path):
         assert info["mode"] == "pilot"
         assert info["research_protocol_frozen"] is False
         assert info["actual_training_interactions"] == 500
-        assert info["actual_checkpoint_evaluation_interactions"] == 0
+        assert 1 <= info["actual_checkpoint_evaluation_interactions"] <= 100
         assert info["reload_predict_passed"] is True
         assert info["checkpoints"] == []  # 500-step smoke ends before 25k.
+        assert (path / "episodes.csv").is_file()
+        assert (path / "evaluation_episodes.csv").is_file()
+        assert info["trajectory_files"]
+        assert info["evaluation_trajectory_files"]
+        assert all(
+            (path / "trajectories" / filename).is_file()
+            for filename in info["trajectory_files"] + info["evaluation_trajectory_files"]
+        )
         assert (path / "models" / "final.zip").is_file()
         assert info["train_collection_checksum"] != info["checkpoint_validation_checksum"]
