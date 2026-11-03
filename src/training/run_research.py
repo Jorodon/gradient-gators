@@ -18,6 +18,7 @@ from src.configs.training_config import ExperimentConfig, PPOSettings, RewardCon
 from src.environment.gator_env import GatorEnv
 from src.environment.scenario_collections import load_collection_manifest, load_training_schedule, scheduled_scenario_id
 from src.environment.scenario_serialization import digest, load_scenario, scenario_to_dict
+from src.evaluation.research_logging import ResearchEpisodeLogger
 
 # Root path for repository
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -116,6 +117,29 @@ def _verify_inputs(config: ExperimentConfig) -> tuple[dict, dict, dict]:
 
     return train, validation, schedule
 
+
+def _reset_info_from_scenario(scenario, step_info: dict) -> dict:
+    """Restores exact step zero state from authoritative saved scenario.
+
+    To clarify PPO callbacks receive post step info (rather than the reset info that began
+    the current rollout). The saved scenario is the source of truth for
+    initial state, no intermediate trajectory frames are reconstructed here.
+    """
+    reset_info = {
+        key: value
+        for key, value in step_info.items()
+        if key not in {"events", "episode_end_reason"}
+    }
+    reset_info["agent_position"] = scenario.game_map.start
+    reset_info["agent_hp"] = float(scenario.environment_config.max_hp)
+    if scenario.enemy_spec is not None:
+        reset_info["enemy_position"] = scenario.enemy_spec.initial_position
+        reset_info["enemy_patrol_index"] = scenario.enemy_spec.initial_patrol_index
+    else:
+        reset_info.pop("enemy_position", None)
+        reset_info.pop("enemy_patrol_index", None)
+    return reset_info
+
 # --- Classes --- #
 
 class TrainingAudit(BaseCallback):
@@ -123,11 +147,37 @@ class TrainingAudit(BaseCallback):
     Count real TRAIN interactions and verify each scheduled scenario
     """
 
-    def __init__(self, *, manifest: dict, schedule: dict, slot: int):
+    def __init__(
+        self,
+        *,
+        manifest: dict,
+        schedule: dict,
+        slot: int,
+        experiment_id: str,
+        reward_type: str,
+        training_seed: int,
+        environment_seed: int,
+        model_id: str,
+        scenario_loader,
+        trajectory_dir: Path,
+        selected_episode_indices: tuple[int, ...],
+    ):
         super().__init__()
         self.expected_hash = {s["scenario_id"]: s["checksum"] for s in manifest["entries"]} # Creates lookup table with every accepted scenario_id
         self.schedule = schedule
         self.slot = slot
+        self.scenario_loader = scenario_loader
+        self.episode_logging = ResearchEpisodeLogger(
+            experiment_id=experiment_id,
+            reward_type=reward_type,
+            training_seed=training_seed,
+            environment_seed=environment_seed,
+            model_id=model_id,
+            scenario_loader=scenario_loader,
+            trajectory_dir=trajectory_dir,
+            selected_episode_indices=selected_episode_indices,
+        )
+        self._active_episode_index: int | None = None
         self.training_steps = 0
         self.episodes_seen: set[int] = set()
         self.completed_episodes = 0
@@ -149,13 +199,36 @@ class TrainingAudit(BaseCallback):
                 or scenario_id != scheduled_scenario_id(self.schedule, self.slot, episode_index)
                 or info["snapshot_checksum"] != self.expected_hash.get(scenario_id)):
             raise RuntimeError("TRAIN scenario schedule/hash identity changed")
+
+        if self._active_episode_index is None:
+            scenario = self.scenario_loader(scenario_id)
+            self.episode_logging.start_episode(
+                episode=episode_index,
+                reset_info=_reset_info_from_scenario(scenario, info),
+            )
+            self._active_episode_index = episode_index
+        elif self._active_episode_index != episode_index:
+            raise RuntimeError("A new TRAIN episode started before the prior episode ended")
+
+        truncated = info.get("episode_end_reason") == "timestep_limit"
+        terminated = bool(self.locals["dones"][0]) and not truncated
+        completed_record = self.episode_logging.record_step(
+            self.locals["actions"][0],
+            self.locals["rewards"][0],
+            terminated,
+            truncated,
+            info,
+        )
         
         self.training_steps += 1
         self.episodes_seen.add(episode_index)
         self.steps_per_scenario[scenario_id] = self.steps_per_scenario.get(scenario_id, 0) + 1
 
         if bool(self.locals["dones"][0]):
+            if completed_record is None:
+                raise RuntimeError("Completed TRAIN step did not produce an episode record")
             self.completed_episodes += 1
+            self._active_episode_index = None
         
         return True
 
@@ -169,7 +242,79 @@ class TrainingAudit(BaseCallback):
             "episodes_started": len(self.episodes_seen),
             "unique_scenarios_seen": len(self.steps_per_scenario),
             "training_steps_by_scenario": dict(sorted(self.steps_per_scenario.items())),
+            "logged_episode_count": len(self.episode_logging.records),
+            "trajectory_files": [path.name for path in self.episode_logging.saved_trajectories],
         }
+
+    def write_episode_log(self, path: str | Path) -> Path:
+        """Writes completed TRAIN episode summaries to CSV."""
+        return self.episode_logging.write_episode_csv(path)
+
+
+def _run_validation_episode(
+    model: PPO,
+    config: ExperimentConfig,
+    validation: dict,
+    *,
+    run_id: str,
+    run_dir: Path,
+) -> tuple[int, ResearchEpisodeLogger]:
+    """Runs a deterministic held out episode & persist its artifacts.
+
+    (Kept intentionally as a small integration point until the full M4 evaluation
+    matrix is finalized)
+    """
+    scenario_id = validation["entries"][0]["scenario_id"]
+    scenario_dir = Path(config.checkpoint_validation_dir)
+    scenario_loader = lambda selected_id: load_scenario(
+        scenario_dir / f"{selected_id}.json"
+    )
+    logger = ResearchEpisodeLogger(
+        experiment_id=run_id,
+        reward_type=config.reward.variant,
+        training_seed=config.model_seed,
+        environment_seed=config.model_seed,
+        model_id=run_id,
+        scenario_loader=scenario_loader,
+        trajectory_dir=run_dir / "trajectories",
+        selected_episode_indices=config.trajectory_episode_indices,
+    )
+    env = GatorEnv(
+        map_config=MapConfig(map_mode="procedural"),
+        reward_config=config.reward,
+        scenario_collection_dir=scenario_dir,
+    )
+
+    steps = 0
+    try:
+        observation, reset_info = env.reset(
+            seed=config.model_seed,
+            options={"scenario_id": scenario_id},
+        )
+        logger.start_episode(episode=0, reset_info=reset_info)
+        while True:
+            action, _ = model.predict(observation, deterministic=True)
+            observation, reward, terminated, truncated, info = env.step(action)
+            steps += 1
+            completed = logger.record_step(
+                action,
+                reward,
+                terminated,
+                truncated,
+                info,
+            )
+            if terminated or truncated:
+                if completed is None:
+                    raise RuntimeError("Validation episode did not produce a summary")
+                break
+            if steps > int(reset_info["max_episode_steps"]):
+                raise RuntimeError("Validation episode exceeded its environment horizon")
+    finally:
+        env.close()
+
+    logger.write_episode_csv(run_dir / "evaluation_episodes.csv")
+    return steps, logger
+
 
 # --- Main Functionality --- #
 
@@ -239,8 +384,23 @@ def run(config: ExperimentConfig) -> Path:
             scenario_schedule_path=config.train_schedule_path,
             model_seed_slot=config.model_seed_slot,
         )
-        # Initializes audit
-        audit = TrainingAudit(manifest=train, schedule=schedule, slot=config.model_seed_slot)
+        # Initializes audit and the episode/trajectory integration adapter.
+        train_scenario_dir = Path(config.train_collection_dir)
+        audit = TrainingAudit(
+            manifest=train,
+            schedule=schedule,
+            slot=config.model_seed_slot,
+            experiment_id=run_id,
+            reward_type=config.reward.variant,
+            training_seed=config.model_seed,
+            environment_seed=config.model_seed,
+            model_id=run_id,
+            scenario_loader=lambda scenario_id: load_scenario(
+                train_scenario_dir / f"{scenario_id}.json"
+            ),
+            trajectory_dir=run_dir / "trajectories",
+            selected_episode_indices=config.trajectory_episode_indices,
+        )
 
         # Constructs PPO (NOTE: MultiInputPolicy is REQUIRED otherwise it will fail since we use multiple layered observations)
         model = PPO(
@@ -292,6 +452,7 @@ def run(config: ExperimentConfig) -> Path:
                 model.save(str(run_dir / "models" / f"checkpoint_{target:09d}"))
                 record["checkpoints"].append({"training_steps": target, "file": f"models/checkpoint_{target:09d}.zip"})
 
+            audit.write_episode_log(run_dir / "episodes.csv")
             record.update(audit.snapshot())
             _write_manifest(run_dir, record)
             previous = target
@@ -323,10 +484,23 @@ def run(config: ExperimentConfig) -> Path:
             # Closes probe env
             probe.close()
 
+        evaluation_steps, evaluation_logging = _run_validation_episode(
+            restored,
+            config,
+            validation,
+            run_id=run_id,
+            run_dir=run_dir,
+        )
+
         # Records data to audit record
         record["status"] = "completed"
         record["final_model"] = "models/final.zip"
         record["reload_predict_passed"] = True
+        record["actual_checkpoint_evaluation_interactions"] = evaluation_steps
+        record["evaluation_episode_log_file"] = "evaluation_episodes.csv"
+        record["evaluation_trajectory_files"] = [
+            path.name for path in evaluation_logging.saved_trajectories
+        ]
         _write_manifest(run_dir, record)
 
     # Exception catch

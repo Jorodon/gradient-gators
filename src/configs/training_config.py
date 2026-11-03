@@ -115,6 +115,7 @@ class ExperimentConfig:
     total_timesteps: int
     mode: Literal["pilot", "final"] = "pilot"
     checkpoint_interval: int = 25_000
+    trajectory_episode_indices: tuple[int, ...] = ()
     ppo: PPOSettings = field(default_factory=PPOSettings)
     def __post_init__(self):
             """
@@ -148,6 +149,22 @@ class ExperimentConfig:
 
             if (type(self.checkpoint_interval) is not int or self.checkpoint_interval != 25_000):
                 raise ValueError("Checkpoint boundary is fixed at 25,000 steps")
+
+            if (
+                not isinstance(self.trajectory_episode_indices, (list, tuple))
+                or any(
+                    type(index) is not int or index < 0
+                    for index in self.trajectory_episode_indices
+                )
+            ):
+                raise ValueError(
+                    "trajectory_episode_indices must contain nonnegative integers"
+                )
+            object.__setattr__(
+                self,
+                "trajectory_episode_indices",
+                tuple(self.trajectory_episode_indices),
+            )
 
             rollout = self.ppo.n_steps * self.ppo.n_envs
 
