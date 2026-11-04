@@ -26,6 +26,12 @@ from typing import get_args
 from src.configs.training_config import RewardConfig, RewardVariant
 from src.environment.sparse_reward import calculate_sparse_reward
 from src.rewards.transition_context import TransitionContext
+from src.rewards.reward_calculators import (
+    calculate_efficiency_reward,
+    calculate_balanced_reward,
+    calculate_progress_reward,
+    calculate_safety_reward,
+)
 
 # A reward calculator scores one finalized transition. It must not mutate its
 # arguments and must return a finite float.
@@ -41,6 +47,10 @@ DECLARED_VARIANTS: tuple[str, ...] = get_args(RewardVariant)
 # pinned by test_sparse_reward.py and must not move.
 REWARD_CALCULATORS: dict[str, RewardCalculator] = {
     "sparse": calculate_sparse_reward,
+    "efficiency": calculate_efficiency_reward,
+    "balanced": calculate_balanced_reward,
+    "progress": calculate_progress_reward,
+    "safety": calculate_safety_reward,
 }
 
 

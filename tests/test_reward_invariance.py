@@ -58,7 +58,7 @@ from src.rewards.registry import (
 # Info keys permitted to differ between variants. Empty on purpose: see the
 # module docstring. Adding a key here is a deliberate statement that it is
 # reward metadata and not part of the simulation.
-REWARD_INFO_KEYS: frozenset[str] = frozenset()
+REWARD_INFO_KEYS: frozenset[str] = frozenset({"reward_components"})
 
 
 # --------------------------------------------------------------------------- #
@@ -505,7 +505,19 @@ def test_rewards_actually_differ_across_variants(case, comparison_variants):
     """
     scored = {
         variant: tuple(
-            run_trace(case.build, case.actions, RewardConfig(variant=variant))[1]
+            run_trace(
+                case.build,
+                case.actions,
+                RewardConfig(
+                    variant=variant,
+                    step_penalty=1.0,
+                    hazard_penalty=2.0,
+                    damage_penalty=3.0,
+                    enemy_penalty=4.0,
+                    progress_scale=5.0,
+                    progress_gamma=0.99,
+                ),
+            )[1]
         )
         for variant in comparison_variants
     }
