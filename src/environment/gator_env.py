@@ -35,6 +35,8 @@ from src.environment.enemy import (
 from src.environment.traversal import can_step_on_map
 from src.environment.transition_rules import fall_damage_on_map, hazard_damage_at, enemy_contact, apply_damage_to_hp, classify_outcome
 
+from src.rewards.reward_calculators import calculate_reward_components
+
 DEFAULT_MAP_PATH = (Path(__file__).parent / "maps" / "mvp_map.json")
 
 class GatorEnv(gym.Env):
@@ -408,9 +410,13 @@ class GatorEnv(gym.Env):
         # above: everything it reads is an immutable snapshot taken after damage
         # and outcome classification.
         reward = self._reward_calculator(transition_context, self.reward_config)
+        reward_components = calculate_reward_components(
+            transition_context,self.reward_config,
+        )
 
         observation = self._get_obs()
         info = self._get_info(events=events, end_reason=end_reason)
+        info["reward_components"] = reward_components
 
         return(
             observation,
