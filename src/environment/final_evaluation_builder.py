@@ -19,8 +19,9 @@ from src.environment.research_world_generator import (
     generate_research_world_candidate,
 )
 from src.environment.survival_validator import validate_world_survival
+from src.environment.frozen_dataset_builder import get_code_version
 
-FINAL_EVALUATION_MANIFEST_VERSION = 1
+FINAL_EVALUATION_MANIFEST_VERSION = 2
 @dataclass(frozen=True)
 class FinalConditionSpec:
     """Density requirements for one final evaluation condition."""
@@ -623,7 +624,10 @@ def write_final_evaluation_manifest(
     manifest = {
         "schema_version": FINAL_EVALUATION_MANIFEST_VERSION,
         "evaluation_id": manifest_path.stem,
-        "code_version": train_manifest["code_version"],
+        "code_versions": {
+            "train": train_manifest["code_version"],
+            "final_evaluation": get_code_version(),
+        },
         "frozen_references": {
             "train": {
                 "collection_id": train_manifest["collection_id"],
@@ -681,14 +685,25 @@ def load_final_evaluation_manifest(
     expected_fields = {
         "schema_version",
         "evaluation_id",
-        "code_version",
+        "code_versions",
         "frozen_references",
         "conditions",
         "checksum",
     }
 
-    if not isinstance(manifest, dict) or set(manifest) != expected_fields:
-        raise ValueError("Invalid final evaluation manifest fields")
+    code_versions = manifest["code_versions"]
+
+    if not isinstance(code_versions, dict):
+        raise ValueError("Invalid code versions")
+
+    if set(code_versions) != {"train", "final_evaluation"}:
+        raise ValueError("Invalid code version fields")
+
+    if any(
+            not isinstance(version, str) or not version
+            for version in code_versions.values()
+    ):
+        raise ValueError("Missing code version")
 
     unsigned = dict(manifest)
     checksum = unsigned.pop("checksum")
@@ -701,9 +716,6 @@ def load_final_evaluation_manifest(
 
     if not isinstance(manifest["evaluation_id"], str) or not manifest["evaluation_id"]:
         raise ValueError("Missing evaluation ID")
-
-    if not isinstance(manifest["code_version"], str) or not manifest["code_version"]:
-        raise ValueError("Missing code version")
 
     if set(manifest["conditions"]) != set(FINAL_CONDITIONS):
         raise ValueError("Final evaluation condition matrix is incomplete")

@@ -602,7 +602,10 @@ def test_final_evaluation_manifest_records_ready_and_pending_conditions(
 
     manifest = load_final_evaluation_manifest(manifest_path)
 
-    assert manifest["schema_version"] == 1
+    assert manifest["schema_version"] == 2
+    assert set(manifest["code_versions"]) == {"train", "final_evaluation"}
+    assert manifest["code_versions"]["train"]
+    assert manifest["code_versions"]["final_evaluation"]
     assert manifest["evaluation_id"] == "manifest"
     assert set(manifest["conditions"]) == set(FINAL_CONDITIONS)
 
