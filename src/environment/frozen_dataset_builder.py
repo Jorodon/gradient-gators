@@ -113,6 +113,7 @@ def get_code_version() -> str:
             "src/environment/scenario_serialization.py",
             "src/environment/scenario_collections.py",
             "src/environment/frozen_dataset_builder.py",
+            "src/environment/final_evaluation_builder.py",
             "src/environment/gator_env.py",
         ]
 
