@@ -5,6 +5,7 @@ import numpy as np
 
 from src.configs.environment_config import MapConfig
 from src.configs.map_generation_config import MapGenerationConfig
+from src.environment.enemy import PATROL_BEHAVIOR_VERSION, EnemyBehavior
 from src.environment.map import GameMap
 from src.environment.map_generator import AREA_BOUNDS, ResearchMapCandidate, generate_research_candidate, sample_map_dimensions, sample_map_dimensions_for_band, validate_research_settings
 from src.environment.patrol_generator import EnemySpec, PatrolGenerationError, generate_enemy_spec
@@ -55,8 +56,14 @@ def generate_research_world_candidate(
         root_seed: int,
         *,
         area_band: str | None = None,
-        accept_candidate: (Callable[[ResearchWorldCandidate], str | None] | None) = None
+        accept_candidate: (Callable[[ResearchWorldCandidate], str | None] | None) = None,
+        enemy_behavior: EnemyBehavior = PATROL_BEHAVIOR_VERSION,
     ) -> ResearchWorldCandidate:
+    # enemy_behavior is threaded as a keyword rather than added to
+    # MapGenerationConfig: the behavior belongs to the enemy spec, and a new
+    # field on the shared generation config would change its serialized shape
+    # for every split. area_band is likewise a caller-supplied keyword, so the
+    # two are independent and compose.
     if type(root_seed) is not int or root_seed < 0:
         raise ValueError("root_seed must be a positive int")
 
@@ -102,7 +109,7 @@ def generate_research_world_candidate(
         # Enemy generation
         if settings.enemy_required:
             try:
-                enemy_spec = generate_enemy_spec(map_candidate.game_map, rng, max_outward_steps=settings.patrol_max_outward_steps, max_spawn_attempts=settings.patrol_max_spawn_attempts)
+                enemy_spec = generate_enemy_spec(map_candidate.game_map, rng, max_outward_steps=settings.patrol_max_outward_steps, max_spawn_attempts=settings.patrol_max_spawn_attempts, behavior=enemy_behavior)
             # Logs error
             except PatrolGenerationError as error:
                 rejected.append(f"attempt {attempt}: patrol unavailable ({error})")

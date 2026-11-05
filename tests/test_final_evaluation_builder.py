@@ -1,6 +1,7 @@
 import pytest
 import json
 
+from src.environment.pursuit import PURSUIT_BEHAVIOR_VERSION
 from src.configs.environment_config import EnvironmentConfig, MapConfig
 from src.configs.map_generation_config import MapGenerationConfig
 from src.environment.final_evaluation_builder import (
@@ -15,6 +16,8 @@ from src.environment.final_evaluation_builder import (
     validate_scenario_condition,
     load_final_evaluation_manifest,
     write_final_evaluation_manifest,
+    ID_OBSTACLE_RANGE,
+    ID_HAZARD_RANGE,
 )
 from src.environment.map import GameMap, Tile, HazardType
 from src.environment.scenario_collections import write_collection
@@ -32,9 +35,9 @@ def test_map_based_conditions_are_ready():
     assert FINAL_CONDITIONS["FINAL_OOD_OBSTACLE"].status == "ready"
 
 
-def test_pursuit_conditions_are_pending():
-    assert FINAL_CONDITIONS["FINAL_OOD_PURSUIT"].status == "pending"
-    assert FINAL_CONDITIONS["FINAL_OOD_COMBINED"].status == "pending"
+def test_all_five_final_conditions_are_ready():
+    for condition_id in FINAL_CONDITIONS:
+        assert FINAL_CONDITIONS[condition_id].status == "ready"
 
 
 def test_realized_density_uses_actual_integer_count():
@@ -99,13 +102,12 @@ def test_obstacle_ood_requires_obstacle_above_id_support():
     assert reasons
 
 
-def test_pending_condition_cannot_be_generated():
-    with pytest.raises(ValueError, match="not ready"):
-        validate_condition_densities(
-            "FINAL_OOD_PURSUIT",
-            obstacle_density=0.22,
-            hazard_density=0.17,
-        )
+def test_pursuit_condition_accepts_id_density_ranges():
+    assert validate_condition_densities(
+        "FINAL_OOD_PURSUIT",
+        obstacle_density=0.10,
+        hazard_density=0.075,
+    ) == []
 
 
 def test_unknown_condition_is_rejected():
@@ -237,13 +239,14 @@ def test_condition_config_preserves_other_settings():
     assert result.world_max_attempts == base_config.world_max_attempts
 
 
-def test_pending_condition_config_is_rejected():
-    with pytest.raises(ValueError, match="not ready"):
-        build_condition_config(
-            MapGenerationConfig(),
-            "FINAL_OOD_PURSUIT",
-        )
+def test_pursuit_condition_config_uses_id_density_ranges():
+    config = build_condition_config(
+        MapGenerationConfig(),
+        "FINAL_OOD_PURSUIT",
+    )
 
+    assert config.obstacle_density_range == ID_OBSTACLE_RANGE
+    assert config.hazard_density_range == ID_HAZARD_RANGE
 
 def test_final_seed_generation_is_deterministic():
     first = derive_final_seed(12345, "FINAL_ID", "small", 0)
@@ -345,14 +348,18 @@ def test_generate_obstacle_ood_scenario():
     assert density_is_in_range(
         result["hazard_density"], (0.05, 0.10)
     )
-def test_generate_pending_pursuit_condition_is_rejected():
-    with pytest.raises(ValueError, match="not ready"):
-        generate_test_scenarios("FINAL_OOD_PURSUIT")
+def test_generate_pursuit_condition_uses_pursuit_behavior():
+    scenarios, audit = generate_test_scenarios("FINAL_OOD_PURSUIT")
+
+    assert audit["accepted_count"] == 1
+    assert scenarios[0].enemy_spec.behavior == PURSUIT_BEHAVIOR_VERSION
 
 
-def test_generate_pending_combined_condition_is_rejected():
-    with pytest.raises(ValueError, match="not ready"):
-        generate_test_scenarios("FINAL_OOD_COMBINED")
+def test_generate_combined_condition_uses_pursuit_behavior():
+    scenarios, audit = generate_test_scenarios("FINAL_OOD_COMBINED")
+
+    assert audit["accepted_count"] == 1
+    assert scenarios[0].enemy_spec.behavior == PURSUIT_BEHAVIOR_VERSION
 
 def accepted_collection_scenario(seed, collection_id, split):
     from src.configs.environment_config import EnvironmentConfig, MapConfig
@@ -558,6 +565,8 @@ def create_final_manifest_test_data(tmp_path):
         "FINAL_ID",
         "FINAL_OOD_HAZARD",
         "FINAL_OOD_OBSTACLE",
+        "FINAL_OOD_PURSUIT",
+        "FINAL_OOD_COMBINED",
     ]
 
     for index, condition_id in enumerate(ready_conditions, start=13):
@@ -585,7 +594,7 @@ def create_final_manifest_test_data(tmp_path):
         }
 
     return train, validation, condition_collections, generation_audits
-def test_final_evaluation_manifest_records_ready_and_pending_conditions(
+def test_final_evaluation_manifest_records_all_ready_conditions(
     tmp_path,
 ):
     train, validation, collections, audits = (
@@ -608,21 +617,6 @@ def test_final_evaluation_manifest_records_ready_and_pending_conditions(
     assert manifest["code_versions"]["final_evaluation"]
     assert manifest["evaluation_id"] == "manifest"
     assert set(manifest["conditions"]) == set(FINAL_CONDITIONS)
-
-    for condition_id in (
-        "FINAL_ID",
-        "FINAL_OOD_HAZARD",
-        "FINAL_OOD_OBSTACLE",
-    ):
-        condition = manifest["conditions"][condition_id]
-        assert condition["status"] == "ready"
-        assert condition["collection"]["scenario_count"] == 1
-
-    for condition_id in ("FINAL_OOD_PURSUIT", "FINAL_OOD_COMBINED"):
-        condition = manifest["conditions"][condition_id]
-        assert condition["status"] == "pending"
-        assert condition["collection"] is None
-        assert condition["pending_reason"]
 
 def test_final_evaluation_manifest_rejects_checksum_corruption(tmp_path):
     train, validation, collections, audits = (
