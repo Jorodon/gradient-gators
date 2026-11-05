@@ -1,0 +1,65 @@
+# Action name
+name: Python Tests
+
+# Conditions
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+  push:
+    branches:
+      - develop
+      - main
+
+# Read permission only
+permissions:
+  contents: read
+
+# Create a clean testing ubuntu env
+jobs:
+  pytest:
+    name: pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # Download code from commit
+      - name: Check out repository
+        uses: actions/checkout@v7
+      
+      # Configures python 3.14
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      # Installs dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      
+      # Records python and depndency versions
+      - name: Record Python and dependency versions
+        run: |
+          python --version
+          python -m pip freeze
+
+      # Runs pytest suite
+      - name: Run all tests
+        env:
+          MPLBACKEND: Agg # Tells matplotlib to use a noninteractive backend
+        run: python -m pytest -q -ra --durations=10 --junitxml=test-results.xml
+      
+      # Creates report for test that can be reviewed later
+      - name: Upload pytest report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: pytest-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: test-results.xml
+          if-no-files-found: warn
+          retention-days: 14

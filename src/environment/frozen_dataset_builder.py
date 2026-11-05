@@ -393,7 +393,7 @@ def _build_frozen_dataset_in_directory(
     if config.max_root_seed_attempts <= 0:
         raise ValueError("Root seed attempt limit must be positive")
 
-    if len(config.slot_seeds) != 5 or any(
+    if len(config.slot_seeds) != 5 or len(set(config.slot_seeds)) != 5 or any(
         type(seed) is not int or seed < 0 for seed in config.slot_seeds
     ):
         raise ValueError("Exactly five approved nonnegative slot seeds are required")

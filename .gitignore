@@ -223,3 +223,7 @@ __marimo__/
 # macOS / PyCharm
 .DS_Store
 .idea/
+
+# Local PPO pilot datasets and experiment outputs
+/results/pilot_dataset/
+/results/pilot_runs/

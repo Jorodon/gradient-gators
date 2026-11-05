@@ -36,7 +36,6 @@ from src.environment.traversal import can_step_on_map
 from src.environment.transition_rules import fall_damage_on_map, hazard_damage_at, enemy_contact, apply_damage_to_hp, classify_outcome
 
 from src.rewards.reward_calculators import calculate_reward_components
-from src.environment.sparse_reward import calculate_sparse_reward
 
 DEFAULT_MAP_PATH = (Path(__file__).parent / "maps" / "mvp_map.json")
 
@@ -410,10 +409,7 @@ class GatorEnv(gym.Env):
         # variant here and no way for a reward choice to reach the simulation
         # above: everything it reads is an immutable snapshot taken after damage
         # and outcome classification.
-        reward = calculate_sparse_reward(
-            transition_context,
-            self.reward_config,
-        )
+        reward = self._reward_calculator(transition_context, self.reward_config)
         reward_components = calculate_reward_components(
             transition_context,self.reward_config,
         )
