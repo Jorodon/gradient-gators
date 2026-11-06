@@ -227,3 +227,4 @@ __marimo__/
 # Local PPO pilot datasets and experiment outputs
 /results/pilot_dataset/
 /results/pilot_runs/
+/results/research_frozen_v2/
