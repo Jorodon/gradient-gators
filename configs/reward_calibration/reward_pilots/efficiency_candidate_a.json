@@ -1,0 +1,35 @@
+{
+  "reward": {
+  "variant": "efficiency",
+  "goal_reward": 100.0,
+  "step_penalty": 0.05,
+  "hazard_penalty": 1.0,
+  "damage_penalty": 0.25,
+  "enemy_penalty": 1.0,
+  "progress_scale": 0.5,
+  "progress_gamma": 0.99
+},
+  "model_seed_slot": 0,
+  "model_seed": 101,
+  "train_collection_dir": "results/pilot_dataset/pilot_train",
+  "train_schedule_path": "results/pilot_dataset/training_schedule.json",
+  "checkpoint_validation_dir": "results/pilot_dataset/pilot_checkpoint_validation",
+  "output_root": "results/pilot_runs",
+  "total_timesteps": 25000,
+  "mode": "pilot",
+  "checkpoint_interval": 25000,
+  "trajectory_episode_indices": [],
+  "ppo": {
+    "learning_rate": 0.0003,
+    "n_steps": 250,
+    "n_envs": 1,
+    "batch_size": 125,
+    "n_epochs": 2,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2,
+    "ent_coef": 0.0,
+    "vf_coef": 0.5,
+    "device": "cpu"
+  }
+}
