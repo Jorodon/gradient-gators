@@ -62,6 +62,9 @@ class PPOSettings:
     ent_coef: float = 0.0
     vf_coef: float = 0.5
     device: str = "cpu"
+    net_arch: tuple[int, ...] = (64, 64)
+    max_grad_norm: float = 0.5
+    normalize_advantage: bool = True
     def __post_init__(self):
             """
             Automatically called after initializing fields to verify values
@@ -99,6 +102,23 @@ class PPOSettings:
             ):
                 raise ValueError("Invalid PPO coefficient or learning rate")
 
+            if (not isinstance(self.net_arch, (list, tuple))
+                or not self.net_arch
+                or any(type(width) is not int or width <= 0 for width in self.net_arch)
+            ):
+                raise ValueError("net_arch must contain positive integer widths")
+            
+            object.__setattr__(self, "net_arch", tuple(self.net_arch))
+
+            if not isfinite(self.max_grad_norm) or self.max_grad_norm <= 0:
+                raise ValueError("max_grad_norm must be positive and finite")
+            
+            if type(self.normalize_advantage) is not bool:
+                raise ValueError("normalize_advantage must be boolean")
+            
+            if self.normalize_advantage and self.batch_size < 2:
+                raise ValueError("Advantage normalization requires batch_size >= 2")
+
             if not isinstance(self.device, str) or not self.device:
                 raise ValueError("device must be a nonempty string")
 
@@ -127,8 +147,8 @@ class ExperimentConfig:
             if (type(self.model_seed_slot) is not int or not 0 <= self.model_seed_slot < 5):
                 raise ValueError("model_seed_slot must be in 0..4")
 
-            if (type(self.model_seed) is not int or self.model_seed < 0):
-                raise ValueError("model_seed must be a nonnegative integer")
+            if (type(self.model_seed) is not int or not 0 <= self.model_seed < 2**32):
+                raise ValueError("model_seed must be an integer in 0..2**32-1")
 
             for name in (
                 "train_collection_dir",
@@ -165,6 +185,12 @@ class ExperimentConfig:
                 "trajectory_episode_indices",
                 tuple(self.trajectory_episode_indices),
             )
+
+            if self.reward.variant == "progress" and self.reward.progress_gamma != self.ppo.gamma:
+                raise ValueError("Progress shaping gamma must equal PPO gamma")
+            
+            if self.mode == "final" and self.total_timesteps != 250_000:
+                raise ValueError("Final research budget is fixed at 250,000 steps")
 
             rollout = self.ppo.n_steps * self.ppo.n_envs
 
