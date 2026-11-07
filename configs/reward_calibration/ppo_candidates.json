@@ -1,0 +1,14 @@
+{
+  "candidate_a": {
+    "n_steps": 125,
+    "batch_size": 125
+  },
+  "candidate_b": {
+    "n_steps": 250,
+    "batch_size": 125
+  },
+  "candidate_c": {
+    "n_steps": 500,
+    "batch_size": 125
+  }
+}

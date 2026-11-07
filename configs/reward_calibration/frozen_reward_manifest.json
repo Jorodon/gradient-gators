@@ -1,0 +1,57 @@
+{
+  "version": "v1",
+  "status": "frozen",
+  "ppo_gamma": 0.99,
+  "variants": {
+    "sparse": {
+      "formula_version": "v1",
+      "goal_reward": 100.0,
+      "step_penalty": 0.0,
+      "hazard_penalty": 0.0,
+      "damage_penalty": 0.0,
+      "enemy_penalty": 0.0,
+      "progress_scale": 0.0,
+      "progress_gamma": 0.99
+    },
+    "efficiency": {
+      "formula_version": "v1",
+      "goal_reward": 100.0,
+      "step_penalty": 0.1,
+      "hazard_penalty": 0.0,
+      "damage_penalty": 0.0,
+      "enemy_penalty": 0.0,
+      "progress_scale": 0.0,
+      "progress_gamma": 0.99
+    },
+    "safety": {
+      "formula_version": "v1",
+      "goal_reward": 100.0,
+      "step_penalty": 0.0,
+      "hazard_penalty": 2.0,
+      "damage_penalty": 0.5,
+      "enemy_penalty": 2.0,
+      "progress_scale": 0.0,
+      "progress_gamma": 0.99
+    },
+    "balanced": {
+      "formula_version": "v1",
+      "goal_reward": 100.0,
+      "step_penalty": 0.1,
+      "hazard_penalty": 2.0,
+      "damage_penalty": 0.5,
+      "enemy_penalty": 2.0,
+      "progress_scale": 0.0,
+      "progress_gamma": 0.99
+    },
+    "progress": {
+      "formula_version": "v1",
+      "goal_reward": 100.0,
+      "step_penalty": 0.0,
+      "hazard_penalty": 0.0,
+      "damage_penalty": 0.0,
+      "enemy_penalty": 0.0,
+      "progress_scale": 0.5,
+      "progress_gamma": 0.99
+    }
+  }
+}
