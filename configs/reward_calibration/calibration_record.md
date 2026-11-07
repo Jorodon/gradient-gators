@@ -2,6 +2,7 @@
 
 ## Issue
 #107 - Pilot Calibrate and Freeze Reward Coefficients
+No final held-out ID or OOD were used
 
 ## Candidate Reward Sets
 
