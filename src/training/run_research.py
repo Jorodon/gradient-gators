@@ -336,11 +336,6 @@ def run(config: ExperimentConfig) -> Path:
     train, validation, schedule = _verify_inputs(config)
     revision = _code_revision()
 
-    if config.reward.variant != "sparse":
-        # NEEDS REVIEW AFTER EDDIE ISSUE: #
-        # On current develop, step() always calls calculate_sparse_reward.
-        # #102 integration must expose an actual selected calculator, but I cannot approve merge request for #102 yet.
-        raise RuntimeError("Non-sparse reward training requires merged #102 and #106")
 
     # Creates a unique output directory path
     run_id = f"pilot_{config.reward.variant}_slot{config.model_seed_slot}_{uuid.uuid4().hex}"

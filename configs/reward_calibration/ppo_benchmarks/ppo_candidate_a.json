@@ -1,0 +1,29 @@
+{
+  "reward": {
+    "variant": "sparse",
+    "goal_reward": 100.0
+  },
+  "model_seed_slot": 0,
+  "model_seed": 2278348526,
+  "train_collection_dir": "results/research_frozen_v2/research_train_v1",
+  "train_schedule_path": "results/research_frozen_v2/training_schedule.json",
+  "checkpoint_validation_dir": "results/research_frozen_v2/research_checkpoint_validation_v1",
+  "output_root": "results/pilot_runs",
+  "total_timesteps": 25000,
+  "mode": "pilot",
+  "checkpoint_interval": 25000,
+  "trajectory_episode_indices": [],
+  "ppo": {
+    "learning_rate": 0.0003,
+    "n_steps": 125,
+    "n_envs": 1,
+    "batch_size": 125,
+    "n_epochs": 2,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2,
+    "ent_coef": 0.0,
+    "vf_coef": 0.5,
+    "device": "cpu"
+  }
+}
