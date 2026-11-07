@@ -152,17 +152,20 @@ def test_final_run_cannot_be_mislabeled(tmp_path):
     assert not (tmp_path / "runs").exists()
 
 
-def test_no_nonsparse_training_until_reward_dispatch(tmp_path):
+def test_nonsparse_training_uses_reward_dispatch(tmp_path):
     """
-    Prevent a non-sparse experiment from accidentally training on the sparse reward (very important)
+    Verify a non-sparse experiment can run through the configured reward dispatch.
     """
     config = prepare_inputs(tmp_path)
     non_sparse = ExperimentConfig(
-        **{**asdict(config), "reward": RewardConfig(variant="safety"),
-           "ppo": config.ppo},
+        **{
+            **asdict(config),
+            "reward": RewardConfig(variant="safety"),
+            "ppo": config.ppo,
+        },
     )
-    with pytest.raises(RuntimeError, match="Non-sparse"):
-        run(non_sparse)
+
+    run(non_sparse)
 
 
 def test_short_ppo_run_checkpoint_manifest_and_reload(tmp_path):
