@@ -348,7 +348,7 @@ def _software_versions() -> dict:
 def _load_reward_manifest(protocol: dict) -> dict:
     """Read #107's pinned coefficients; metadata never enters RewardConfig."""
     reference = protocol["reward_manifest"]
-    raw = (REPO_ROOT / reference["path"]).read_bytes()
+    raw = (REPO_ROOT / reference["path"]).read_bytes().replace(b"\r\n", b"\n")
 
     if hashlib.sha256(raw).hexdigest() != reference["sha256"]:
         raise ValueError("Reward manifest checksum differs from the protocol pin")
