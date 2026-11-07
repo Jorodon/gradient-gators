@@ -3,16 +3,14 @@
 ## Issue
 #107 - Pilot Calibrate and Freeze Reward Coefficients
 
-## Pilot Candidate Sets
-
-Three coefficient sets defined for pilot comparison:
+## Candidate Reward Sets
 
 ### Candidate A
 - goal_reward: 100.0
 - step_penalty: 0.05
 - hazard_penalty: 1.0
-- enemy_penalty: 1.0
 - damage_penalty: 0.25
+- enemy_penalty: 1.0
 - progress_scale: 0.5
 - progress_gamma: 0.99
 
@@ -20,8 +18,8 @@ Three coefficient sets defined for pilot comparison:
 - goal_reward: 100.0
 - step_penalty: 0.10
 - hazard_penalty: 2.0
+- damage_penalty: 0.5
 - enemy_penalty: 2.0
-- damage_penalty: 0.50
 - progress_scale: 1.0
 - progress_gamma: 0.99
 
@@ -29,258 +27,192 @@ Three coefficient sets defined for pilot comparison:
 - goal_reward: 100.0
 - step_penalty: 0.20
 - hazard_penalty: 4.0
-- enemy_penalty: 4.0
 - damage_penalty: 1.0
+- enemy_penalty: 4.0
 - progress_scale: 2.0
 - progress_gamma: 0.99
 
-## Hand Audited Checks
+## Calibration Data
 
-- Progress gamma matches PPO gamma: 0.99.
-- Max research episode length is 400 steps.
-- Step penalties alone don't outweigh the +100 goal reward for any pilot candidate.
-- A representative successful trajectory remains positive with all three candidates.
-- WAIT actions at distance 5 produce raw progress component of +0.05 when progress_scale = 1.0.
-- Invalid actions with no movement produce the same raw progress component of +0.05 when progress_scale = 1.0.
-- A one-step forward/backward movement loop produces:
-  - forward progress component: +1.04
-  - backward progress component: -0.95
-  - net raw progress component: +0.09
-- Hazard, enemy-contact, and damage penalties increase consistently from Candidate A through Candidate C.
+Final calibration used M3 Frozen Research Datasets V2.
 
-## Open Calibration Concern
+- TRAIN collection: `research_train_v1`
+- TRAIN checksum: `11632493f54b3659008af1d0040d6678db306b9f11132c4469e014fbe364772f`
+- CHECKPOINT_VALIDATION collection: `research_checkpoint_validation_v1`
+- CHECKPOINT_VALIDATION checksum: `e9b9451df4c358714c713aab4742ef27a58631beaddb17c3d0360154134c40c5`
+- Training schedule checksum: `2f3c38345c2e443131d4990f7e184bcda9ef7e4475dc30b6605e4973d6365243`
+- Model seed slot: 0
+- Model seed: 2278348526
 
-Potential based progress shaping with gamma = 0.99 can produce a small positive raw shaping contribution for unchanged distance steps/simple movement loops. This need to be considered when selecting final progress_scale.
 
-## Dataset Restriction
+## Hand-Audited Reward Checks
 
-Pilot coefficient selection must only use separately identified pilot/TRAIN as well as checkpoint validation scenarios. Final held out ID and OOD scenarios cannot be used for coefficient selection.
+- `progress_gamma` matches PPO gamma at 0.99.
+- Maximum research episode length is 400 steps.
+- Step penalties alone do not outweigh the +100 goal reward for any candidate.
+- Representative successful trajectories remain positive.
+- WAIT and invalid actions can receive a small positive raw progress reward when distance does not change.
+- A simple forward/backward movement loop can also produce a small positive raw progress total.
+- Safety penalties increase consistently from Candidate A through Candidate C.
 
-## Final Selection
+## PPO Benchmark
 
-Not frozen yet. PPO rollout benchmarking/pilot coefficient comparison still required.
-
-## PPO / SB3 Verification
-
-- Stable-Baselines3 2.9.2 explicitly detects `TimeLimit.truncated`.
-- On truncation, SB3 evaluates the terminal observation and adds `gamma * terminal_value` before storing rollout transition.
-- Time limit truncations are bootstrapped rather than treated as true terminal states.
-
-## PPO Rollout Benchmark
+All PPO candidates tested at 25,000 training interactions.
 
 ### Candidate A
 - n_steps: 125
-- n_envs: 1
-- batch_size: 125
-- training interactions: 25,000
-- checkpoint boundary: 25,000
-- wall time: 7.193 seconds
-- throughput: 3475.76 interactions/second
-- checkpoint validation interactions: 100
-- all 3 pilot TRAIN scenarios used
-- save/reload/predict verification passed
-- status: completed
+- wall time: 7.437 seconds
+- throughput: 3361.54 interactions/second
+- reload verification: passed
 
 ### Candidate B
 - n_steps: 250
-- n_envs: 1
-- batch_size: 125
-- training interactions: 25,000
-- checkpoint boundary: 25,000
-- wall time: 7.148 seconds
-- throughput: 3497.41 interactions/second
-- checkpoint validation interactions: 100
-- all 3 pilot TRAIN scenarios used
-- save/reload/predict verification passed
-- status: completed
+- wall time: 7.091 seconds
+- throughput: 3525.67 interactions/second
+- reload verification: passed
 
 ### Candidate C
 - n_steps: 500
-- n_envs: 1
-- batch_size: 125
-- training interactions: 25,000
-- checkpoint boundary: 25,000
-- wall time: 7.425 seconds
-- throughput: 3366.95 interactions/second
-- checkpoint validation interactions: 29
-- all 3 pilot TRAIN scenarios used
-- save/reload/predict verification passed
-- status: completed
+- wall time: 6.986 seconds
+- throughput: 3578.77 interactions/second
+- reload verification: passed
 
-### PPO Selection
-Candidate B selected as the shared frozen PPO rollout configuration.
+## PPO Selection
 
-Reasons:
-- Highest measured throughput of the three candidates.
-- Completed exactly 25,000 training interactions.
-- Produced the required 25,000-step checkpoint.
-- Save/reload/predict verification passed.
-- Uses the value of n_steps = 250
+Selected Candidate B as the shared PPO configuration.
 
-Frozen PPO rollout settings:
+Candidate C was slightly faster, but Candidate B was very close in performance and keeps the existing `n_steps = 250` configuration.
+
+Frozen PPO settings:
 - n_steps: 250
 - n_envs: 1
 - batch_size: 125
+- learning_rate: 0.0003
+- n_epochs: 2
 - gamma: 0.99
+- gae_lambda: 0.95
+- clip_range: 0.2
+- ent_coef: 0.0
+- vf_coef: 0.5
+- device: cpu
 
-### Efficiency - Candidate A
+Stable-Baselines3 2.9.2: time limit truncations are bootstrapped instead of treated as true terminal states.
 
+## Reward Pilot Results
+
+### Efficiency
+
+Candidate A:
 - step_penalty: 0.05
-- validation success: false
-- episode length: 100
-- episode return: -5.0
-- end reason: timestep limit
-- invalid moves: 98 / 100
-- wait actions: 0
-- total distance change: +2.0
-- damage taken: 10
-- hazard contacts: 1
+- invalid moves: 136
+- episode return: -7.0
 
-Behavior summary:
-The policy selected RIGHT repeatedly and produced 98 invalid moves before reaching timestep limit. The 0.05 step penalty did not prevent this behavior. 
-
-### Efficiency - Candidate B
-
+Candidate B:
 - step_penalty: 0.10
-- validation success: false
-- episode length: 100
-- episode return: -10.0
-- invalid moves: 94 / 100
-- total distance change: +2.0
+- invalid moves: 140
+- episode return: -14.0
 
-Behavior summary:
-The policy timed out with 94 invalid moves and no goal reached. Candidate B reduced invalid moves barely compared to Candidate A, but repeated invalid action behavior remained.
-
-### Efficiency - Candidate C
-
+Candidate C:
 - step_penalty: 0.20
-- validation success: false
-- episode length: 100
-- episode return: -20.0
-- invalid moves: 98 / 100
-- total distance change: +2.0
+- invalid moves: 140
+- episode return: -28.0
 
-Behavior summary:
-The policy timed out with 98 invalid moves and goal not reached. Increasing the step penalty to 0.20 did not improve the repeated invalid action behavior.
+Selected Candidate B. Candidate A gave a weaker step penalty, while Candidate C increased the penalty without improving behavior.
 
-Efficiency selection:
-Candidate B (step_penalty = 0.10) is preferred from the pilot comparison since it produced fewest invalid moves, while avoiding stronger 0.20 per step penalty. Repeated invalid action behavior remains.
+### Safety
 
-### Safety - Candidate A
-
-- validation success: false
-- damage taken: 10
-- hazard contacts: 1
+Candidate A:
+- damage: 0
 - enemy contacts: 0
-- episode return: -3.5
+- episode return: 0.0
 
-Behavior summary:
-The policy timed out after one hazard contact and 10 damage. Candidate A had a total safety penalty of -3.5.
+Candidate B:
+- damage: 0
+- enemy contacts: 0
+- episode return: 0.0
 
-### Safety - Candidate B
-
-- validation success: false
-- episode length: 29
-- end reason: death
-- damage taken: 100
-- enemy contacts: 10
-- hazard contacts: 0
-- episode return: -70.0
-
-Behavior summary:
-The policy died after 29 steps with 10 enemy contacts and 100 damage. Unsafe behavior was penalized but did not prevent it.
-
-### Safety - Candidate C
-
-- validation success: false
-- episode length: 29
-- end reason: death
-- damage taken: 100
+Candidate C:
+- damage: 100
 - enemy contacts: 10
 - episode return: -140.0
 
-Behavior summary:
-Candidate C produced the same unsafe behavior as Candidate B but made penalty -140, exceeding the +100 goal reward.
+Selected Candidate B. Candidate C greatly increased the penalty without preventing unsafe behavior, while Candidate B kept a moderate safety penalty.
 
-Safety selection:
-Candidate B is preferred since candidate A provided weaker safety penalties, while C increased penalty magnitude without improving pilot behavior.
+### Balanced
 
-### Balanced - Candidate A
+Candidate A:
+- invalid moves: 140
+- damage: 0
+- episode return: -7.0
 
-- validation success: false
-- episode length: 29
-- end reason: death
-- damage taken: 100
+Candidate B:
+- invalid moves: 0
+- WAIT actions: 140
+- damage: 0
+- episode return: -14.0
+
+Candidate C:
+- invalid moves: 39
+- damage: 100
 - enemy contacts: 10
-- invalid moves: 27
-- episode return: -36.45
+- episode return: -148.2
 
-Behavior summary:
-The policy died after 29 steps with 10 enemy contacts and 100 damage. Candidate A combined the step and safety penalties correctly but didn't prevent unsafe behavior.
+Selected Candidate B since it avoided damage and invalid actions; however, it chose WAIT for the entire episode, reward could be encouraging agent to be too inactive.
 
-### Balanced - Candidate B
+### Progress
 
-- validation success: false
-- episode length: 100
-- end reason: timestep limit
-- damage taken: 10
-- hazard contacts: 1
-- enemy contacts: 0
-- invalid moves: 98
-- episode return: -17.0
+Candidate A:
+- progress_scale: 0.5
+- invalid moves: 140
+- net distance change: 0
+- episode return: +4.2
 
-Behavior summary:
-The policy timed out with 98 invalid moves, one hazard contact, and 10 damage. Candidate B avoided repeated enemy contact death seen in Candidate A but still showed severe invalid action behavior.
+Candidate B:
+- progress_scale: 1.0
+- invalid moves: 140
+- net distance change: 0
+- episode return: +8.4
 
-### Balanced - Candidate C
+Candidate C:
+- progress_scale: 2.0
+- invalid moves: 140
+- net distance change: 0
+- episode return: +16.8
 
-- validation success: false
-- episode length: 100
-- end reason: timestep limit
-- damage taken: 50
-- enemy contacts: 5
-- invalid moves: 96
-- episode return: -90.0
+Selected Candidate A since it gives the smallest unintended positive raw shaping reward while still using potential based shaping approach.
 
-Behavior summary:
-Candidate C avoided death but still had 96 invalid moves, 5 enemy contacts, and 50 damage. Its stronger penalties produced a much larger negative return without significantly improving behavior.
+## Frozen Reward Coefficients
 
-Balanced selection:
-Candidate B is preferred. It had far less damage than Candidates A and C and avoided repeated enemy contacts, while using more moderate penalty magnitudes, still has repeated invalid actions.
+### Sparse
+- goal_reward: 100.0
 
-### Progress - Candidate A
+### Efficiency
+- goal_reward: 100.0
+- step_penalty: 0.10
 
-- validation success: false
-- episode length: 100
-- invalid moves: 98
-- wait actions: 0
-- total distance change: +2.0
-- episode return: +2.005
+### Safety
+- goal_reward: 100.0
+- hazard_penalty: 2.0
+- enemy_penalty: 2.0
+- damage_penalty: 0.5
 
-Behavior summary:
-The policy timed out with 98 invalid moves but had positive return. This could show progress reward, giving credit for bad behavior.
+### Balanced
+- goal_reward: 100.0
+- step_penalty: 0.10
+- hazard_penalty: 2.0
+- enemy_penalty: 2.0
+- damage_penalty: 0.5
 
-### Progress - Candidate B
+### Progress
+- goal_reward: 100.0
+- progress_scale: 0.5
+- progress_gamma: 0.99
 
-- validation success: false
-- episode length: 100
-- invalid moves: 98
-- total distance change: +2.0
-- episode return: +4.01
+## Remaining Concerns
 
-Behavior summary:
-The policy again timed out with 98 invalid moves but earned an even larger positive reward. Similar to A.
+Some issues are still present in the pilot results:
 
-### Progress - Candidate C
-
-- validation success: false
-- episode length: 100
-- invalid moves: 98
-- total distance change: +2.0
-- episode return: +8.02
-
-Behavior summary:
-The policy again timed out with 98 invalid moves and earned an even larger positive reward, so increasing the progress scale made the reward problem worse.
-
-Progress selection:
-Candidate A is preferred because it produced the smallest positive reward during the failed invalid action pilot. Higher progress scales increased the reward without improving behavior. 
+- Several configurations still showed repeated invalid actions.
+- Balanced Candidate B chose WAIT for the entire episode, hence the reward may be encouraging the agent to be too inactive.
+- Progress shaping gave a small positive reward even when agent made no net progress toward goal.
+- Issues documented before freezing experiment.

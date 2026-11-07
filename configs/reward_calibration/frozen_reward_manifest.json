@@ -1,6 +1,6 @@
 {
   "version": "v1",
-  "status": "pending_v2_verification",
+  "status": "frozen",
   "ppo_gamma": 0.99,
   "variants": {
     "sparse": {
