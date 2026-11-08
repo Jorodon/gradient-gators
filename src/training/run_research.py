@@ -21,6 +21,10 @@ from src.configs.training_config import ExperimentConfig, PPOSettings, RewardCon
 from src.environment.gator_env import GatorEnv
 from src.environment.scenario_collections import load_collection_manifest, load_training_schedule, scheduled_scenario_id
 from src.environment.scenario_serialization import digest, load_scenario, scenario_to_dict
+from src.evaluation.checkpoint_evaluation import (
+    CHECKPOINT_VALIDATION_SIZE,
+    evaluate_saved_checkpoints,
+)
 from src.evaluation.research_logging import ResearchEpisodeLogger
 from src.rewards.registry import DECLARED_VARIANTS, get_reward_calculator
 
@@ -543,6 +547,10 @@ def run(
     
     inputs = _verify_inputs(config) if _verified_inputs is None else _verified_inputs
     train, validation, schedule = inputs
+    if config.mode == "final" and len(validation["entries"]) != CHECKPOINT_VALIDATION_SIZE:
+        raise ValueError(
+            f"FINAL evaluation requires exactly {CHECKPOINT_VALIDATION_SIZE} validation scenarios"
+        )
     revision = _code_revision()
     _check_protocol(config, protocol, inputs, revision)
     get_reward_calculator(config.reward.variant)
@@ -632,20 +640,37 @@ def run(
         final_checkpoint = record["checkpoints"][-1]
         restored = PPO.load(str(run_dir / final_checkpoint["file"]), device=config.ppo.device)
         restored.policy.set_training_mode(False)
-        # Retain the existing one-episode reload diagnostic; this is NOT #109's 100-map evaluation.
-        evaluation_steps, evaluation_logging = _run_validation_episode(
-            restored, config, validation, run_id=run_id, run_dir=run_dir,
-        )
         record.update({
-            "status": "completed", "final_model": final_checkpoint["file"],
+            "status": "completed",
+            "final_model": final_checkpoint["file"],
             "primary_checkpoint": final_checkpoint["file"] if config.mode == "final" else None,
             "reload_predict_passed": True,
-            "actual_checkpoint_evaluation_interactions": 0,
-            "reload_diagnostic_interactions": evaluation_steps,
-            "evaluation_role": "single_episode_reload_diagnostic",
-            "evaluation_episode_log_file": "evaluation_episodes.csv",
-            "evaluation_trajectory_files": [p.name for p in evaluation_logging.saved_trajectories],
         })
+        if len(validation["entries"]) == CHECKPOINT_VALIDATION_SIZE:
+            record.update(
+                evaluate_saved_checkpoints(
+                    run_dir=run_dir,
+                    config=config,
+                    validation_manifest=validation,
+                    run_record=record,
+                )
+            )
+        else:
+            # Small fixtures retain the original reload diagnostic, while real
+            # #109 runs use the complete 100-scenario evaluator above.
+            evaluation_steps, evaluation_logging = _run_validation_episode(
+                restored, config, validation, run_id=run_id, run_dir=run_dir,
+            )
+            record.update({
+                "checkpoint_evaluation_status": "skipped_validation_collection_size",
+                "actual_checkpoint_evaluation_interactions": 0,
+                "reload_diagnostic_interactions": evaluation_steps,
+                "evaluation_role": "single_episode_reload_diagnostic",
+                "evaluation_episode_log_file": "evaluation_episodes.csv",
+                "evaluation_trajectory_files": [
+                    p.name for p in evaluation_logging.saved_trajectories
+                ],
+            })
         _write_manifest(run_dir, record)
 
     except BaseException as error:
