@@ -259,6 +259,59 @@ def test_short_ppo_run_checkpoint_manifest_and_reload(tmp_path, single_torch_thr
     assert (run_dir / "manifest.json").read_bytes() == saved_manifest
 
 
+def test_checkpoint_evaluator_is_read_only_and_writes_metrics(
+    tmp_path, single_torch_thread
+):
+    """Evaluates saved checkpoints w/o updating a reloaded model."""
+    import pandas as pd
+    import torch
+    from stable_baselines3 import PPO
+
+    config = prepare_inputs(tmp_path)
+    run_dir = run(config)
+    record = json.loads((run_dir / "manifest.json").read_text())
+    validation = load_collection_manifest(config.checkpoint_validation_dir)
+
+    final_model = PPO.load(
+        run_dir / record["checkpoints"][-1]["file"],
+        device=config.ppo.device,
+    )
+    before = {
+        key: value.clone() for key, value in final_model.policy.state_dict().items()
+    }
+
+    evaluation = runner.evaluate_saved_checkpoints(
+        run_dir=run_dir,
+        config=config,
+        validation_manifest=validation,
+        run_record=record,
+        expected_scenario_count=1,
+    )
+
+    after = final_model.policy.state_dict()
+    assert all(torch.equal(before[key], after[key]) for key in before)
+    assert evaluation["checkpoint_evaluation_status"] == "completed"
+    assert evaluation["checkpoint_evaluation_checkpoints"] == [0, 500]
+
+    episodes = pd.read_csv(run_dir / "checkpoint_evaluation_episodes.csv")
+    metrics = pd.read_csv(run_dir / "checkpoint_learning_metrics.csv")
+    assert len(episodes) == 2
+    assert list(metrics["checkpoint_timestep"]) == [0, 500]
+    assert set(episodes["scenario_id"]) == {validation["entries"][0]["scenario_id"]}
+
+    (run_dir / record["checkpoints"][0]["file"]).unlink()
+    incomplete = runner.evaluate_saved_checkpoints(
+        run_dir=run_dir,
+        config=config,
+        validation_manifest=validation,
+        run_record=record,
+        expected_scenario_count=1,
+    )
+    assert incomplete["checkpoint_evaluation_status"] == "incomplete"
+    assert incomplete["checkpoint_evaluation_checkpoints"] == [500]
+    assert incomplete["missing_checkpoint_files"][0]["training_steps"] == 0
+
+
 def test_batch_failure_and_fresh_restart_preserve_completed_cells(tmp_path, monkeypatch, single_torch_thread):
     path, protocol = write_pilot_protocol(tmp_path)
     original = runner.TrainingAudit._on_step
