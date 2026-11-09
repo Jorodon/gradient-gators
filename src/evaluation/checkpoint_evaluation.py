@@ -8,6 +8,7 @@ import math
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
+from time import perf_counter
 
 import pandas as pd
 from stable_baselines3 import PPO
@@ -212,19 +213,29 @@ def compute_learning_metrics(
         scenario_count=scenario_count,
     )
     observed = sorted(row["checkpoint_timestep"] for row in checkpoint_rows)
+
+    # Checks whether every required checkpoint has an eval result including untrained model at t=0
+    expected = sorted({0, training_budget, *range(CHECKPOINT_INTERVAL, training_budget, CHECKPOINT_INTERVAL)})
+    missing = sorted(set(expected) - set(observed))
+    complete = observed == expected
+
     return {
+        "curve_complete": complete,
+        "missing_checkpoint_timesteps": missing,
         "training_budget": training_budget,
         "observed_checkpoints": observed,
         "normalized_aulc": calculate_normalized_aulc(
             points,
             training_budget=training_budget,
-        ),
+        ) if complete else None,
         "success_threshold": SUCCESS_THRESHOLD,
         "required_successes": math.ceil(SUCCESS_THRESHOLD * scenario_count),
         "required_consecutive_checkpoints": REQUIRED_CONSECUTIVE_CHECKPOINTS,
         "checkpoint_interval": CHECKPOINT_INTERVAL,
         "time_to_80_successes": attainment,
-        "time_to_80_status": "attained" if attainment is not None else "censored",
+        "time_to_80_status": ("incomplete" if not complete
+                              else "attained" if attainment is not None 
+                              else "censored"),
         "censoring_timestep": None if attainment is not None else observed[-1],
     }
 
