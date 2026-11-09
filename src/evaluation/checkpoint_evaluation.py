@@ -468,7 +468,7 @@ def evaluate_saved_checkpoints(
 
     status = "completed" if learning_metrics["curve_complete"] and not missing_checkpoints else "incomplete"
     return {
-        "checkpoint_evaluation_seconds": perf_counter() - eval_started,
+        "checkpoint_eval_seconds": perf_counter() - eval_started,
         "checkpoint_evaluation_ep_count": len(episode_rows),
         "checkpoint_evaluation_status": status,
         "checkpoint_evaluation_episode_log_file": episode_path.name,
