@@ -640,7 +640,7 @@ def run(
         model.learn(total_timesteps=config.total_timesteps, callback=[audit, writer])
 
         # Records time for training, optimizer updates, and callback checkpoint/audit writes
-        record["training_seconds"] = perf_counter - training_started
+        record["training_seconds"] = perf_counter() - training_started
 
         if model.num_timesteps != config.total_timesteps or audit.training_steps != config.total_timesteps:
             raise RuntimeError("PPO collected a different number of steps than planned")
