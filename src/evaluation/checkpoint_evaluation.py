@@ -371,6 +371,7 @@ def evaluate_saved_checkpoints(
     Returns:
         dict[str, Any]: Manifest fields describing the generated artifacts.
     """
+    eval_started = perf_counter()
     run_dir = Path(run_dir)
     scenario_ids = validate_checkpoint_validation_manifest(
         validation_manifest,
@@ -465,8 +466,10 @@ def evaluate_saved_checkpoints(
         encoding="utf-8",
     )
 
-    status = "incomplete" if missing_checkpoints else "completed"
+    status = "completed" if learning_metrics["curve_complete"] and not missing_checkpoints else "incomplete"
     return {
+        "checkpoint_evaluation_seconds": perf_counter() - eval_started,
+        "checkpoint_evaluation_ep_count": len(episode_rows),
         "checkpoint_evaluation_status": status,
         "checkpoint_evaluation_episode_log_file": episode_path.name,
         "checkpoint_learning_metrics_file": metrics_path.name,
