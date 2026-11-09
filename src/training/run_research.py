@@ -588,7 +588,7 @@ def run(
         "actual_checkpoint_evaluation_interactions": 0,
         "checkpoints": [], "benchmark_segments": [],
         "primary_checkpoint": None,
-        "checkpoint_evaluation_status": "pending_issue_109",
+        "checkpoint_evaluation_status": "pending",
     }
 
     _write_manifest(run_dir, record)
@@ -634,9 +634,17 @@ def run(
             "optimizer_defaults": model.policy.optimizer.defaults,
         }
         writer = CheckpointWriter(config, run_dir, record, audit)
+        # timer start
+        training_started = perf_counter()
+
         model.learn(total_timesteps=config.total_timesteps, callback=[audit, writer])
+
+        # Records time for training, optimizer updates, and callback checkpoint/audit writes
+        record["training_seconds"] = perf_counter - training_started
+
         if model.num_timesteps != config.total_timesteps or audit.training_steps != config.total_timesteps:
             raise RuntimeError("PPO collected a different number of steps than planned")
+        
         final_checkpoint = record["checkpoints"][-1]
         restored = PPO.load(str(run_dir / final_checkpoint["file"]), device=config.ppo.device)
         restored.policy.set_training_mode(False)
