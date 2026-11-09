@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "protocol_id": "issue114-integrated-pilot",
+  "common": {
+    "train_collection_dir": "results/research_frozen_v2/research_train_v1",
+    "train_schedule_path": "results/research_frozen_v2/training_schedule.json",
+    "checkpoint_validation_dir": "results/research_frozen_v2/research_checkpoint_validation_v1",
+    "output_root": "../gradient-gators-runs/benchmark-pilot-runs",
+    "total_timesteps": 50000,
+    "mode": "pilot",
+    "checkpoint_interval": 25000,
+    "trajectory_episode_indices": [
+      0
+    ],
+    "ppo": {
+      "learning_rate": 0.0003,
+      "n_steps": 250,
+      "n_envs": 1,
+      "batch_size": 125,
+      "n_epochs": 2,
+      "gamma": 0.99,
+      "gae_lambda": 0.95,
+      "clip_range": 0.2,
+      "ent_coef": 0.0,
+      "vf_coef": 0.5,
+      "device": "cpu",
+      "net_arch": [
+        64,
+        64
+      ],
+      "max_grad_norm": 0.5,
+      "normalize_advantage": true
+    }
+  },
+  "model_seeds": {
+    "0": 2278348526
+  },
+  "dataset": {
+    "release": "m3-frozen-data-v2",
+    "train_checksum": "11632493f54b3659008af1d0040d6678db306b9f11132c4469e014fbe364772f",
+    "validation_checksum": "e9b9451df4c358714c713aab4742ef27a58631beaddb17c3d0360154134c40c5",
+    "schedule_checksum": "2f3c38345c2e443131d4990f7e184bcda9ef7e4475dc30b6605e4973d6365243"
+  },
+  "freeze": null,
+  "reward_manifest": {
+    "path": "configs/reward_calibration/frozen_reward_manifest.json",
+    "sha256": "b852fcf797bc22a411e1602a8be3e0d2407926c31e2ff0f03d53154567032185"
+  },
+  "reward_variants": [
+    "sparse",
+    "efficiency",
+    "safety",
+    "balanced",
+    "progress"
+  ]
+}
