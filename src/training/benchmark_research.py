@@ -30,7 +30,7 @@ def summarize_batch(batch_dir: Path) -> list[dict]:
         eval_seconds = record["checkpoint_eval_seconds"]
         train_steps = record["actual_training_interactions"]
         eval_steps = record["actual_checkpoint_evaluation_interactions"]
-        episodes = record["checkpoint_evaluation_episode_count"]
+        episodes = record["checkpoint_evaluation_ep_count"]
         files = [path for path in directory.rglob("*") if path.is_file()]
         rows.append({
             "run_dir": str(directory),
