@@ -91,3 +91,13 @@ def test_learning_metrics_mark_nonattainment_as_censored():
     assert metrics["time_to_80_successes"] is None
     assert metrics["time_to_80_status"] == "censored"
     assert metrics["censoring_timestep"] == 75_000
+
+@pytest.mark.parametrize("omitted", [0, 1, 2])
+def test_incomplete_curve_is_not_reported_as_full_budget_aulc(omitted):
+    rows = _checkpoint_rows(0, 80, 90)
+    del rows[omitted]
+    metrics = compute_learning_metrics(rows, scenario_count=100, training_budget=50_000)
+    assert metrics["curve_complete"] is False
+    assert metrics["missing_checkpoint_timesteps"] == [omitted * 25_000]
+    assert metrics["normalized_aulc"] is None
+    assert metrics["time_to_80_status"] == "incomplete"
