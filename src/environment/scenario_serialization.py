@@ -11,6 +11,7 @@ from src.environment.enemy import ENEMY_BEHAVIORS, validate_patrol_route
 from src.environment.generated_scenario import GeneratedScenario
 from src.environment.map import GameMap, Tile, load_map
 from src.environment.patrol_generator import EnemySpec
+from src.environment.pursuit import PURSUIT_BEHAVIOR_VERSION, TIE_BREAK_RULE
 from src.environment.step_events import StepEvents
 from src.environment.survival_validator import SurvivalWitness
 from src.environment.traversal import can_step_on_map
@@ -241,6 +242,21 @@ def scenario_from_dict(data: dict) -> GeneratedScenario:
 
     if recorded_behavior != spec_behavior:
         raise ValueError("Scenario provenance disagrees with the enemy specification")
+
+    # The tie-break rule is recorded so a frozen scenario states how equal
+    # shortest paths were resolved when it was generated. Requiring the key to
+    # exist without checking its value would let a scenario record a rule the
+    # code never followed, which is worse than recording nothing: a reader would
+    # trust it. Pursuit must carry the current rule; everything else must carry
+    # none, so a stale rule cannot linger on a patrol scenario.
+    expected_tie_break = (
+        TIE_BREAK_RULE if spec_behavior == PURSUIT_BEHAVIOR_VERSION else None
+    )
+
+    if provenance["enemy_tie_break"] != expected_tie_break:
+        raise ValueError(
+            "Scenario provenance tie-break rule does not match the enemy behavior"
+        )
     
     if not all(isinstance(provenance[key], str) and provenance[key]
                for key in ("collection_id", "split", "code_version")):
