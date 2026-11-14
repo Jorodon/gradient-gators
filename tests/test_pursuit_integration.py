@@ -8,6 +8,7 @@ about the agent's interface or the damage model moved.
 """
 
 from copy import deepcopy
+from dataclasses import asdict
 
 import pytest
 
@@ -25,6 +26,7 @@ from src.environment.map import GameMap, Tile
 from src.environment.pursuit import PURSUIT_BEHAVIOR_VERSION, TIE_BREAK_RULE
 from src.environment.scenario_collections import write_collection
 from src.environment.scenario_serialization import (
+    digest,
     load_scenario,
     save_scenario,
     scenario_from_dict,
@@ -75,6 +77,39 @@ def scenario_id_of(scenario) -> str:
     return scenario_to_dict(scenario)["scenario_id"]
 
 
+def resigned(record: dict) -> dict:
+    """Recompute the checksum so a tampered record survives the first gate.
+
+    Loading rejects a hand-edited file at several layers in order: checksum,
+    scenario id, witness re-simulation, then the provenance cross-checks. A test
+    that edits a field and stops gets rejected by the checksum and never reaches
+    the check it means to exercise - which makes it look like coverage of a
+    mechanism it never touched. Resigning moves the test past the earlier gates.
+
+    The scenario id is a digest of map, enemy_spec, environment_config and
+    horizon only, so edits confined to provenance leave it valid.
+    """
+    record = deepcopy(record)
+    record.pop("checksum", None)
+    record["checksum"] = digest(record)
+    return record
+
+
+def env_for_scenario(scenario) -> GatorEnv:
+    """A GatorEnv configured from a generated scenario, behavior included."""
+    return GatorEnv(
+        game_map=scenario.game_map,
+        environment_config=scenario.environment_config,
+        map_config=MapConfig(
+            width=scenario.game_map.width, height=scenario.game_map.height
+        ),
+        enemy_spawn=scenario.enemy_spec.initial_position,
+        enemy_patrol_route=list(scenario.enemy_spec.patrol_route),
+        enemy_patrol_index=scenario.enemy_spec.initial_patrol_index,
+        enemy_behavior=scenario.enemy_spec.behavior,
+    )
+
+
 def build_world(seed: int, behavior: str, split: str):
     """One accepted scenario, generated and witnessed under `behavior`."""
     map_config = MapConfig(width=5, height=5, max_elevation=0)
@@ -120,11 +155,29 @@ def patrol_scenario():
 # --------------------------------------------------------------------------- #
 
 
-def test_pursuit_scenario_survives_generation_under_pursuit(pursuit_scenario):
-    """The witness is proven against the behavior the scenario will run."""
+def test_pursuit_scenario_survives_generation_under_pursuit(
+    pursuit_scenario, patrol_scenario
+):
+    """The witness is proven against the behavior the scenario will actually run.
+
+    `replay.successful` and `final_hp > 0` are not asserted here: generation
+    raises unless both already hold, so they cannot fail and would only look
+    like coverage. What can fail is whether the replay was produced under
+    pursuit at all, and the patrol index is the visible difference - a pursuer
+    does not walk its route, so its index stays frozen while a patroller's
+    advances.
+    """
     assert pursuit_scenario.enemy_spec.behavior == PURSUIT_BEHAVIOR_VERSION
-    assert pursuit_scenario.witness.replay.successful
-    assert pursuit_scenario.witness.final_hp > 0
+
+    pursuit_indices = {
+        frame.enemy_patrol_index for frame in pursuit_scenario.witness.replay.frames
+    }
+    patrol_indices = {
+        frame.enemy_patrol_index for frame in patrol_scenario.witness.replay.frames
+    }
+
+    assert pursuit_indices == {pursuit_scenario.enemy_spec.initial_patrol_index}
+    assert len(patrol_indices) > 1
 
 
 def test_pursuit_and_patrol_on_one_seed_are_distinct_scenarios(
@@ -154,12 +207,67 @@ def test_behavior_round_trips_through_a_snapshot(tmp_path, pursuit_scenario):
 
 
 def test_a_snapshot_relabelled_as_patrol_is_rejected(pursuit_scenario):
-    """The spec/provenance cross-check catches a hand-edited behavior."""
+    """A naive relabel is caught by the checksum, before anything else looks."""
     record = deepcopy(scenario_to_dict(pursuit_scenario))
     record["enemy_spec"]["behavior"] = PATROL_BEHAVIOR_VERSION
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="checksum"):
         scenario_from_dict(record)
+
+
+def test_provenance_that_disagrees_with_the_spec_is_rejected(pursuit_scenario):
+    """The spec/provenance cross-check, reached rather than assumed.
+
+    Editing only provenance and resigning gets past the checksum and leaves the
+    scenario id valid, since the id digests map, spec, config and horizon but
+    not provenance. The witness still re-simulates, because the spec is
+    untouched. So this lands on the cross-check itself - which the naive
+    relabel above never reaches.
+    """
+    record = scenario_to_dict(pursuit_scenario)
+    record = deepcopy(record)
+    record["provenance"]["enemy_behavior"] = PATROL_BEHAVIOR_VERSION
+
+    with pytest.raises(ValueError, match="disagrees with the enemy specification"):
+        scenario_from_dict(resigned(record))
+
+
+@pytest.mark.parametrize(
+    "tie_break", ["LEFT,DOWN,RIGHT,UP", "UP,RIGHT,LEFT,DOWN", None, ""]
+)
+def test_a_pursuit_snapshot_with_the_wrong_tie_rule_is_rejected(
+    pursuit_scenario, tie_break
+):
+    """A recorded rule the code never followed is worse than recording none.
+
+    The whole point of storing the tie-break is that a frozen scenario states
+    how equal shortest paths were resolved when it was generated. If any value
+    loads, a reader has no reason to trust the one they find. Note the second
+    case is the ACTION_DELTAS ordering - the plausible wrong answer.
+    """
+    record = deepcopy(scenario_to_dict(pursuit_scenario))
+    record["provenance"]["enemy_tie_break"] = tie_break
+
+    with pytest.raises(ValueError, match="tie-break rule"):
+        scenario_from_dict(resigned(record))
+
+
+def test_a_patrol_snapshot_carrying_a_tie_rule_is_rejected(patrol_scenario):
+    """Patrol walks a fixed route, so a tie rule on it is stale or wrong."""
+    record = deepcopy(scenario_to_dict(patrol_scenario))
+    record["provenance"]["enemy_tie_break"] = TIE_BREAK_RULE
+
+    with pytest.raises(ValueError, match="tie-break rule"):
+        scenario_from_dict(resigned(record))
+
+
+def test_an_untampered_snapshot_still_loads(pursuit_scenario, patrol_scenario):
+    """Guards the three tests above from passing because resigning itself breaks loading."""
+    for scenario in (pursuit_scenario, patrol_scenario):
+        record = resigned(deepcopy(scenario_to_dict(scenario)))
+        restored = scenario_from_dict(record)
+
+        assert restored.enemy_spec.behavior == scenario.enemy_spec.behavior
 
 
 def test_provenance_records_the_behavior_and_tie_rule(
@@ -188,27 +296,68 @@ def test_spawn_diagnostics_are_recorded_for_both_behaviors(
         for key in keys:
             assert key in scenario.provenance
 
-        assert scenario.provenance["enemy_spawn_route_distance"] >= 0
-        assert scenario.provenance["enemy_spawn_route_index"] >= 0
+        # None is legitimate when the route is unreachable from the spawn, so
+        # assert on it explicitly rather than letting >= raise a TypeError and
+        # fail for the wrong reason.
+        distance = scenario.provenance["enemy_spawn_route_distance"]
+        index = scenario.provenance["enemy_spawn_route_index"]
+
+        assert distance is None or distance >= 0
+        assert index is None or index >= 0
 
 
-def test_first_contact_step_matches_the_witness_replay(pursuit_scenario):
-    """The diagnostic is read off the replay, not guessed."""
-    frames = pursuit_scenario.witness.replay.frames
-    expected = next(
-        (
-            step
-            for step, frame in enumerate(frames, start=1)
-            if frame.events.enemy_contact
-        ),
-        None,
+@pytest.mark.parametrize("seed", [123, 7, 42, 2024])
+def test_first_contact_step_matches_the_witness_replay(seed):
+    """The diagnostic is read off the replay, not guessed.
+
+    Written as an explicit scan rather than the generator expression the
+    implementation uses, so it can catch a wrong definition instead of
+    reproducing it. Swept over several seeds and required to find at least one
+    real contact across them, because a single scenario where nothing touches
+    the witness compares None against None and proves nothing.
+    """
+    scenario = build_world(seed, PURSUIT_BEHAVIOR_VERSION, PURSUIT_SPLIT)
+
+    expected = None
+
+    for position, frame in enumerate(scenario.witness.replay.frames):
+        if frame.events.enemy_contact:
+            expected = position + 1
+            break
+
+    assert scenario.provenance["enemy_first_contact_step"] == expected
+
+    if expected is not None:
+        contacted = scenario.witness.replay.frames[expected - 1]
+        assert contacted.events.enemy_contact is True
+        assert all(
+            not frame.events.enemy_contact
+            for frame in scenario.witness.replay.frames[: expected - 1]
+        )
+
+
+def test_the_contact_diagnostic_is_exercised_by_at_least_one_seed():
+    """Guards the test above from passing vacuously on an all-None sweep."""
+    steps = [
+        build_world(seed, PURSUIT_BEHAVIOR_VERSION, PURSUIT_SPLIT).provenance[
+            "enemy_first_contact_step"
+        ]
+        for seed in (123, 7, 42, 2024)
+    ]
+
+    assert any(step is not None for step in steps), (
+        "no seed produced a contact, so the first-contact diagnostic is untested"
     )
 
-    assert pursuit_scenario.provenance["enemy_first_contact_step"] == expected
 
+def test_witness_simulator_is_deterministic_under_pursuit(pursuit_scenario):
+    """Re-simulating a stored witness reproduces it exactly.
 
-def test_witness_simulator_replays_pursuit_from_the_spec(pursuit_scenario):
-    """Environment and witness simulator must not drift apart on behavior."""
+    This is what scenario loading relies on, but note what it does *not* show:
+    the stored replay was produced by `simulate_actions` during generation, so
+    comparing the two only establishes determinism of one function. The test
+    below is the one that compares the simulator against the real environment.
+    """
     replay = simulate_actions(
         pursuit_scenario.game_map,
         pursuit_scenario.enemy_spec,
@@ -219,18 +368,81 @@ def test_witness_simulator_replays_pursuit_from_the_spec(pursuit_scenario):
     assert replay == pursuit_scenario.witness.replay
 
 
+def test_environment_and_witness_simulator_agree_under_pursuit(pursuit_scenario):
+    """GatorEnv and the witness simulator must not drift apart on behavior.
+
+    The witness simulator is an independent reimplementation of the environment
+    mechanics, and scenario loading rejects any snapshot whose stored replay
+    does not reproduce. If the two drift, every frozen pursuit scenario becomes
+    unloadable - or worse, loads while meaning something different. So this
+    drives the real environment through the witness actions and compares every
+    observable the replay records, step by step.
+    """
+    env = env_for_scenario(pursuit_scenario)
+    env.reset(seed=0)
+
+    frames = pursuit_scenario.witness.replay.frames
+
+    assert frames, "the witness recorded no steps"
+
+    try:
+        for index, frame in enumerate(frames):
+            _, _, terminated, truncated, info = env.step(
+                int(pursuit_scenario.witness.actions[index])
+            )
+
+            assert info["steps"] == index + 1
+            assert info["agent_position"] == frame.agent_position
+            assert info["agent_hp"] == pytest.approx(frame.agent_hp)
+            assert info.get("enemy_position") == frame.enemy_position
+            assert info.get("enemy_patrol_index") == frame.enemy_patrol_index
+            assert info["events"] == asdict(frame.events)
+            assert info.get("episode_end_reason") == frame.end_reason
+
+            if terminated or truncated:
+                assert index == len(frames) - 1
+                break
+    finally:
+        env.close()
+
+
 # --------------------------------------------------------------------------- #
 # Pursuit is evaluation-only, enforced rather than assumed
 # --------------------------------------------------------------------------- #
 
 
-def test_pursuit_cannot_be_loaded_from_a_train_collection(tmp_path):
-    """Training against the held-out condition is refused, not merely discouraged."""
-    scenario = build_world(123, PURSUIT_BEHAVIOR_VERSION, "TRAIN")
-    write_collection(tmp_path, "pursuit-test", "TRAIN", [scenario])
+@pytest.mark.parametrize("split", ["TRAIN", "CHECKPOINT_VALIDATION", "FINAL_ID"])
+def test_pursuit_is_refused_outside_an_ood_collection(tmp_path, split):
+    """A held-out behavior is refused everywhere it would distort a result.
+
+    Each of these does a different kind of damage:
+
+      TRAIN                  - trains against the held-out condition
+      CHECKPOINT_VALIDATION  - lets it decide which checkpoint is selected
+      FINAL_ID               - reports a shifted condition as in-distribution
+
+    The guard is written positively, against FINAL_OOD_*, so a split added
+    later is refused by default rather than silently permitted.
+    """
+    scenario = build_world(123, PURSUIT_BEHAVIOR_VERSION, split)
+    write_collection(tmp_path, "pursuit-test", split, [scenario])
 
     with pytest.raises(ValueError, match="evaluation-only"):
         evaluation_env(tmp_path / "pursuit-test")
+
+
+def test_patrol_is_permitted_in_every_split(tmp_path):
+    """The guard must constrain held-out behavior only, not ordinary training."""
+    scenario = build_world(123, PATROL_BEHAVIOR_VERSION, "TRAIN")
+    # build_world stamps "pursuit-test" as the collection id; write_collection
+    # cross-checks it against provenance, so it has to match here.
+    write_collection(tmp_path, "pursuit-test", "TRAIN", [scenario])
+
+    env = evaluation_env(tmp_path / "pursuit-test")
+    _, info = env.reset(seed=0, options={"scenario_id": scenario_id_of(scenario)})
+
+    assert info["enemy_behavior"] == PATROL_BEHAVIOR_VERSION
+    env.close()
 
 
 def test_pursuit_loads_from_an_ood_collection(tmp_path, pursuit_scenario):
@@ -297,11 +509,24 @@ def test_pursuit_requires_the_map_and_agent_position():
 
 
 def test_default_behavior_is_patrol():
-    """Normal training is unaffected by this feature existing."""
-    env = pursuit_env(enemy_behavior=PATROL_BEHAVIOR_VERSION, enemy_spawn=(4, 3))
+    """Normal training is unaffected by this feature existing.
+
+    Constructed without an `enemy_behavior` argument on purpose: passing the
+    value and reading it back would test argument pass-through, not the
+    signature default, and the default is what every existing caller relies on.
+    """
+    env = GatorEnv(
+        game_map=open_map(5, 5),
+        environment_config=EnvironmentConfig(enemy_enabled=True),
+        map_config=MapConfig(width=5, height=5),
+        enemy_spawn=(4, 3),
+    )
     env.reset(seed=0)
 
     assert env._enemy_behavior == PATROL_BEHAVIOR_VERSION
+
+    _, info = env.reset(seed=0)
+    assert info["enemy_behavior"] == PATROL_BEHAVIOR_VERSION
     env.close()
 
 
