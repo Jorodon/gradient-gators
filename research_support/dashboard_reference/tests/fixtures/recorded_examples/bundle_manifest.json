@@ -1,0 +1,340 @@
+{
+  "schema_version": "gradient-gators-reference-bundle-v2",
+  "publication_status": "not_published",
+  "selection_scope": "three_recorded_behavior_examples_not_a_representative_metric_sample",
+  "evidence_origin": "recorded_pilot",
+  "path_resolution": {
+    "repository": "bundle_root/relative_path",
+    "release": "releases_root/release_id/relative_path",
+    "fallback": "none; explicit roots and indexed hashes only"
+  },
+  "experiments": [
+    {
+      "experiment_id": "entropy_0_01_experiment",
+      "conditions": [
+        "sparse",
+        "efficiency"
+      ],
+      "scope": "two selected behavior examples only"
+    },
+    {
+      "experiment_id": "recurrent_ppo_experiment",
+      "conditions": [
+        "wait_example"
+      ],
+      "scope": "separate supplemental WAIT example"
+    }
+  ],
+  "datasets": [
+    {
+      "dataset_id": "development_100",
+      "manifest_artifact_id": "development_100_manifest",
+      "scenarios": 100
+    },
+    {
+      "dataset_id": "training_300",
+      "manifest_artifact_id": "training_300_manifest",
+      "scenarios": 300
+    }
+  ],
+  "releases": [
+    {
+      "release_id": "research_worlds_v1",
+      "publication_status": "not_published",
+      "url": null,
+      "tag": null,
+      "manifest_path": "release_manifest.json",
+      "manifest_sha256": "440cb2a3be1e8c91c5567ac45c322035198d11454fc33849948af87a616c5a76",
+      "manifest_bytes": 301751,
+      "checksum_path": "release_manifest.sha256",
+      "world_files": 400
+    }
+  ],
+  "source_aliases": [
+    {
+      "artifact_id": "world_scn_0c28e5e21850fded08c4fa74388c211d42ccd4818cf2b13ff5dd233395e2dcde",
+      "source_ref": {
+        "experiment_id": "recurrent_ppo_experiment",
+        "artifact_path": "data/dev100/scn_0c28e5e21850fded08c4fa74388c211d42ccd4818cf2b13ff5dd233395e2dcde.json",
+        "sha256": "b417f5bfcb31aa5b303d855cfd29c2c758c9910ade2f44e7a4ed44c34b90f663"
+      },
+      "reason": "byte_identical_world_deduplication"
+    }
+  ],
+  "indexed_payload_count": 19,
+  "indexed_payload_bytes": 356651,
+  "manifest_self_hash_note": "This manifest excludes itself. Release descriptor hashes are listed separately; no self-referential hash is claimed.",
+  "files": [
+    {
+      "artifact_id": "development_100_manifest",
+      "storage": "repository",
+      "relative_path": "datasets/development_100/collection_manifest.json",
+      "bytes": 31784,
+      "sha256": "28086063cf1c33377b6e5ae38c06b0cf4cd1d97b34d6a388c1d8509d9a8b8977",
+      "source_ref": {
+        "experiment_id": "entropy_0_01_experiment",
+        "artifact_path": "data/dev100/manifest.json",
+        "sha256": "28086063cf1c33377b6e5ae38c06b0cf4cd1d97b34d6a388c1d8509d9a8b8977"
+      },
+      "source_byte_identical": true,
+      "category": "dataset_manifest"
+    },
+    {
+      "artifact_id": "entropy_0_01_experiment_efficiency_case_train_500000_scn_005e318e235f9204f5097c59114021fc139afa05c54b89a5e98aa2fc65fc901c",
+      "storage": "repository",
+      "relative_path": "experiments/entropy_0_01_experiment/conditions/efficiency/cases/train_500000_005e318e235f9204.json",
+      "bytes": 7313,
+      "sha256": "0466df3c8523be51b5877b5a1c64daf87ce9cca9f416a0fda2c453508f5b5850",
+      "source_ref": {
+        "experiment_id": "entropy_0_01_experiment",
+        "artifact_path": "results/fixed_e001_efficiency/evaluation/TRAIN/500000/scn_005e318e235f9204f5097c59114021fc139afa05c54b89a5e98aa2fc65fc901c.json",
+        "sha256": "0466df3c8523be51b5877b5a1c64daf87ce9cca9f416a0fda2c453508f5b5850"
+      },
+      "source_byte_identical": true,
+      "category": "case"
+    },
+    {
+      "artifact_id": "entropy_0_01_experiment_efficiency_checkpoints",
+      "storage": "repository",
+      "relative_path": "experiments/entropy_0_01_experiment/conditions/efficiency/checkpoints.json",
+      "bytes": 1785,
+      "sha256": "d4e873f18ce060fa30d67bdc830cdfec1d55f2642e2f30ea716d9b8edff23ea0",
+      "source_ref": {
+        "experiment_id": "entropy_0_01_experiment",
+        "artifact_path": "results/fixed_e001_efficiency/checkpoints.json",
+        "sha256": "d4e873f18ce060fa30d67bdc830cdfec1d55f2642e2f30ea716d9b8edff23ea0"
+      },
+      "source_byte_identical": true,
+      "category": "checkpoint_index"
+    },
+    {
+      "artifact_id": "entropy_0_01_experiment_efficiency_configuration",
+      "storage": "repository",
+      "relative_path": "experiments/entropy_0_01_experiment/conditions/efficiency/configuration.json",
+      "bytes": 1777,
+      "sha256": "136b2b5568b529e665754e3be1ad2c7f397d0094e7465875d56588c45355bf7d",
+      "source_ref": {
+        "experiment_id": "entropy_0_01_experiment",
+        "artifact_path": "results/fixed_e001_efficiency/job.json",
+        "sha256": "6be9c1a2e81b8d7abb4d47ce2ff10271fb6c7bf5fa7fdfee0833fe7c524b3b52"
+      },
+      "source_byte_identical": false,
+      "category": "job_configuration"
+    },
+    {
+      "artifact_id": "entropy_0_01_experiment_efficiency_trace_train_scn_005e318e235f9204f5097c59114021fc139afa05c54b89a5e98aa2fc65fc901c",
+      "storage": "repository",
+      "relative_path": "experiments/entropy_0_01_experiment/conditions/efficiency/traces/train_005e318e235f9204.json",
+      "bytes": 89557,
+      "sha256": "77bf035a57dc9a27bc27027bd3b1971f47ba7a430f416b70f5258d6d072db9a1",
+      "source_ref": {
+        "experiment_id": "entropy_0_01_experiment",
+        "artifact_path": "results/fixed_e001_efficiency/evaluation_traces/TRAIN/scn_005e318e235f9204f5097c59114021fc139afa05c54b89a5e98aa2fc65fc901c.json",
+        "sha256": "77bf035a57dc9a27bc27027bd3b1971f47ba7a430f416b70f5258d6d072db9a1"
+      },
+      "source_byte_identical": true,
+      "category": "trace"
+    },
+    {
+      "artifact_id": "entropy_0_01_experiment_sparse_case_dev_500000_scn_06c6d4fa3bbc7035def882159ec7616cd96f41188fe226c8d532a02d250e9b93",
+      "storage": "repository",
+      "relative_path": "experiments/entropy_0_01_experiment/conditions/sparse/cases/dev_500000_06c6d4fa3bbc7035.json",
+      "bytes": 7223,
+      "sha256": "3cbd375a0ff75db93c802b903ad17fb6d7ed7f231e16498e95da440acfd75587",
+      "source_ref": {
+        "experiment_id": "entropy_0_01_experiment",
+        "artifact_path": "results/fixed_e001_sparse/evaluation/DEV/500000/scn_06c6d4fa3bbc7035def882159ec7616cd96f41188fe226c8d532a02d250e9b93.json",
+        "sha256": "3cbd375a0ff75db93c802b903ad17fb6d7ed7f231e16498e95da440acfd75587"
+      },
+      "source_byte_identical": true,
+      "category": "case"
+    },
+    {
+      "artifact_id": "entropy_0_01_experiment_sparse_checkpoints",
+      "storage": "repository",
+      "relative_path": "experiments/entropy_0_01_experiment/conditions/sparse/checkpoints.json",
+      "bytes": 1785,
+      "sha256": "0d0c916dc2df6e4daed49bcd28fa3f6adad7063eaaeb78b4d65c9f12f52f7049",
+      "source_ref": {
+        "experiment_id": "entropy_0_01_experiment",
+        "artifact_path": "results/fixed_e001_sparse/checkpoints.json",
+        "sha256": "0d0c916dc2df6e4daed49bcd28fa3f6adad7063eaaeb78b4d65c9f12f52f7049"
+      },
+      "source_byte_identical": true,
+      "category": "checkpoint_index"
+    },
+    {
+      "artifact_id": "entropy_0_01_experiment_sparse_configuration",
+      "storage": "repository",
+      "relative_path": "experiments/entropy_0_01_experiment/conditions/sparse/configuration.json",
+      "bytes": 1765,
+      "sha256": "d103f4603af52115f4a6880ec46944ed5fe3f6cac031e06dfc0bf62c34845170",
+      "source_ref": {
+        "experiment_id": "entropy_0_01_experiment",
+        "artifact_path": "results/fixed_e001_sparse/job.json",
+        "sha256": "2331e59299e50561552020d38ca001bbc0714ea42325071ea724e868f59e6079"
+      },
+      "source_byte_identical": false,
+      "category": "job_configuration"
+    },
+    {
+      "artifact_id": "entropy_0_01_experiment_sparse_trace_dev_scn_06c6d4fa3bbc7035def882159ec7616cd96f41188fe226c8d532a02d250e9b93",
+      "storage": "repository",
+      "relative_path": "experiments/entropy_0_01_experiment/conditions/sparse/traces/dev_06c6d4fa3bbc7035.json",
+      "bytes": 8661,
+      "sha256": "65b9c4ca6ed607879fcf87a6c45d5c5c87d3e98f524f9bdfd803fc645b403307",
+      "source_ref": {
+        "experiment_id": "entropy_0_01_experiment",
+        "artifact_path": "results/fixed_e001_sparse/evaluation_traces/DEV/scn_06c6d4fa3bbc7035def882159ec7616cd96f41188fe226c8d532a02d250e9b93.json",
+        "sha256": "65b9c4ca6ed607879fcf87a6c45d5c5c87d3e98f524f9bdfd803fc645b403307"
+      },
+      "source_byte_identical": true,
+      "category": "trace"
+    },
+    {
+      "artifact_id": "recurrent_ppo_experiment_wait_example_case",
+      "storage": "repository",
+      "relative_path": "experiments/recurrent_ppo_experiment/wait_example/case.json",
+      "bytes": 7588,
+      "sha256": "b5ace3f9f8c158c1ac114e8bb727d1f72ac26237a9f20f83cf38aa3c7821100a",
+      "source_ref": {
+        "experiment_id": "recurrent_ppo_experiment",
+        "artifact_path": "results/anchor_confirmation_s2_recurrent_progress/evaluation/DEV/1000000/scn_0c28e5e21850fded08c4fa74388c211d42ccd4818cf2b13ff5dd233395e2dcde.json",
+        "sha256": "b5ace3f9f8c158c1ac114e8bb727d1f72ac26237a9f20f83cf38aa3c7821100a"
+      },
+      "source_byte_identical": true,
+      "category": "case"
+    },
+    {
+      "artifact_id": "recurrent_ppo_experiment_wait_example_checkpoints",
+      "storage": "repository",
+      "relative_path": "experiments/recurrent_ppo_experiment/wait_example/checkpoints.json",
+      "bytes": 2257,
+      "sha256": "e386618dcab51529a743388b0f38d84045bc46e56fa4dc4adad8a607018f0c63",
+      "source_ref": {
+        "experiment_id": "recurrent_ppo_experiment",
+        "artifact_path": "results/anchor_confirmation_s2_recurrent_progress/checkpoints.json",
+        "sha256": "e386618dcab51529a743388b0f38d84045bc46e56fa4dc4adad8a607018f0c63"
+      },
+      "source_byte_identical": true,
+      "category": "checkpoint_index"
+    },
+    {
+      "artifact_id": "recurrent_ppo_experiment_wait_example_collection_manifest",
+      "storage": "repository",
+      "relative_path": "experiments/recurrent_ppo_experiment/wait_example/collection_manifest.json",
+      "bytes": 31784,
+      "sha256": "28086063cf1c33377b6e5ae38c06b0cf4cd1d97b34d6a388c1d8509d9a8b8977",
+      "source_ref": {
+        "experiment_id": "recurrent_ppo_experiment",
+        "artifact_path": "data/dev100/manifest.json",
+        "sha256": "28086063cf1c33377b6e5ae38c06b0cf4cd1d97b34d6a388c1d8509d9a8b8977"
+      },
+      "source_byte_identical": true,
+      "category": "dataset_manifest"
+    },
+    {
+      "artifact_id": "recurrent_ppo_experiment_wait_example_configuration",
+      "storage": "repository",
+      "relative_path": "experiments/recurrent_ppo_experiment/wait_example/configuration.json",
+      "bytes": 1879,
+      "sha256": "98d405207100df0565c605281052ec335f1e83fe4dd19bfbe4b91cb349fd2337",
+      "source_ref": {
+        "experiment_id": "recurrent_ppo_experiment",
+        "artifact_path": "results/anchor_confirmation_s2_recurrent_progress/job.json",
+        "sha256": "2245c47fa0d5dfee8e6f85863b44092b5fe20fdaf41c02c39c03fec3dd3c9885"
+      },
+      "source_byte_identical": false,
+      "category": "job_configuration"
+    },
+    {
+      "artifact_id": "recurrent_ppo_experiment_wait_example_trace",
+      "storage": "repository",
+      "relative_path": "experiments/recurrent_ppo_experiment/wait_example/trace.json",
+      "bytes": 12155,
+      "sha256": "82f3414b22ee9200dcbe4ab673581d456a89ad5cc1c6eb8e89de2f783bb562fe",
+      "source_ref": {
+        "experiment_id": "recurrent_ppo_experiment",
+        "artifact_path": "results/anchor_confirmation_s2_recurrent_progress/evaluation_traces/DEV/scn_0c28e5e21850fded08c4fa74388c211d42ccd4818cf2b13ff5dd233395e2dcde.json",
+        "sha256": "82f3414b22ee9200dcbe4ab673581d456a89ad5cc1c6eb8e89de2f783bb562fe"
+      },
+      "source_byte_identical": true,
+      "category": "trace"
+    },
+    {
+      "artifact_id": "replay_bindings",
+      "storage": "repository",
+      "relative_path": "replay_bindings.json",
+      "bytes": 5207,
+      "sha256": "560feea7bd3349d7486591fc00f9d0cac361f3966fd41a4ccba1781ccf0189fc",
+      "source_ref": {
+        "experiment_id": "portable_reference_full_corpus",
+        "artifact_path": "replay_bindings.json",
+        "sha256": "63234e52fa929448c9c4ef11d2f914faf9ca5c0938846716a54fc4e84bd6db75"
+      },
+      "source_byte_identical": false,
+      "category": "replay_bindings"
+    },
+    {
+      "artifact_id": "training_300_manifest",
+      "storage": "repository",
+      "relative_path": "datasets/training_300/collection_manifest.json",
+      "bytes": 94419,
+      "sha256": "9d4b4cfd69c93602110b3cc0c3f2e172308b539939a47a57dabac688f99b4fb4",
+      "source_ref": {
+        "experiment_id": "entropy_0_01_experiment",
+        "artifact_path": "data/train300/manifest.json",
+        "sha256": "9d4b4cfd69c93602110b3cc0c3f2e172308b539939a47a57dabac688f99b4fb4"
+      },
+      "source_byte_identical": true,
+      "category": "dataset_manifest"
+    },
+    {
+      "artifact_id": "world_scn_005e318e235f9204f5097c59114021fc139afa05c54b89a5e98aa2fc65fc901c",
+      "storage": "release",
+      "relative_path": "worlds/scn_005e318e235f9204f5097c59114021fc139afa05c54b89a5e98aa2fc65fc901c.json",
+      "bytes": 13845,
+      "sha256": "a6c344b07cb39e8c946babcf60d031d971d9ab66cfb6e5d368c6a3c791e44819",
+      "source_ref": {
+        "experiment_id": "entropy_0_01_experiment",
+        "artifact_path": "data/train300/scn_005e318e235f9204f5097c59114021fc139afa05c54b89a5e98aa2fc65fc901c.json",
+        "sha256": "a6c344b07cb39e8c946babcf60d031d971d9ab66cfb6e5d368c6a3c791e44819"
+      },
+      "source_byte_identical": true,
+      "category": "scenario_snapshot",
+      "release_id": "research_worlds_v1"
+    },
+    {
+      "artifact_id": "world_scn_06c6d4fa3bbc7035def882159ec7616cd96f41188fe226c8d532a02d250e9b93",
+      "storage": "release",
+      "relative_path": "worlds/scn_06c6d4fa3bbc7035def882159ec7616cd96f41188fe226c8d532a02d250e9b93.json",
+      "bytes": 21740,
+      "sha256": "cda8b187aea9be67fdc924e8b5b508999160051139ea9f93e6169d7ffd73fd30",
+      "source_ref": {
+        "experiment_id": "entropy_0_01_experiment",
+        "artifact_path": "data/dev100/scn_06c6d4fa3bbc7035def882159ec7616cd96f41188fe226c8d532a02d250e9b93.json",
+        "sha256": "cda8b187aea9be67fdc924e8b5b508999160051139ea9f93e6169d7ffd73fd30"
+      },
+      "source_byte_identical": true,
+      "category": "scenario_snapshot",
+      "release_id": "research_worlds_v1"
+    },
+    {
+      "artifact_id": "world_scn_0c28e5e21850fded08c4fa74388c211d42ccd4818cf2b13ff5dd233395e2dcde",
+      "storage": "release",
+      "relative_path": "worlds/scn_0c28e5e21850fded08c4fa74388c211d42ccd4818cf2b13ff5dd233395e2dcde.json",
+      "bytes": 14127,
+      "sha256": "b417f5bfcb31aa5b303d855cfd29c2c758c9910ade2f44e7a4ed44c34b90f663",
+      "source_ref": {
+        "experiment_id": "entropy_0_01_experiment",
+        "artifact_path": "data/dev100/scn_0c28e5e21850fded08c4fa74388c211d42ccd4818cf2b13ff5dd233395e2dcde.json",
+        "sha256": "b417f5bfcb31aa5b303d855cfd29c2c758c9910ade2f44e7a4ed44c34b90f663"
+      },
+      "source_byte_identical": true,
+      "category": "scenario_snapshot",
+      "release_id": "research_worlds_v1"
+    }
+  ],
+  "fixture": true,
+  "metric_aggregation_permitted": false
+}

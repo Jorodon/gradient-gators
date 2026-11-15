@@ -1,0 +1,67 @@
+[
+  {
+    "actual_training_steps": 0,
+    "completed_update_calls": 0,
+    "file": "checkpoints\\step-000000.zip",
+    "last_completed_update_consumed_steps": 0,
+    "model_seed": 3380075943,
+    "nominal_training_steps": 0,
+    "optimized_training_steps": 0,
+    "optimizer_steps": 0,
+    "sha256": "9bb294b272d9439dc1a8ecc1110ab2f292b9ace9deda6f033571007efdb98244",
+    "timing": "initialization",
+    "updates": 0
+  },
+  {
+    "actual_training_steps": 100000,
+    "completed_update_calls": 100,
+    "file": "checkpoints\\step-100000.zip",
+    "last_completed_update_consumed_steps": 100000,
+    "model_seed": 3380075943,
+    "nominal_training_steps": 100000,
+    "optimized_training_steps": 100000,
+    "optimizer_steps": 8000,
+    "sha256": "d6355eef1666ece7d836698a47d018e3df2a586c442d19a040aaf3c67beb9ffe",
+    "timing": "after_completed_update",
+    "updates": 1000
+  },
+  {
+    "actual_training_steps": 250000,
+    "completed_update_calls": 250,
+    "file": "checkpoints\\step-250000.zip",
+    "last_completed_update_consumed_steps": 250000,
+    "model_seed": 3380075943,
+    "nominal_training_steps": 250000,
+    "optimized_training_steps": 250000,
+    "optimizer_steps": 20000,
+    "sha256": "51cb8da4b5b1698f0845b8a4a0478f33dd2564c39074af13fb9090d19c387aa3",
+    "timing": "after_completed_update",
+    "updates": 2500
+  },
+  {
+    "actual_training_steps": 500000,
+    "completed_update_calls": 500,
+    "file": "checkpoints\\step-500000.zip",
+    "last_completed_update_consumed_steps": 500000,
+    "model_seed": 3380075943,
+    "nominal_training_steps": 500000,
+    "optimized_training_steps": 500000,
+    "optimizer_steps": 40000,
+    "sha256": "eae142a09cf5b95d469c26a32b63c7f35922714be41d0e254c6d0efb024a50ab",
+    "timing": "after_completed_update",
+    "updates": 5000
+  },
+  {
+    "actual_training_steps": 1000000,
+    "completed_update_calls": 1000,
+    "file": "checkpoints\\step-1000000.zip",
+    "last_completed_update_consumed_steps": 1000000,
+    "model_seed": 3380075943,
+    "nominal_training_steps": 1000000,
+    "optimized_training_steps": 1000000,
+    "optimizer_steps": 80000,
+    "sha256": "84b3ebb03796548d7a86d421f2da83937fea3dad56593f392aa73394f1b96dba",
+    "timing": "after_completed_update",
+    "updates": 10000
+  }
+]

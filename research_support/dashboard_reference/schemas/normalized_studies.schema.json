@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Gradient Gators normalized results v1",
+  "type": "object",
+  "required": ["schema_version", "studies"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "studies": {"type":"array","minItems":1,"items":{"$ref":"#/$defs/study"}}
+  },
+  "$defs": {
+    "count": {"type":["integer","null"],"minimum":0},
+    "study": {
+      "type":"object",
+      "required":["id","title","status","protocol","sources","caveats","records"],
+      "properties": {
+        "id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,160}$"},
+        "title":{"type":"string","minLength":1},
+        "group":{"type":"string"},
+        "status":{"enum":["completed","running","partial","failed","historical","unknown"]},
+        "protocol":{"type":"string","minLength":1},
+        "sources":{"type":"array","minItems":1,"items":{"type":"string"}},
+        "caveats":{"type":"array","items":{"type":"string"}},
+        "metadata":{"type":"object"},
+        "records":{"type":"array","items":{"$ref":"#/$defs/record"}}
+      }
+    },
+    "record": {
+      "type":"object",
+      "required":["id","condition","split","evaluation_mode","orientation","source","evidence","data_status"],
+      "properties": {
+        "id":{"type":"string","minLength":1},
+        "condition":{"type":"string","minLength":1},
+        "split":{"enum":["TRAIN","DEV","DIAGNOSTIC"]},
+        "evaluation_mode":{"type":"string","minLength":1},
+        "orientation":{"type":"string","minLength":1},
+        "seed":{"type":["integer","string","null"]},
+        "sampling_seed":{"type":["integer","string","null"]},
+        "checkpoint":{"$ref":"#/$defs/count"},
+        "successes":{"$ref":"#/$defs/count"},
+        "episodes":{"type":["integer","null"],"minimum":1},
+        "deaths":{"$ref":"#/$defs/count"},
+        "timeouts":{"$ref":"#/$defs/count"},
+        "invalid_actions":{"$ref":"#/$defs/count"},
+        "transitions":{"$ref":"#/$defs/count"},
+        "mean_damage":{"type":["number","null"],"minimum":0},
+        "source":{"type":"string","minLength":1},
+        "evidence":{"type":"string","minLength":1},
+        "data_status":{"type":"string","minLength":1},
+        "metadata":{"type":"object"}
+      }
+    }
+  },
+  "$comment":"model.py additionally enforces unique study/record/dimension identifiers, finite numbers, and numerator/denominator/outcome consistency. No schema downloads or third-party validator are needed."
+}

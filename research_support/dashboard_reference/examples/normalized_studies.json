@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "studies": [{
+    "id": "example-future-study",
+    "title": "Example import · synthetic demonstration",
+    "group": "Imported",
+    "status": "historical",
+    "protocol": "SYNTHETIC DEMO ONLY. Two invented example counts demonstrate the import format; these are not Gradient Gators research results.",
+    "sources": ["Synthetic schema demonstration; replace with your real source provenance"],
+    "caveats": ["Do not interpret these demonstration numbers as experiment evidence."],
+    "metadata": {"synthetic": true},
+    "records": [
+      {"id":"demo-0","condition":"demo-arm","split":"DEV","evaluation_mode":"deterministic","orientation":"original","seed":123,"checkpoint":0,"successes":0,"episodes":10,"deaths":null,"timeouts":null,"mean_damage":null,"invalid_actions":null,"transitions":null,"source":"Synthetic example","evidence":"synthetic demonstration","data_status":"demo"},
+      {"id":"demo-1000","condition":"demo-arm","split":"DEV","evaluation_mode":"deterministic","orientation":"original","seed":123,"checkpoint":1000,"successes":3,"episodes":10,"deaths":null,"timeouts":null,"mean_damage":null,"invalid_actions":null,"transitions":null,"source":"Synthetic example","evidence":"synthetic demonstration","data_status":"demo"}
+    ]
+  }]
+}

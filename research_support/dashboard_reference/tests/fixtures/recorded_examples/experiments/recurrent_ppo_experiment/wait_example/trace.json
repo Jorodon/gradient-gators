@@ -1,0 +1,493 @@
+{
+  "identity": {
+    "algorithm": {
+      "algorithm": "recurrent_ppo",
+      "device": "cpu",
+      "features_extractor_class": "src.training.geometry_features.GeometryExtractorV1",
+      "n_envs": 1,
+      "normalize_images": false,
+      "parameters": {
+        "batch_size": 125,
+        "clip_range": 0.2,
+        "ent_coef": 0.01,
+        "gae_lambda": 0.95,
+        "gamma": 0.99,
+        "learning_rate": 0.0003,
+        "max_grad_norm": 0.5,
+        "n_epochs": 10,
+        "n_steps": 1000,
+        "net_arch": [
+          64,
+          64
+        ],
+        "normalize_advantage": true,
+        "vf_coef": 0.5
+      },
+      "recurrent_policy": {
+        "enable_critic_lstm": true,
+        "lstm_hidden_size": 64,
+        "n_lstm_layers": 1,
+        "share_features_extractor": true,
+        "shared_lstm": false
+      },
+      "settings_version": "recurrence-followup-algorithms-v1",
+      "torch_threads": 1,
+      "total_timesteps": 1000000,
+      "versions": {
+        "gymnasium": "1.4.0",
+        "sb3-contrib": "2.9.2",
+        "stable-baselines3": "2.9.2",
+        "torch": "2.15.0"
+      }
+    },
+    "checkpoint": {
+      "actual_training_steps": 1000000,
+      "completed_update_calls": 1000,
+      "file": "checkpoints\\step-1000000.zip",
+      "last_completed_update_consumed_steps": 1000000,
+      "model_seed": 3380075943,
+      "nominal_training_steps": 1000000,
+      "optimized_training_steps": 1000000,
+      "optimizer_steps": 80000,
+      "sha256": "84b3ebb03796548d7a86d421f2da83937fea3dad56593f392aa73394f1b96dba",
+      "timing": "after_completed_update",
+      "updates": 10000
+    },
+    "checkpoint_sha256": "84b3ebb03796548d7a86d421f2da83937fea3dad56593f392aa73394f1b96dba",
+    "collection_checksum": "e9b9451df4c358714c713aab4742ef27a58631beaddb17c3d0360154134c40c5",
+    "engine_semantics": "recurrence-followup-v1-frozen-C2-dynamics",
+    "job_id": "anchor_confirmation_s2_recurrent_progress",
+    "job_sha256": "01af50601113dcae4cd0e3b21bef87c02617b5646420cdd239975fbc9da2c0ba",
+    "map_id": "map_9728d2a23e7ef7ad5c75afa8ae6e6314bc8577c15780154ee73fb73b0045ccb3",
+    "mode": "deterministic",
+    "reward": {
+      "coefficients": {
+        "damage_penalty": 0.0,
+        "enemy_penalty": 0.0,
+        "goal_reward": 100.0,
+        "hazard_penalty": 0.0,
+        "progress_gamma": 0.99,
+        "progress_scale": 0.5,
+        "step_penalty": 0.0
+      },
+      "family": "progress",
+      "formula_id": "m4-frozen-v1-progress",
+      "gamma": 0.99,
+      "learning_scale_applied_here": false,
+      "variant": "original"
+    },
+    "role": "DEV",
+    "scenario_checksum": "5aeeef565c0aa89613929ffefcd16c4c5345aff2f5015d02accfbe18c0555627",
+    "scenario_id": "scn_0c28e5e21850fded08c4fa74388c211d42ccd4818cf2b13ff5dd233395e2dcde",
+    "scenario_sha256": "b417f5bfcb31aa5b303d855cfd29c2c758c9910ade2f44e7a4ed44c34b90f663",
+    "seed": 2594348325,
+    "trace_requested": true,
+    "trace_selection": "final_only_first5_DEV_first2_TRAIN_sorted_scenario_id_v1"
+  },
+  "initial_state": {
+    "agent_hp": 100,
+    "agent_position": [
+      1,
+      3
+    ],
+    "collection_id": "research_checkpoint_validation_v1",
+    "enemy_behavior": "patrol_v1",
+    "enemy_patrol_index": 1,
+    "enemy_position": [
+      6,
+      1
+    ],
+    "episode_index": 0,
+    "episode_limit_mode": "research",
+    "map_area": 48,
+    "map_height": 6,
+    "map_width": 8,
+    "max_episode_steps": 192,
+    "model_seed_slot": null,
+    "scenario_id": "scn_0c28e5e21850fded08c4fa74388c211d42ccd4818cf2b13ff5dd233395e2dcde",
+    "snapshot_checksum": "5aeeef565c0aa89613929ffefcd16c4c5345aff2f5015d02accfbe18c0555627",
+    "source_code_version": "commit:6b8e1ce7101207a6fd247ac5d82e2e2113296760;source_sha256:b2b6862b5b32d7c6b2f176e30f5ad87d692c4ab7cd535e7fceddc64f7d1bd25d;diff_sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "split": "CHECKPOINT_VALIDATION",
+    "steps": 0
+  },
+  "sha256": "52606bb1e9ce3d1b278793d9fc5c3376122e87c0d8d01a51bc965d137b6ebf58",
+  "steps": [
+    {
+      "action": 2,
+      "enemy_patrol_index": 2,
+      "enemy_position": [
+        5,
+        1
+      ],
+      "events": {
+        "damage_taken": 10.0,
+        "distance_change": -1.0,
+        "enemy_contact": false,
+        "enemy_damage": 0.0,
+        "fall_damage": 10.0,
+        "hazard_contact": false,
+        "hazard_damage": 0.0,
+        "invalid_move": false,
+        "reached_goal": false,
+        "step_taken": true,
+        "waited": false
+      },
+      "hp": 90.0,
+      "position": [
+        1,
+        4
+      ],
+      "reward": -0.46999999999999975,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": 1,
+      "enemy_patrol_index": 3,
+      "enemy_position": [
+        6,
+        1
+      ],
+      "events": {
+        "damage_taken": 0.0,
+        "distance_change": 1.0,
+        "enemy_contact": false,
+        "enemy_damage": 0.0,
+        "fall_damage": 0.0,
+        "hazard_contact": false,
+        "hazard_damage": 0.0,
+        "invalid_move": false,
+        "reached_goal": false,
+        "step_taken": true,
+        "waited": false
+      },
+      "hp": 90.0,
+      "position": [
+        2,
+        4
+      ],
+      "reward": 0.5249999999999999,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": 4,
+      "enemy_patrol_index": 0,
+      "enemy_position": [
+        7,
+        1
+      ],
+      "events": {
+        "damage_taken": 0.0,
+        "distance_change": 0.0,
+        "enemy_contact": false,
+        "enemy_damage": 0.0,
+        "fall_damage": 0.0,
+        "hazard_contact": false,
+        "hazard_damage": 0.0,
+        "invalid_move": false,
+        "reached_goal": false,
+        "step_taken": true,
+        "waited": true
+      },
+      "hp": 90.0,
+      "position": [
+        2,
+        4
+      ],
+      "reward": 0.02499999999999991,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": 3,
+      "enemy_patrol_index": 1,
+      "enemy_position": [
+        6,
+        1
+      ],
+      "events": {
+        "damage_taken": 0.0,
+        "distance_change": -1.0,
+        "enemy_contact": false,
+        "enemy_damage": 0.0,
+        "fall_damage": 0.0,
+        "hazard_contact": false,
+        "hazard_damage": 0.0,
+        "invalid_move": false,
+        "reached_goal": false,
+        "step_taken": true,
+        "waited": false
+      },
+      "hp": 90.0,
+      "position": [
+        1,
+        4
+      ],
+      "reward": -0.46999999999999975,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": 1,
+      "enemy_patrol_index": 2,
+      "enemy_position": [
+        5,
+        1
+      ],
+      "events": {
+        "damage_taken": 0.0,
+        "distance_change": 1.0,
+        "enemy_contact": false,
+        "enemy_damage": 0.0,
+        "fall_damage": 0.0,
+        "hazard_contact": false,
+        "hazard_damage": 0.0,
+        "invalid_move": false,
+        "reached_goal": false,
+        "step_taken": true,
+        "waited": false
+      },
+      "hp": 90.0,
+      "position": [
+        2,
+        4
+      ],
+      "reward": 0.5249999999999999,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": 0,
+      "enemy_patrol_index": 3,
+      "enemy_position": [
+        6,
+        1
+      ],
+      "events": {
+        "damage_taken": 0.0,
+        "distance_change": 0.0,
+        "enemy_contact": false,
+        "enemy_damage": 0.0,
+        "fall_damage": 0.0,
+        "hazard_contact": false,
+        "hazard_damage": 0.0,
+        "invalid_move": true,
+        "reached_goal": false,
+        "step_taken": true,
+        "waited": false
+      },
+      "hp": 90.0,
+      "position": [
+        2,
+        4
+      ],
+      "reward": 0.02499999999999991,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": 0,
+      "enemy_patrol_index": 0,
+      "enemy_position": [
+        7,
+        1
+      ],
+      "events": {
+        "damage_taken": 0.0,
+        "distance_change": 0.0,
+        "enemy_contact": false,
+        "enemy_damage": 0.0,
+        "fall_damage": 0.0,
+        "hazard_contact": false,
+        "hazard_damage": 0.0,
+        "invalid_move": true,
+        "reached_goal": false,
+        "step_taken": true,
+        "waited": false
+      },
+      "hp": 90.0,
+      "position": [
+        2,
+        4
+      ],
+      "reward": 0.02499999999999991,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": 1,
+      "enemy_patrol_index": 1,
+      "enemy_position": [
+        6,
+        1
+      ],
+      "events": {
+        "damage_taken": 0.0,
+        "distance_change": 1.0,
+        "enemy_contact": false,
+        "enemy_damage": 0.0,
+        "fall_damage": 0.0,
+        "hazard_contact": false,
+        "hazard_damage": 0.0,
+        "invalid_move": false,
+        "reached_goal": false,
+        "step_taken": true,
+        "waited": false
+      },
+      "hp": 90.0,
+      "position": [
+        3,
+        4
+      ],
+      "reward": 0.52,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": 1,
+      "enemy_patrol_index": 2,
+      "enemy_position": [
+        5,
+        1
+      ],
+      "events": {
+        "damage_taken": 0.0,
+        "distance_change": 1.0,
+        "enemy_contact": false,
+        "enemy_damage": 0.0,
+        "fall_damage": 0.0,
+        "hazard_contact": false,
+        "hazard_damage": 0.0,
+        "invalid_move": false,
+        "reached_goal": false,
+        "step_taken": true,
+        "waited": false
+      },
+      "hp": 90.0,
+      "position": [
+        4,
+        4
+      ],
+      "reward": 0.5150000000000001,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": 0,
+      "enemy_patrol_index": 3,
+      "enemy_position": [
+        6,
+        1
+      ],
+      "events": {
+        "damage_taken": 0.0,
+        "distance_change": 1.0,
+        "enemy_contact": false,
+        "enemy_damage": 0.0,
+        "fall_damage": 0.0,
+        "hazard_contact": false,
+        "hazard_damage": 0.0,
+        "invalid_move": false,
+        "reached_goal": false,
+        "step_taken": true,
+        "waited": false
+      },
+      "hp": 90.0,
+      "position": [
+        4,
+        3
+      ],
+      "reward": 0.51,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": 0,
+      "enemy_patrol_index": 0,
+      "enemy_position": [
+        7,
+        1
+      ],
+      "events": {
+        "damage_taken": 0.0,
+        "distance_change": 1.0,
+        "enemy_contact": false,
+        "enemy_damage": 0.0,
+        "fall_damage": 0.0,
+        "hazard_contact": false,
+        "hazard_damage": 0.0,
+        "invalid_move": false,
+        "reached_goal": false,
+        "step_taken": true,
+        "waited": false
+      },
+      "hp": 90.0,
+      "position": [
+        4,
+        2
+      ],
+      "reward": 0.505,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": 3,
+      "enemy_patrol_index": 1,
+      "enemy_position": [
+        6,
+        1
+      ],
+      "events": {
+        "damage_taken": 0.0,
+        "distance_change": 0.0,
+        "enemy_contact": false,
+        "enemy_damage": 0.0,
+        "fall_damage": 0.0,
+        "hazard_contact": false,
+        "hazard_damage": 0.0,
+        "invalid_move": true,
+        "reached_goal": false,
+        "step_taken": true,
+        "waited": false
+      },
+      "hp": 90.0,
+      "position": [
+        4,
+        2
+      ],
+      "reward": 0.0050000000000000044,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": 0,
+      "enemy_patrol_index": 2,
+      "enemy_position": [
+        5,
+        1
+      ],
+      "events": {
+        "damage_taken": 0.0,
+        "distance_change": 1.0,
+        "enemy_contact": false,
+        "enemy_damage": 0.0,
+        "fall_damage": 0.0,
+        "hazard_contact": false,
+        "hazard_damage": 0.0,
+        "invalid_move": false,
+        "reached_goal": true,
+        "step_taken": true,
+        "waited": false
+      },
+      "hp": 90.0,
+      "position": [
+        4,
+        1
+      ],
+      "reward": 100.5,
+      "terminated": true,
+      "truncated": false
+    }
+  ]
+}

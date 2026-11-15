@@ -1,0 +1,2 @@
+# Preserve exact reference payload bytes across Windows and Unix checkouts.
+* -text

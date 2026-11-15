@@ -1,0 +1,57 @@
+{
+  "schema_version": "gradient-gators-derived-configuration-v1",
+  "derivation": "portable_configuration",
+  "source_job_id": "anchor_confirmation_s2_recurrent_progress",
+  "source_job_sha256": "01af50601113dcae4cd0e3b21bef87c02617b5646420cdd239975fbc9da2c0ba",
+  "source_file_sha256": "2245c47fa0d5dfee8e6f85863b44092b5fe20fdaf41c02c39c03fec3dd3c9885",
+  "experiment_id": "recurrent_ppo_experiment",
+  "condition_id": "wait_example",
+  "configuration": {
+    "algorithm": "recurrent_ppo",
+    "checkpoint_steps": [
+      0,
+      100000,
+      250000,
+      500000,
+      1000000
+    ],
+    "collector": "fixed",
+    "environment_seed": 2707306389,
+    "evaluation_mode": "deterministic",
+    "evaluation_recovery_attempt_allowance": 5,
+    "evaluation_seed": 1852481053,
+    "expected_evaluation_episodes": 800,
+    "family": "anchor_confirmation",
+    "method": "recurrent",
+    "model_seed": 3380075943,
+    "n_envs": 1,
+    "ppo": {
+      "batch_size": 125,
+      "clip_range": 0.2,
+      "device": "cpu",
+      "ent_coef": 0.01,
+      "gae_lambda": 0.95,
+      "gamma": 0.99,
+      "learning_rate": 0.0003,
+      "max_grad_norm": 0.5,
+      "n_epochs": 10,
+      "n_steps": 1000,
+      "net_arch": [
+        64,
+        64
+      ],
+      "normalize_advantage": true,
+      "vf_coef": 0.5
+    },
+    "reward": "progress",
+    "reward_variant": "original",
+    "schedule_seed": 2389571785,
+    "seed_label": "s2",
+    "total_timesteps": 1000000,
+    "train_count": 300,
+    "training_reward_scale": 0.01,
+    "train_dataset_id": "training_300",
+    "dev_dataset_id": "development_100"
+  },
+  "relocation_note": "Derived configuration. Original id is exposed as source_job_id; train_dir/dev_dir are replaced by portable dataset IDs. source_job_sha256 is the canonical digest of the original job, not this transformed envelope. Raw case and trace identities are unchanged."
+}

@@ -1,0 +1,54 @@
+[
+  {
+    "actual_training_steps": 0,
+    "completed_update_calls": 0,
+    "file": "checkpoints\\step-000000.zip",
+    "last_completed_update_consumed_steps": 0,
+    "model_seed": 85235071,
+    "nominal_training_steps": 0,
+    "optimized_training_steps": 0,
+    "optimizer_steps": 0,
+    "sha256": "9fddecadfa840db8a2ee4284a63f277555d830edb1c38c2725cc32946d90b671",
+    "timing": "initialization",
+    "updates": 0
+  },
+  {
+    "actual_training_steps": 100000,
+    "completed_update_calls": 100,
+    "file": "checkpoints\\step-100000.zip",
+    "last_completed_update_consumed_steps": 100000,
+    "model_seed": 85235071,
+    "nominal_training_steps": 100000,
+    "optimized_training_steps": 100000,
+    "optimizer_steps": 8000,
+    "sha256": "92308ac56a1df5800ef6d7eea6eec0e3eb0dbd66ef3dc0216d13e4322f0e205a",
+    "timing": "after_completed_update",
+    "updates": 1000
+  },
+  {
+    "actual_training_steps": 250000,
+    "completed_update_calls": 250,
+    "file": "checkpoints\\step-250000.zip",
+    "last_completed_update_consumed_steps": 250000,
+    "model_seed": 85235071,
+    "nominal_training_steps": 250000,
+    "optimized_training_steps": 250000,
+    "optimizer_steps": 20000,
+    "sha256": "2fd721d04f16bc4eb007a966cff78768a9c390471ea5496199a4cc5152adab15",
+    "timing": "after_completed_update",
+    "updates": 2500
+  },
+  {
+    "actual_training_steps": 500000,
+    "completed_update_calls": 500,
+    "file": "checkpoints\\step-500000.zip",
+    "last_completed_update_consumed_steps": 500000,
+    "model_seed": 85235071,
+    "nominal_training_steps": 500000,
+    "optimized_training_steps": 500000,
+    "optimizer_steps": 40000,
+    "sha256": "7586b9312d30175dbd33328422de59ac9c10ecd9e3eb37f0fa4e1d9a45adbbad",
+    "timing": "after_completed_update",
+    "updates": 5000
+  }
+]

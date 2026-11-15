@@ -1,0 +1,239 @@
+{
+  "identity": {
+    "algorithm": {
+      "algorithm": "recurrent_ppo",
+      "device": "cpu",
+      "features_extractor_class": "src.training.geometry_features.GeometryExtractorV1",
+      "n_envs": 1,
+      "normalize_images": false,
+      "parameters": {
+        "batch_size": 125,
+        "clip_range": 0.2,
+        "ent_coef": 0.01,
+        "gae_lambda": 0.95,
+        "gamma": 0.99,
+        "learning_rate": 0.0003,
+        "max_grad_norm": 0.5,
+        "n_epochs": 10,
+        "n_steps": 1000,
+        "net_arch": [
+          64,
+          64
+        ],
+        "normalize_advantage": true,
+        "vf_coef": 0.5
+      },
+      "recurrent_policy": {
+        "enable_critic_lstm": true,
+        "lstm_hidden_size": 64,
+        "n_lstm_layers": 1,
+        "share_features_extractor": true,
+        "shared_lstm": false
+      },
+      "settings_version": "recurrence-followup-algorithms-v1",
+      "torch_threads": 1,
+      "total_timesteps": 1000000,
+      "versions": {
+        "gymnasium": "1.4.0",
+        "sb3-contrib": "2.9.2",
+        "stable-baselines3": "2.9.2",
+        "torch": "2.15.0"
+      }
+    },
+    "checkpoint": {
+      "actual_training_steps": 1000000,
+      "completed_update_calls": 1000,
+      "file": "checkpoints\\step-1000000.zip",
+      "last_completed_update_consumed_steps": 1000000,
+      "model_seed": 3380075943,
+      "nominal_training_steps": 1000000,
+      "optimized_training_steps": 1000000,
+      "optimizer_steps": 80000,
+      "sha256": "84b3ebb03796548d7a86d421f2da83937fea3dad56593f392aa73394f1b96dba",
+      "timing": "after_completed_update",
+      "updates": 10000
+    },
+    "checkpoint_sha256": "84b3ebb03796548d7a86d421f2da83937fea3dad56593f392aa73394f1b96dba",
+    "collection_checksum": "e9b9451df4c358714c713aab4742ef27a58631beaddb17c3d0360154134c40c5",
+    "engine_semantics": "recurrence-followup-v1-frozen-C2-dynamics",
+    "job_id": "anchor_confirmation_s2_recurrent_progress",
+    "job_sha256": "01af50601113dcae4cd0e3b21bef87c02617b5646420cdd239975fbc9da2c0ba",
+    "map_id": "map_9728d2a23e7ef7ad5c75afa8ae6e6314bc8577c15780154ee73fb73b0045ccb3",
+    "mode": "deterministic",
+    "reward": {
+      "coefficients": {
+        "damage_penalty": 0.0,
+        "enemy_penalty": 0.0,
+        "goal_reward": 100.0,
+        "hazard_penalty": 0.0,
+        "progress_gamma": 0.99,
+        "progress_scale": 0.5,
+        "step_penalty": 0.0
+      },
+      "family": "progress",
+      "formula_id": "m4-frozen-v1-progress",
+      "gamma": 0.99,
+      "learning_scale_applied_here": false,
+      "variant": "original"
+    },
+    "role": "DEV",
+    "scenario_checksum": "5aeeef565c0aa89613929ffefcd16c4c5345aff2f5015d02accfbe18c0555627",
+    "scenario_id": "scn_0c28e5e21850fded08c4fa74388c211d42ccd4818cf2b13ff5dd233395e2dcde",
+    "scenario_sha256": "b417f5bfcb31aa5b303d855cfd29c2c758c9910ade2f44e7a4ed44c34b90f663",
+    "seed": 2594348325,
+    "trace_requested": true,
+    "trace_selection": "final_only_first5_DEV_first2_TRAIN_sorted_scenario_id_v1"
+  },
+  "metrics": {
+    "damage": 10.0,
+    "death": false,
+    "episode_index": 0,
+    "final_hp": 90.0,
+    "illegal_moves": 3,
+    "length": 13,
+    "metadata": {
+      "area_band": "small",
+      "difficulty": {
+        "area": 48,
+        "area_band": "small",
+        "detour_ratio": 1.0,
+        "directed_detour": false,
+        "elevation_counts": {
+          "0": 27,
+          "1": 12,
+          "3": 9
+        },
+        "enemy_present": true,
+        "feature_counts": {
+          "hazard": 2,
+          "obstacle": 5,
+          "special_traversal": 3
+        },
+        "manhattan": 5,
+        "scenario_id": "scn_0c28e5e21850fded08c4fa74388c211d42ccd4818cf2b13ff5dd233395e2dcde",
+        "static_legal_distance": 5
+      },
+      "horizon": 192,
+      "map_id": "map_9728d2a23e7ef7ad5c75afa8ae6e6314bc8577c15780154ee73fb73b0045ccb3",
+      "provenance": {
+        "accepted_attempt": 2,
+        "area_band": "small",
+        "code_version": "commit:6b8e1ce7101207a6fd247ac5d82e2e2113296760;source_sha256:b2b6862b5b32d7c6b2f176e30f5ad87d692c4ab7cd535e7fceddc64f7d1bd25d;diff_sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "collection_id": "research_checkpoint_validation_v1",
+        "config_version": 1,
+        "enemy_behavior": "patrol_v1",
+        "enemy_first_contact_step": null,
+        "enemy_spawn_route_distance": 2,
+        "enemy_spawn_route_index": 5,
+        "enemy_tie_break": null,
+        "feature_counts": {
+          "hazard": 2,
+          "obstacle": 5,
+          "special_traversal": 3
+        },
+        "generation_config": {
+          "dimension_mode": "area_bucket",
+          "enemy_required": true,
+          "generated_max_elevation": 3,
+          "hazard_density_range": [
+            0.05,
+            0.1
+          ],
+          "min_start_goal": 0.4,
+          "obstacle_density_range": [
+            0.05,
+            0.15
+          ],
+          "patch_count": 3,
+          "patch_max_size": 4,
+          "patch_min_size": 2,
+          "patrol_max_outward_steps": 4,
+          "patrol_max_spawn_attempts": 32,
+          "traversal_density_range": [
+            0.05,
+            0.1
+          ],
+          "witness_max_wait_variants": 4,
+          "world_max_attempts": 20
+        },
+        "map_config": {
+          "hazard_density": 0.1,
+          "height": 8,
+          "map_mode": "procedural",
+          "max_elevation": 3,
+          "seed": 0,
+          "width": 8
+        },
+        "patches": [
+          {
+            "elevation": 1,
+            "height": 3,
+            "width": 4,
+            "x": 0,
+            "y": 0
+          },
+          {
+            "elevation": 1,
+            "height": 2,
+            "width": 3,
+            "x": 1,
+            "y": 4
+          },
+          {
+            "elevation": 3,
+            "height": 3,
+            "width": 3,
+            "x": 0,
+            "y": 1
+          }
+        ],
+        "rejection_reasons": [
+          "attempt 1: survival failed: no_directed_route! 0 sequences tested..."
+        ],
+        "root_seed": 1452792457011561084,
+        "sampled_densities": {
+          "hazard": 0.05321538462746905,
+          "obstacle": 0.10020540497205924,
+          "special_traversal": 0.07427034264662287
+        },
+        "split": "CHECKPOINT_VALIDATION"
+      },
+      "witness_length": 5
+    },
+    "raw_return": 102.74,
+    "raw_reward_identity": {
+      "family": "progress",
+      "formula_id": "m4-frozen-v1-progress",
+      "gamma": 0.99,
+      "learning_scale_applied": false,
+      "next_potential": null,
+      "original_raw_reward": 100.5,
+      "previous_potential": null,
+      "raw_components": {
+        "damage": -0.0,
+        "enemy": 0.0,
+        "goal": 100.0,
+        "hazard": 0.0,
+        "progress": 0.5,
+        "step": -0.0
+      },
+      "raw_reward": 100.5,
+      "variant": "original"
+    },
+    "retained_state_calls": 12,
+    "scenario_id": "scn_0c28e5e21850fded08c4fa74388c211d42ccd4818cf2b13ff5dd233395e2dcde",
+    "state_outputs": 13,
+    "stream_rank": 0,
+    "success": true,
+    "terminated": true,
+    "timeout": false,
+    "trace_file": "evaluation_traces\\DEV\\scn_0c28e5e21850fded08c4fa74388c211d42ccd4818cf2b13ff5dd233395e2dcde.json",
+    "trace_sha256": "52606bb1e9ce3d1b278793d9fc5c3376122e87c0d8d01a51bc965d137b6ebf58",
+    "trajectory_sha256": "6f6b81d67322773c747c3c9837bd78301310b796d53c35f618cbbe97563fc81e",
+    "truncated": false,
+    "wait": 1,
+    "zero_damage_success": false
+  },
+  "sha256": "379a528a2af11036020b3eee2e16e7e98cc4d9c5b395e497ef3eb448dbc6cb65",
+  "status": "complete"
+}

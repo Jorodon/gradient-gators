@@ -1,0 +1,44 @@
+{
+  "schema_version": "dashboard_recorded_fixture_v1",
+  "selection_scope": "three_recorded_behavior_examples_not_a_representative_metric_sample",
+  "metric_aggregation_permitted": false,
+  "cases": 3,
+  "traces": 3,
+  "maps": 0,
+  "purpose": "Fast file, identity and replay regression checks; no complete policy summary or learning curve may be inferred from these examples.",
+  "selected_behavior_checks": [
+    {
+      "binding_id": "entropy_0_01_experiment_sparse_case_dev_500000_scn_06c6d4fa3bbc7035def882159ec7616cd96f41188fe226c8d532a02d250e9b93_replay",
+      "success": true,
+      "timeout": false,
+      "death": false,
+      "length": 8,
+      "illegal_moves": 1,
+      "wait": 0,
+      "raw_return": 100.0
+    },
+    {
+      "binding_id": "entropy_0_01_experiment_efficiency_case_train_500000_scn_005e318e235f9204f5097c59114021fc139afa05c54b89a5e98aa2fc65fc901c_replay",
+      "success": false,
+      "timeout": true,
+      "death": false,
+      "length": 140,
+      "illegal_moves": 138,
+      "wait": 0,
+      "raw_return": -13.999999999999966
+    },
+    {
+      "binding_id": "recurrent_ppo_experiment_wait_example_case_replay",
+      "success": true,
+      "timeout": false,
+      "death": false,
+      "length": 13,
+      "illegal_moves": 3,
+      "wait": 1,
+      "raw_return": 102.74
+    }
+  ],
+  "full_corpus_release_id": "dashboard_recorded_results_v1",
+  "full_corpus_predecessor_manifest_sha256": "e04f1b7efa13ac82a8cc94d81173fbf9022eaaee3ca6bdbafaeb11ce32e45013",
+  "uncovered_behavior": "No authentic death-on-goal example is included; synthetic player fixtures are not empirical evidence."
+}

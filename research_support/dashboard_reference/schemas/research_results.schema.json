@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Research results v1 common minimum interface",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "study_id",
+    "provenance",
+    "datasets",
+    "models",
+    "outcomes",
+    "learning",
+    "comparisons",
+    "traces",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "enum": [
+        "research-results-v1",
+        "m4-results-v1"
+      ]
+    },
+    "study_id": {
+      "type": "string"
+    },
+    "fixture": {
+      "type": "boolean"
+    },
+    "provenance": {
+      "type": "object"
+    },
+    "datasets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "scenario_count",
+          "manifest_path",
+          "manifest_sha256"
+        ],
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "scenario_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "manifest_path": {
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "model_id",
+          "reward",
+          "seed",
+          "checkpoint_step"
+        ],
+        "properties": {
+          "model_id": {
+            "type": "string"
+          },
+          "reward": {
+            "type": "string"
+          },
+          "seed": {
+            "type": "integer"
+          },
+          "checkpoint_step": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "outcomes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "model_id",
+          "role",
+          "n_expected",
+          "n_completed",
+          "success_count",
+          "death_count",
+          "timeout_count"
+        ],
+        "properties": {
+          "model_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "n_expected": {
+            "type": "integer"
+          },
+          "n_completed": {
+            "type": "integer"
+          },
+          "success_count": {
+            "type": "integer"
+          },
+          "death_count": {
+            "type": "integer"
+          },
+          "timeout_count": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "learning": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "model_id",
+          "role",
+          "checkpoint_step",
+          "n_expected",
+          "n_completed",
+          "success_count"
+        ]
+      }
+    },
+    "comparisons": {
+      "type": "array"
+    },
+    "traces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "selection_category",
+          "model_id",
+          "role",
+          "scenario_id",
+          "available"
+        ],
+        "properties": {
+          "selection_category": {
+            "enum": [
+              "matched",
+              "representative"
+            ]
+          },
+          "model_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "scenario_id": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "trajectory_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "snapshot_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason_unavailable": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trajectory_artifact_id": {
+            "type": "string"
+          },
+          "snapshot_artifact_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "description": "Frozen minimum transport interface, not sufficient scientific validation. Evaluation owner adds complete documented safety/efficiency/paired-statistics fields. Preserve explicit counts, role-specific denominators, actual per-seed results and missingness. Rates use fractions 0..1, raw damage/reward remain original units, steps are interactions. Artifact IDs resolve only through an explicitly configured bundle/release index. Explicit legacy local paths must remain within a caller-configured root; no network access or host fallback. Missing numbers are null with explicit reasons, never NaN/Infinity or fabricated zero. Fixtures are marked fixture:true and never enter real study catalog. Hashes can be null only for labeled fixtures. Viewer may accept extra fields but cannot invent metrics. Canonical schema remains parent-owned; component extensions additive."
+}

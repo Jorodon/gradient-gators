@@ -1,0 +1,52 @@
+{
+  "schema_version": "gradient-gators-reference-bundle-v2",
+  "bundle_id": "synthetic_examples",
+  "source_kind": "synthetic",
+  "files": [
+    {
+      "artifact_id": "synthetic_results_export",
+      "storage": "repository",
+      "relative_path": "research_results.json",
+      "bytes": 74797,
+      "sha256": "1bffc93e624bb7b0a2a00c6ea011dec5fb03c253c9aa453af61c9234e6a933b5",
+      "category": "result_summary",
+      "source_byte_identical": false,
+      "source_ref": {
+        "experiment_id": "saved_synthetic_fixture",
+        "artifact_path": "results.json",
+        "sha256": "725d18c8376fa39c13e05b95156544e1a5ffa8a4eac3f26e827dd9d05a1fdb6f"
+      }
+    },
+    {
+      "artifact_id": "synthetic_snapshot",
+      "storage": "release",
+      "release_id": "dashboard_synthetic_examples_v1",
+      "relative_path": "payload/snapshot.json",
+      "bytes": 2144,
+      "sha256": "3ff206d5ea8aeec11cf714ecc1d39ff892a4facd6bb8215b2a8fb39a81e2fa34",
+      "category": "scenario_snapshot",
+      "source_ref": {
+        "experiment_id": "saved_synthetic_fixture",
+        "artifact_path": "snapshot.json",
+        "sha256": "3ff206d5ea8aeec11cf714ecc1d39ff892a4facd6bb8215b2a8fb39a81e2fa34"
+      },
+      "source_byte_identical": true
+    },
+    {
+      "artifact_id": "synthetic_trajectory",
+      "storage": "release",
+      "release_id": "dashboard_synthetic_examples_v1",
+      "relative_path": "payload/trajectory.json",
+      "bytes": 4479,
+      "sha256": "3d56fa2906e80e10c10fb49d7244238925c3df57b0a1be5960d46a95623fe7c4",
+      "category": "trace",
+      "source_ref": {
+        "experiment_id": "saved_synthetic_fixture",
+        "artifact_path": "trajectory.json",
+        "sha256": "3d56fa2906e80e10c10fb49d7244238925c3df57b0a1be5960d46a95623fe7c4"
+      },
+      "source_byte_identical": true
+    }
+  ],
+  "source_aliases": []
+}
