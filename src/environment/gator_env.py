@@ -285,17 +285,25 @@ class GatorEnv(gym.Env):
         enemy_spec = scenario.enemy_spec
 
         # Pursuit is an evaluation-only behavior, enforced here rather than left
-        # to convention. Without this, a pursuit scenario dropped into a TRAIN
-        # collection would train against the held-out condition and quietly
-        # invalidate the robustness comparison it exists to measure.
+        # to convention. The check is stated positively, against the one family
+        # of splits where a held-out behavior belongs, rather than as a denylist
+        # of TRAIN alone. Every other split is a place where it does damage:
+        #
+        #   TRAIN                  - trains against the held-out condition
+        #   CHECKPOINT_VALIDATION  - lets it decide which checkpoint is selected
+        #   FINAL_ID               - reports a shifted condition as in-distribution
+        #
+        # check_labels already fixes FINAL_OOD_* as the naming for OOD splits, so
+        # a new OOD condition is admitted automatically while anything else is
+        # refused by default.
         if (
             enemy_spec is not None
             and enemy_spec.behavior != PATROL_BEHAVIOR_VERSION
-            and provenance.get("split") == "TRAIN"
+            and not str(provenance.get("split", "")).startswith("FINAL_OOD_")
         ):
             raise ValueError(
-                f"Enemy behavior {enemy_spec.behavior!r} is evaluation-only "
-                "and cannot appear in a TRAIN collection"
+                f"Enemy behavior {enemy_spec.behavior!r} is evaluation-only and "
+                f"cannot appear in a {provenance.get('split')!r} collection"
             )
 
         self._enemy_spawn = enemy_spec.initial_position if enemy_spec is not None else None

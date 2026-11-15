@@ -94,16 +94,15 @@ def test_unknown_variant_lookup_names_what_is_available():
 def test_a_newly_registered_variant_needs_no_environment_change(monkeypatch):
     """The central DOD claim: adding a variant is a registry entry, nothing more.
 
-    A stub calculator is registered under a declared-but-unimplemented name and
-    driven through the real environment. If GatorEnv needed per-variant handling
-    this could not pass.
+    A stub calculator is swapped into the registry and driven through the real
+    environment. If GatorEnv needed per-variant handling this could not pass.
+
+    An earlier version of this test borrowed a declared-but-unimplemented
+    variant name as its fixture, so it skipped permanently once all five were
+    implemented - the DOD test died exactly when the DOD was satisfied.
+    Replacing a registered entry keeps it running for good.
     """
-    spare = missing_variants()
-
-    if not spare:
-        pytest.skip("every declared variant is implemented")
-
-    variant = spare[0]
+    variant = registered_variants()[-1]
     monkeypatch.setitem(REWARD_CALCULATORS, variant, lambda context, config: 7.5)
 
     # Resolution happens in __init__, so the env must be built after the patch.
@@ -116,24 +115,32 @@ def test_a_newly_registered_variant_needs_no_environment_change(monkeypatch):
     env.close()
 
 
-def test_declared_but_unimplemented_variant_fails_at_construction():
-    """RewardConfig accepts all five names, so the env is where the gap must surface.
+def test_declared_but_unimplemented_variant_fails_at_construction(monkeypatch):
+    """RewardConfig accepts all five names, so the env is where a gap must surface.
 
     Failing here rather than on the first step keeps a training run from dying
-    partway in, which is the whole reason the calculator is resolved in __init__.
+    partway in, which is the whole reason the calculator is resolved in
+    __init__. The gap is created by removing a registered entry, so the test
+    keeps working whether or not every declared variant happens to be
+    implemented today.
     """
-    spare = missing_variants()
+    variant = registered_variants()[-1]
+    monkeypatch.delitem(REWARD_CALCULATORS, variant)
 
-    if not spare:
-        pytest.skip("every declared variant is implemented")
+    config = RewardConfig(variant=variant)
 
-    config = RewardConfig(variant=spare[0])
-
-    # Valid config, by design.
-    assert config.variant == spare[0]
+    # Still valid config: RewardConfig validates the name, not the registry.
+    assert config.variant == variant
 
     with pytest.raises(ValueError, match="No reward calculator registered"):
         make_env(config)
+
+
+def test_every_declared_variant_is_registered():
+    """The gap the two tests above simulate should not exist in reality."""
+    assert not missing_variants(), (
+        f"declared but unimplemented: {', '.join(missing_variants())}"
+    )
 
 
 def test_sparse_remains_the_default():

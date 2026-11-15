@@ -70,11 +70,12 @@ pip install -r requirements.txt
 Run the Streamlit proof-of-concept dashboard from the project root:
 
 ```bash
-streamlit run src/evaluation/dashboard_app.py
+streamlit run dashboard.py
 ```
 
-The dashboard is currently a prototype populated with
-mock data. It is not connected to training runs or episode logs yet.
+The dashboard starts in mock-data mode. Select `PILOT DATA` in the sidebar to
+load real experiment artifacts, or set `GATOR_DASHBOARD_DATA_DIR` before
+launching Streamlit.
 
 ## Current Status
 
