@@ -1,0 +1,54 @@
+{
+  "schema_version": "gradient-gators-derived-configuration-v1",
+  "derivation": "portable_configuration",
+  "source_job_id": "fixed_e001_efficiency",
+  "source_job_sha256": "fdbe38251d572279a4c2cc84bf79cb6550b26ef37dc0b71f40c6090a0a0fe4ea",
+  "source_file_sha256": "6be9c1a2e81b8d7abb4d47ce2ff10271fb6c7bf5fa7fdfee0833fe7c524b3b52",
+  "experiment_id": "entropy_0_01_experiment",
+  "condition_id": "efficiency",
+  "configuration": {
+    "algorithm": "ppo",
+    "checkpoint_steps": [
+      0,
+      100000,
+      250000,
+      500000
+    ],
+    "collector": "fixed",
+    "environment_seed": 2278348526,
+    "evaluation_mode": "deterministic",
+    "evaluation_recovery_attempt_allowance": 5,
+    "evaluation_seed": 1852481053,
+    "expected_evaluation_episodes": 700,
+    "family": "collector_entropy",
+    "model_seed": 85235071,
+    "n_envs": 1,
+    "ppo": {
+      "batch_size": 125,
+      "clip_range": 0.2,
+      "device": "cpu",
+      "ent_coef": 0.01,
+      "gae_lambda": 0.95,
+      "gamma": 0.99,
+      "learning_rate": 0.0003,
+      "max_grad_norm": 0.5,
+      "n_epochs": 10,
+      "n_steps": 1000,
+      "net_arch": [
+        64,
+        64
+      ],
+      "normalize_advantage": true,
+      "vf_coef": 0.5
+    },
+    "reward": "efficiency",
+    "reward_variant": "original",
+    "schedule_seed": 1852481053,
+    "total_timesteps": 500000,
+    "train_count": 300,
+    "training_reward_scale": 0.01,
+    "train_dataset_id": "training_300",
+    "dev_dataset_id": "development_100"
+  },
+  "relocation_note": "Derived configuration. Original id is exposed as source_job_id; train_dir/dev_dir are replaced by portable dataset IDs. source_job_sha256 is the canonical digest of the original job, not this transformed envelope. Raw case and trace identities are unchanged."
+}

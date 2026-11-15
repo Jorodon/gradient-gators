@@ -1,0 +1,683 @@
+{
+  "schema_version": "dashboard_reference_source_provenance_v3",
+  "prepared_utc": "2026-11-15T05:59:39.461157+00:00",
+  "reviewed_repository_revision": "e1a13b32c0149376a9cd8f07e044237241a937d1",
+  "publication_performed": false,
+  "scope": "Every repository-overlay file except this provenance manifest. Full recorded evidence and worlds are separate release bundles.",
+  "predecessor_provenance": {
+    "package_id": "dashboard_reference_portable_20261113",
+    "artifact_path": "research_support/dashboard_reference/source_provenance.json",
+    "sha256": "50b012d2065b343aaa0fa5c4b09beef2886b95267162a2b374d3f2feca6e7b28"
+  },
+  "scientific_contract_note": "Frozen final counts, learning grid, thresholds and replay selection unchanged. Raw case/trace bytes preserved. Small fixture cannot establish full-cohort metrics.",
+  "adaptation_note": "Removed five docstring-only package markers, consolidated documentation, retained three authentic small fixtures, relocated full recorded results to a separate unpublished release, updated optional validation and issue references. No training or inference.",
+  "removed_package_markers": [
+    "research_support/__init__.py",
+    "research_support/dashboard_reference/__init__.py",
+    "research_support/dashboard_reference/metrics/__init__.py",
+    "research_support/dashboard_reference/readers/__init__.py",
+    "research_support/dashboard_reference/viewer/__init__.py"
+  ],
+  "document_merges": {
+    "docs/research/dashboard/README.md": [
+      "docs/research/dashboard/architecture_brief.md",
+      "docs/research/dashboard/naming_conventions.md"
+    ],
+    "docs/research/dashboard/integration.md": [
+      "docs/research/dashboard/input_artifacts.md",
+      "docs/research/dashboard/release_assets.md",
+      "docs/research/dashboard/recorded_examples/README.md"
+    ],
+    "research_support/dashboard_reference/README.md": [
+      "research_support/dashboard_reference/README.md",
+      "research_support/dashboard_reference/file_guide.md"
+    ]
+  },
+  "recorded_bundle": {
+    "storage": "release",
+    "release_id": "dashboard_recorded_results_v1",
+    "relative_path": "bundle_manifest.json",
+    "sha256": "0536f70960b61e06222677d551a7412765db97bc2f25f823742dae9e4115ddf5"
+  },
+  "repository_fixture": {
+    "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/bundle_manifest.json",
+    "sha256": "cd73cdce8e81de6127f13bcf381745fc565e4c1b77ba60958fc4df9df5779a92",
+    "cases": 3,
+    "traces": 3,
+    "metric_aggregation_permitted": false
+  },
+  "release_manifests": [
+    {
+      "release_id": "dashboard_recorded_results_v1",
+      "relative_path": "release_manifest.json",
+      "sha256": "a1768c3d15e80f341e766f6b17cafffd5117f13c4d7017ff4b65c445654cdc84",
+      "published_url": null,
+      "publication_performed": false
+    },
+    {
+      "release_id": "dashboard_synthetic_examples_v1",
+      "relative_path": "release_manifest.json",
+      "sha256": "da9477c6290fd1b428812ff19e5aee67c24dcec22bcc9621c45bf0b0bf806ed4",
+      "published_url": null,
+      "publication_performed": false
+    },
+    {
+      "release_id": "research_worlds_v1",
+      "relative_path": "release_manifest.json",
+      "sha256": "440cb2a3be1e8c91c5567ac45c322035198d11454fc33849948af87a616c5a76",
+      "published_url": null,
+      "publication_performed": false
+    }
+  ],
+  "files": [
+    {
+      "path": "docs/research/dashboard/.gitattributes",
+      "bytes": 84,
+      "sha256": "ab65cbebf8cd9f63acbbba10634deb5e98f845271532dd55997bff21608a13bd",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/.gitattributes",
+        "sha256": "ab65cbebf8cd9f63acbbba10634deb5e98f845271532dd55997bff21608a13bd"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "docs/research/dashboard/.gitignore",
+      "bytes": 36,
+      "sha256": "5bb6170981431ab8f81b0ae27b4e244b385477dc98e72b293ae38372ff26c7f1",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/.gitignore",
+        "sha256": "5bb6170981431ab8f81b0ae27b4e244b385477dc98e72b293ae38372ff26c7f1"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "docs/research/dashboard/integration.md",
+      "bytes": 12943,
+      "sha256": "c0ef1c9843070cb645f2592a52037c297823a811200fd12d477dc0684e5b256b",
+      "source_ref": null,
+      "source_byte_identical": false,
+      "adaptation": "Documentation/comment wording updated for repository contributors; runtime logic and scientific records unchanged.",
+      "source_inputs": [
+        {
+          "package_id": "dashboard_reference_portable_20261113",
+          "artifact_path": "docs/research/dashboard/input_artifacts.md",
+          "sha256": "c570d7bfef3647cb93f73ad2e9220279978848ec9c464fcf1f4604b1074d43d8"
+        },
+        {
+          "package_id": "dashboard_reference_portable_20261113",
+          "artifact_path": "docs/research/dashboard/release_assets.md",
+          "sha256": "0f91d69eb1c606f50b740f918537c020601e131600dc0bb7521cfcaee555114a"
+        },
+        {
+          "package_id": "dashboard_reference_portable_20261113",
+          "artifact_path": "docs/research/dashboard/recorded_examples/README.md",
+          "sha256": "66bcae2b337491d913d963bd5514ec6ca1f8d1228a0ef89ed87c49e12c764e45"
+        }
+      ]
+    },
+    {
+      "path": "docs/research/dashboard/README.md",
+      "bytes": 7747,
+      "sha256": "194a3b99ff390c00e1924c8fa04a803c1d1c811dc92b09f841ecf62e7c041faf",
+      "source_ref": null,
+      "source_byte_identical": false,
+      "adaptation": "Documentation/comment wording updated for repository contributors; runtime logic and scientific records unchanged.",
+      "source_inputs": [
+        {
+          "package_id": "dashboard_reference_portable_20261113",
+          "artifact_path": "docs/research/dashboard/architecture_brief.md",
+          "sha256": "d7a2a512c3ac676e6c48fd17784bc636451118b1a05774f2624c7254626b19ae"
+        },
+        {
+          "package_id": "dashboard_reference_portable_20261113",
+          "artifact_path": "docs/research/dashboard/naming_conventions.md",
+          "sha256": "87283448c80a95bea9581e09d1a8068f083715c9ea606b3343bc751eef8b056e"
+        }
+      ]
+    },
+    {
+      "path": "docs/research/dashboard/replay_selection.json",
+      "bytes": 5482,
+      "sha256": "8a4a7c987a8bdfe323eca230796d67b7ddd584b33670735388d03d41e841b91b",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/replay_selection.json",
+        "sha256": "8a4a7c987a8bdfe323eca230796d67b7ddd584b33670735388d03d41e841b91b"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/.gitattributes",
+      "bytes": 102,
+      "sha256": "4f9e8c05a43e16cf1316f47155865ea877b78ad357cc4c1fe5200ea00e4e3727",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/.gitattributes",
+        "sha256": "f73d4e6fefdea13f7138dd92d9bec75e7f674d57eb1c78d1f83b9fcdc1167785"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Documentation/comment wording updated for repository contributors; runtime logic and scientific records unchanged."
+    },
+    {
+      "path": "research_support/dashboard_reference/.gitattributes",
+      "bytes": 93,
+      "sha256": "06b1952859e149647fd337ffb0cf02b2fb759854013173e52981595ecd8f32a0",
+      "source_ref": null,
+      "source_byte_identical": false,
+      "adaptation": "Derived simplified layout, documentation, fixture metadata or validation code; not new scientific evidence."
+    },
+    {
+      "path": "research_support/dashboard_reference/examples/bundle_manifest.json",
+      "bytes": 1899,
+      "sha256": "8a02b9efd37c5b6e2e0bf0a5bcbc979d9e0ed615cade011fc56ec886dec661e4",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/examples/bundle_manifest.json",
+        "sha256": "8a02b9efd37c5b6e2e0bf0a5bcbc979d9e0ed615cade011fc56ec886dec661e4"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/examples/normalized_studies.json",
+      "bytes": 1289,
+      "sha256": "0415c2e6aa2451a47a1aa7c93b71de44eec27120d6d3dc2b34c551cb08fe6a6f",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/examples/normalized_studies.json",
+        "sha256": "0415c2e6aa2451a47a1aa7c93b71de44eec27120d6d3dc2b34c551cb08fe6a6f"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/examples/research_results.json",
+      "bytes": 74797,
+      "sha256": "1bffc93e624bb7b0a2a00c6ea011dec5fb03c253c9aa453af61c9234e6a933b5",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/examples/research_results.json",
+        "sha256": "1bffc93e624bb7b0a2a00c6ea011dec5fb03c253c9aa453af61c9234e6a933b5"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/metrics/research_metrics.py",
+      "bytes": 22417,
+      "sha256": "50297f94d27a36ff771337ecbbc631c1b6381d6652ec81c7e13e4e4b4fb4311c",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/metrics/research_metrics.py",
+        "sha256": "7043945d941944606bf00711c159776c9303fc73b20714a8663d98929a401767"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Owner-edited Python retained unchanged during in-place cleanup; current bytes fingerprinted."
+    },
+    {
+      "path": "research_support/dashboard_reference/readers/bundle_paths.py",
+      "bytes": 8255,
+      "sha256": "1fe41555a945b4383fcf3d7f0cbb9a8e9fe70b97310a62075980fefb692a0bdd",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/readers/bundle_paths.py",
+        "sha256": "d9feb35ff9bf99f89c8ccc1ca19a0eab6e3fe9aa9e0d3630a11d42e0135f606f"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Documentation/comment wording updated for repository contributors; runtime logic and scientific records unchanged."
+    },
+    {
+      "path": "research_support/dashboard_reference/readers/legacy_csv.py",
+      "bytes": 10258,
+      "sha256": "b74ce4be1c173efc8f36001ae9b9636a4028b4a9a1369f37ea70ea5fbec83c34",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/readers/legacy_csv.py",
+        "sha256": "a82c4d3c9347bd84471dc49fc669bd0fabf51af38eccfc31c9852643c9c5fcda"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Documentation/comment wording updated for repository contributors; runtime logic and scientific records unchanged."
+    },
+    {
+      "path": "research_support/dashboard_reference/readers/normalized_model.py",
+      "bytes": 4364,
+      "sha256": "f51c3c1ab3bf2c79723ce3d866f95e9e0e5b4f55bd476be8a5edb0cb54b5fec6",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/readers/normalized_model.py",
+        "sha256": "88214fb90c07e4a0fcea9c5c647e50d0492dbbcf32eff7d239a384b640d71e7f"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Owner-edited Python retained unchanged during in-place cleanup; current bytes fingerprinted."
+    },
+    {
+      "path": "research_support/dashboard_reference/readers/replay.py",
+      "bytes": 20750,
+      "sha256": "b4255431659371e13fd5e70e5c15e6786b704807f2505d2222d362139f1d07f8",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/readers/replay.py",
+        "sha256": "1254fa48ca1d831a10ea0556e97357c1230e301c41a3b7d3c81e6e49cb9edcb0"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Owner-edited Python retained unchanged during in-place cleanup; current bytes fingerprinted."
+    },
+    {
+      "path": "research_support/dashboard_reference/readers/results_adapter.py",
+      "bytes": 12165,
+      "sha256": "85ab2793c67b3a89b2d589a9eebd469a6eb143f0f75ee1defaf40fee9e072a50",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/readers/results_adapter.py",
+        "sha256": "b798b5b1a33d83de2d5674231abeade4c98feddc45e84bc53cb603b7bcc3228d"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Owner-edited Python retained unchanged during in-place cleanup; current bytes fingerprinted."
+    },
+    {
+      "path": "research_support/dashboard_reference/README.md",
+      "bytes": 7603,
+      "sha256": "86640990e776608cd473a0ef679aeca06bf1b09c7d3895206c3fad2a9c79cdca",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/README.md",
+        "sha256": "7779881af53e7c5ee008f26da58efd69c8d121d821fc60667030a6524e37836e"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Documentation/comment wording updated for repository contributors; runtime logic and scientific records unchanged.",
+      "source_inputs": [
+        {
+          "package_id": "dashboard_reference_portable_20261113",
+          "artifact_path": "research_support/dashboard_reference/README.md",
+          "sha256": "7779881af53e7c5ee008f26da58efd69c8d121d821fc60667030a6524e37836e"
+        },
+        {
+          "package_id": "dashboard_reference_portable_20261113",
+          "artifact_path": "research_support/dashboard_reference/file_guide.md",
+          "sha256": "3fd0fca457214e8aceffca065f859f850eafd3e80fe5a14fca8936828f30365d"
+        }
+      ]
+    },
+    {
+      "path": "research_support/dashboard_reference/schemas/normalized_studies.schema.json",
+      "bytes": 2465,
+      "sha256": "dd5093312eb5e269f937dd46ceae2c7c22b5e28cb1478b3b5c3c956fd8c15efb",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/schemas/normalized_studies.schema.json",
+        "sha256": "dd5093312eb5e269f937dd46ceae2c7c22b5e28cb1478b3b5c3c956fd8c15efb"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/schemas/normalized_studies_contract.md",
+      "bytes": 4459,
+      "sha256": "217d9300ac6c9afe9b306213cdd75d76c97157604ed9dfd385675bcef2b8e795",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/schemas/normalized_studies_contract.md",
+        "sha256": "217d9300ac6c9afe9b306213cdd75d76c97157604ed9dfd385675bcef2b8e795"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/schemas/research_results.schema.json",
+      "bytes": 5306,
+      "sha256": "64d64cd2c1adb82f0bbe693a07bad9b7da98d2ecce58f33db72f3021b838115a",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/schemas/research_results.schema.json",
+        "sha256": "64d64cd2c1adb82f0bbe693a07bad9b7da98d2ecce58f33db72f3021b838115a"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/schemas/results_contract.md",
+      "bytes": 5577,
+      "sha256": "89562c7bbac80bbf4c387dc2044dcde0f63230e76f2fc1d1f6285c42d315c142",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/schemas/results_contract.md",
+        "sha256": "a7155469c9fffffc70df706c6a0a94c82d7f7db4b0215fb58fe813de6f97397e"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Contributor-facing wording updated; scientific data and application behavior unchanged."
+    },
+    {
+      "path": "research_support/dashboard_reference/test_results.md",
+      "bytes": 3477,
+      "sha256": "2440c498ec62af4a93f7d5f1ef8da1aacddafdf43480d23af787dfe574afc33d",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/test_results.md",
+        "sha256": "b6cfa1a92ed5e37cd7375b8fb2d09893a858549f691855345cdb33f79cf6c57a"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Documentation/comment wording updated for repository contributors; runtime logic and scientific records unchanged."
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/bundle_manifest.json",
+      "bytes": 15576,
+      "sha256": "cd73cdce8e81de6127f13bcf381745fc565e4c1b77ba60958fc4df9df5779a92",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/bundle_manifest.json",
+        "sha256": "e04f1b7efa13ac82a8cc94d81173fbf9022eaaee3ca6bdbafaeb11ce32e45013"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Derived simplified layout, documentation, fixture metadata or validation code; not new scientific evidence."
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/datasets/development_100/collection_manifest.json",
+      "bytes": 31784,
+      "sha256": "28086063cf1c33377b6e5ae38c06b0cf4cd1d97b34d6a388c1d8509d9a8b8977",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/datasets/development_100/collection_manifest.json",
+        "sha256": "28086063cf1c33377b6e5ae38c06b0cf4cd1d97b34d6a388c1d8509d9a8b8977"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/datasets/training_300/collection_manifest.json",
+      "bytes": 94419,
+      "sha256": "9d4b4cfd69c93602110b3cc0c3f2e172308b539939a47a57dabac688f99b4fb4",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/datasets/training_300/collection_manifest.json",
+        "sha256": "9d4b4cfd69c93602110b3cc0c3f2e172308b539939a47a57dabac688f99b4fb4"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/experiments/entropy_0_01_experiment/conditions/efficiency/cases/train_500000_005e318e235f9204.json",
+      "bytes": 7313,
+      "sha256": "0466df3c8523be51b5877b5a1c64daf87ce9cca9f416a0fda2c453508f5b5850",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/experiments/entropy_0_01_experiment/conditions/efficiency/cases/train_500000_005e318e235f9204.json",
+        "sha256": "0466df3c8523be51b5877b5a1c64daf87ce9cca9f416a0fda2c453508f5b5850"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/experiments/entropy_0_01_experiment/conditions/efficiency/checkpoints.json",
+      "bytes": 1785,
+      "sha256": "d4e873f18ce060fa30d67bdc830cdfec1d55f2642e2f30ea716d9b8edff23ea0",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/experiments/entropy_0_01_experiment/conditions/efficiency/checkpoints.json",
+        "sha256": "d4e873f18ce060fa30d67bdc830cdfec1d55f2642e2f30ea716d9b8edff23ea0"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/experiments/entropy_0_01_experiment/conditions/efficiency/configuration.json",
+      "bytes": 1777,
+      "sha256": "136b2b5568b529e665754e3be1ad2c7f397d0094e7465875d56588c45355bf7d",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/experiments/entropy_0_01_experiment/conditions/efficiency/configuration.json",
+        "sha256": "136b2b5568b529e665754e3be1ad2c7f397d0094e7465875d56588c45355bf7d"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/experiments/entropy_0_01_experiment/conditions/efficiency/traces/train_005e318e235f9204.json",
+      "bytes": 89557,
+      "sha256": "77bf035a57dc9a27bc27027bd3b1971f47ba7a430f416b70f5258d6d072db9a1",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/experiments/entropy_0_01_experiment/conditions/efficiency/traces/train_005e318e235f9204.json",
+        "sha256": "77bf035a57dc9a27bc27027bd3b1971f47ba7a430f416b70f5258d6d072db9a1"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/experiments/entropy_0_01_experiment/conditions/sparse/cases/dev_500000_06c6d4fa3bbc7035.json",
+      "bytes": 7223,
+      "sha256": "3cbd375a0ff75db93c802b903ad17fb6d7ed7f231e16498e95da440acfd75587",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/experiments/entropy_0_01_experiment/conditions/sparse/cases/dev_500000_06c6d4fa3bbc7035.json",
+        "sha256": "3cbd375a0ff75db93c802b903ad17fb6d7ed7f231e16498e95da440acfd75587"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/experiments/entropy_0_01_experiment/conditions/sparse/checkpoints.json",
+      "bytes": 1785,
+      "sha256": "0d0c916dc2df6e4daed49bcd28fa3f6adad7063eaaeb78b4d65c9f12f52f7049",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/experiments/entropy_0_01_experiment/conditions/sparse/checkpoints.json",
+        "sha256": "0d0c916dc2df6e4daed49bcd28fa3f6adad7063eaaeb78b4d65c9f12f52f7049"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/experiments/entropy_0_01_experiment/conditions/sparse/configuration.json",
+      "bytes": 1765,
+      "sha256": "d103f4603af52115f4a6880ec46944ed5fe3f6cac031e06dfc0bf62c34845170",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/experiments/entropy_0_01_experiment/conditions/sparse/configuration.json",
+        "sha256": "d103f4603af52115f4a6880ec46944ed5fe3f6cac031e06dfc0bf62c34845170"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/experiments/entropy_0_01_experiment/conditions/sparse/traces/dev_06c6d4fa3bbc7035.json",
+      "bytes": 8661,
+      "sha256": "65b9c4ca6ed607879fcf87a6c45d5c5c87d3e98f524f9bdfd803fc645b403307",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/experiments/entropy_0_01_experiment/conditions/sparse/traces/dev_06c6d4fa3bbc7035.json",
+        "sha256": "65b9c4ca6ed607879fcf87a6c45d5c5c87d3e98f524f9bdfd803fc645b403307"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/experiments/recurrent_ppo_experiment/wait_example/case.json",
+      "bytes": 7588,
+      "sha256": "b5ace3f9f8c158c1ac114e8bb727d1f72ac26237a9f20f83cf38aa3c7821100a",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/experiments/recurrent_ppo_experiment/wait_example/case.json",
+        "sha256": "b5ace3f9f8c158c1ac114e8bb727d1f72ac26237a9f20f83cf38aa3c7821100a"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/experiments/recurrent_ppo_experiment/wait_example/checkpoints.json",
+      "bytes": 2257,
+      "sha256": "e386618dcab51529a743388b0f38d84045bc46e56fa4dc4adad8a607018f0c63",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/experiments/recurrent_ppo_experiment/wait_example/checkpoints.json",
+        "sha256": "e386618dcab51529a743388b0f38d84045bc46e56fa4dc4adad8a607018f0c63"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/experiments/recurrent_ppo_experiment/wait_example/collection_manifest.json",
+      "bytes": 31784,
+      "sha256": "28086063cf1c33377b6e5ae38c06b0cf4cd1d97b34d6a388c1d8509d9a8b8977",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/experiments/recurrent_ppo_experiment/wait_example/collection_manifest.json",
+        "sha256": "28086063cf1c33377b6e5ae38c06b0cf4cd1d97b34d6a388c1d8509d9a8b8977"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/experiments/recurrent_ppo_experiment/wait_example/configuration.json",
+      "bytes": 1879,
+      "sha256": "98d405207100df0565c605281052ec335f1e83fe4dd19bfbe4b91cb349fd2337",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/experiments/recurrent_ppo_experiment/wait_example/configuration.json",
+        "sha256": "98d405207100df0565c605281052ec335f1e83fe4dd19bfbe4b91cb349fd2337"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/experiments/recurrent_ppo_experiment/wait_example/trace.json",
+      "bytes": 12155,
+      "sha256": "82f3414b22ee9200dcbe4ab673581d456a89ad5cc1c6eb8e89de2f783bb562fe",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/experiments/recurrent_ppo_experiment/wait_example/trace.json",
+        "sha256": "82f3414b22ee9200dcbe4ab673581d456a89ad5cc1c6eb8e89de2f783bb562fe"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/fixture_scope.json",
+      "bytes": 1663,
+      "sha256": "b5bfc3946691ea462b0c6e46497acdf88e0eb3b91a452c125f61d5d1f5aa7194",
+      "source_ref": null,
+      "source_byte_identical": false,
+      "adaptation": "Derived simplified layout, documentation, fixture metadata or validation code; not new scientific evidence."
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/fixtures/recorded_examples/replay_bindings.json",
+      "bytes": 5207,
+      "sha256": "560feea7bd3349d7486591fc00f9d0cac361f3966fd41a4ccba1781ccf0189fc",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "docs/research/dashboard/recorded_examples/replay_bindings.json",
+        "sha256": "63234e52fa929448c9c4ef11d2f914faf9ca5c0938846716a54fc4e84bd6db75"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Derived simplified layout, documentation, fixture metadata or validation code; not new scientific evidence."
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/test_bundle_paths.py",
+      "bytes": 6358,
+      "sha256": "7ea4dda4c4da5e696b728c3e89d3bbb177c763b5b0312dbd486e579d1b56a7e4",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/tests/test_bundle_paths.py",
+        "sha256": "7ea4dda4c4da5e696b728c3e89d3bbb177c763b5b0312dbd486e579d1b56a7e4"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/test_portable_outputs.py",
+      "bytes": 2948,
+      "sha256": "958bdfc56c1fcc49cbf0935651631fc45f67c77f94e5b5653cb4748237ab273b",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/tests/test_portable_outputs.py",
+        "sha256": "0503812ccf58137a8a50669efdc29d53a9c093237c09b683671e80f1617ae5a7"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Documentation/comment wording updated for repository contributors; runtime logic and scientific records unchanged."
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/test_recorded_bindings.py",
+      "bytes": 10277,
+      "sha256": "cf0b1bcf7a624dd5f9707472189910ccf47b69b281a87f5e4535a18c2bf7a09e",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/tests/test_recorded_bindings.py",
+        "sha256": "e402adbf7e81a1a86928d9424ac5c21241b0eddfe705f90be1de85394c1b9d54"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Derived simplified layout, documentation, fixture metadata or validation code; not new scientific evidence."
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/test_research_metrics.py",
+      "bytes": 9296,
+      "sha256": "dd823f7d97dfe679ee29616fb886d63c85cfd35a91a4a4315fb372a8c5c1cc7a",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/tests/test_research_metrics.py",
+        "sha256": "dd823f7d97dfe679ee29616fb886d63c85cfd35a91a4a4315fb372a8c5c1cc7a"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/tests/test_results_reference.py",
+      "bytes": 11601,
+      "sha256": "e5edcfc835f1ae7f3edaa5fa24d4dd0370235145f83311aa9b7d3105884a969d",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/tests/test_results_reference.py",
+        "sha256": "e5edcfc835f1ae7f3edaa5fa24d4dd0370235145f83311aa9b7d3105884a969d"
+      },
+      "source_byte_identical": true,
+      "adaptation": "unchanged bytes"
+    },
+    {
+      "path": "research_support/dashboard_reference/viewer/grid_player.css",
+      "bytes": 906,
+      "sha256": "a20163d2d5b30e22c46903cd56259085c543d57932c32a9363e1e4e85156312d",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/viewer/grid_player.css",
+        "sha256": "dbc9731002c99f57790ea019de9c57f64c91e5f133f40212bf91a56dc0ba70c9"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Documentation/comment wording updated for repository contributors; runtime logic and scientific records unchanged."
+    },
+    {
+      "path": "research_support/dashboard_reference/viewer/grid_player.js",
+      "bytes": 3898,
+      "sha256": "7fff169ce47d148e895d76503111d88c6f69707172516ed775939b90e2daf67e",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/viewer/grid_player.js",
+        "sha256": "0446eabf39c7e57ebd84297c46aef78e5498181777f1f659a343066dee3d76c7"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Documentation/comment wording updated for repository contributors; runtime logic and scientific records unchanged."
+    },
+    {
+      "path": "research_support/dashboard_reference/viewer/test_grid_player.js",
+      "bytes": 2592,
+      "sha256": "1dab64a4e4a0b3a472b79642ebc62b5e074a3e705288b36525847e8bbd51e199",
+      "source_ref": {
+        "package_id": "dashboard_reference_portable_20261113",
+        "artifact_path": "research_support/dashboard_reference/viewer/test_grid_player.js",
+        "sha256": "eaf8e69054f1326ff9790674b6ac72ab8c94fe02fbe963d17ece82f6cdcfe64a"
+      },
+      "source_byte_identical": false,
+      "adaptation": "Contributor-facing wording updated; scientific data and application behavior unchanged."
+    }
+  ],
+  "in_place_cleanup": {
+    "date": "2026-11-15",
+    "previous_manifest_sha256": "9e0123c9ca1ccbea845745efb0cb50b48607392df1cfdc4f3b281a0b3f8b830f",
+    "removed_empty_directories": 75,
+    "user_python_files_preserved": 11,
+    "raw_release_payloads_changed": false,
+    "note": "Removed only empty obsolete scaffolding; simplified loading/documentation and aligned both issue wordings. No additional package copy or publication."
+  }
+}

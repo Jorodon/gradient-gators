@@ -1,0 +1,108 @@
+{
+  "schema_version": "dashboard-replay-selection-v1",
+  "status": "deterministically_derived_from_existing_rule_not_new_protocol",
+  "rule_source": "final_protocol_source/src/evaluation/m4_metrics.py",
+  "rule_source_sha256": "2234086bbeed02a81d02e865f78d3475853876d91fbc7f853053d1ad97c4b9b9",
+  "selection_rule": "sorted(scenario_ids, key=(SHA256 canonical JSON [m4-common-ppo-v1,role,scenario_id], scenario_id))[:2]",
+  "json_encoding": "sort_keys=True,separators=(comma,colon),ensure_ascii=False,allow_nan=False,UTF-8",
+  "primary_seed": 189707373,
+  "primary_seed_slot": 0,
+  "checkpoint_step": 1000000,
+  "rewards": [
+    "sparse",
+    "efficiency",
+    "safety",
+    "balanced",
+    "progress"
+  ],
+  "expected_matched_traces": 50,
+  "release_acceptance_path": "final_protocol_data/archive/release_acceptance.json",
+  "release_acceptance_sha256": "26e8ce626a14064f4a69feceb0d671aee2f8eff1b2ede652f333cd4e0a696e9b",
+  "archive_status": "accepted",
+  "original_exact_id_selection_file_found": false,
+  "bounded_search": "contracts and completed workspace preflight/discovery plus confirmation A/B and recovery matched-scenarios.json; their selected objects are empty because they are TRAIN/DEV-only",
+  "no_final_scenario_contents_or_policy_outcomes_read": true,
+  "collections": [
+    {
+      "role": "FINAL_ID",
+      "collection_id": "m4_v1_final_id",
+      "manifest_path": "final_protocol_data/archive/final/m4_v1_final_id/manifest.json",
+      "manifest_sha256": "4e4210a07c06782ff0912f2306cd9c46a7587a8775526de6ab2f99b90a2228ef",
+      "collection_checksum": "3e7d04bce5f3e7f5b9ea834191bf8fedc7d002dda6d8e571ab0923626039b31c",
+      "scenario_count": 200,
+      "selected": [
+        "scn_6eefc542045312016098f46335fd972eb17acbb547b39dde3e97156d8f3b1710",
+        "scn_fcd9514eab8649dc7cd8c08fd94462a61f650210fe2ae79f81b87c807e790296"
+      ],
+      "selection_hashes": [
+        "005ea16f0a6941517ce29bd80cea47e2dbc0fcf8c23346ab5bca64053b4c1002",
+        "006fe1df12b87d7cb5c4c98dc277796feebf720737dfc23e7069c64656279e2d"
+      ]
+    },
+    {
+      "role": "FINAL_OOD_HAZARD",
+      "collection_id": "m4_v1_final_ood_hazard",
+      "manifest_path": "final_protocol_data/archive/final/m4_v1_final_ood_hazard/manifest.json",
+      "manifest_sha256": "029d31a87d17366d2578e7f30102181fb0b1a574af59a0e6457d300dbfdf08a4",
+      "collection_checksum": "9c4eafc2e976bbba47332b9f0a982211e89c97823c6b7c2b471276549bafb581",
+      "scenario_count": 200,
+      "selected": [
+        "scn_9e67a956295a9e4b3af1b5087f04bbd5a34b8200823dfd672b093073f337ebd0",
+        "scn_f837fe7835089c817ef2aed1f68d5a0df7fbd3f41459884f237d00b3515d50ea"
+      ],
+      "selection_hashes": [
+        "020f2bfffd0dc7e38d99e21fb77a8d783333d13042249026b43908cbe887d16d",
+        "02146ab2aff7ae951ed7cf2b46dda7a0d7d29ae1db5bd3fbfa1541c68324d321"
+      ]
+    },
+    {
+      "role": "FINAL_OOD_OBSTACLE",
+      "collection_id": "m4_v1_final_ood_obstacle",
+      "manifest_path": "final_protocol_data/archive/final/m4_v1_final_ood_obstacle/manifest.json",
+      "manifest_sha256": "6adbd9ed07935a96f9da4e2d9d26cb0a014311712494440734b718384892686c",
+      "collection_checksum": "ee6129d4ac1f28caf3866746c8067c398bd4b409e273f5252939ff1100f6ba6d",
+      "scenario_count": 200,
+      "selected": [
+        "scn_c874facc975282fbe76a81149fc8442f068f93e40de303ce7b83799bfcf5e5ec",
+        "scn_12d7ed50fea881c42032b87d2fb918ff14e86036448381faf98acadac5e47d58"
+      ],
+      "selection_hashes": [
+        "00163e2f0e9ceac634dde7fe61b5d5007f2f804c62c4363fe6429c837f87db49",
+        "00f7d565474bfb984ad54cb0fa363b52d1d080d2826e931ad96cb151927213eb"
+      ]
+    },
+    {
+      "role": "FINAL_OOD_PURSUIT",
+      "collection_id": "m4_v1_final_ood_pursuit",
+      "manifest_path": "final_protocol_data/archive/final/m4_v1_final_ood_pursuit/manifest.json",
+      "manifest_sha256": "e470e4fd25293880dd0753ecbecb8f6d1f61c42c3adfcf3ae0c10e36a4060df3",
+      "collection_checksum": "ce19929cbb69db3b3ff435a84bdc680181e91a6e1055dd36846ab6cba13cef63",
+      "scenario_count": 200,
+      "selected": [
+        "scn_a5a460f1f430555d60de986634dd908d44946fafae527951033b71efd0930ba3",
+        "scn_e25bad464804909c72b9e5095fb13d8eb33e0c1a1551f7c7f1aaa695affc62fb"
+      ],
+      "selection_hashes": [
+        "0276cb9de2d2de6754bfdb22f8e913c0dc2701d9e9cb69cb123e16ece3676774",
+        "028e37418fc58ec4ccf63728d0f07a71a09a9f60508d96ca92b961793c4a1d8f"
+      ]
+    },
+    {
+      "role": "FINAL_OOD_COMBINED",
+      "collection_id": "m4_v1_final_ood_combined",
+      "manifest_path": "final_protocol_data/archive/final/m4_v1_final_ood_combined/manifest.json",
+      "manifest_sha256": "df2d6392307d93c4bf3196dfbc2a8513da1a71592d5d1ac384f2a5f50cd1d65f",
+      "collection_checksum": "748fa9c5a191c766de5d68d450d53d5773fb834e79e34ee3b39e8a64d8447acb",
+      "scenario_count": 200,
+      "selected": [
+        "scn_2216958f7b2215946ea3b6ff5b8c8d74f82cad9613891fb8dcd7a76a1e5b9155",
+        "scn_28dfaae6c38cddbde775db129b3e3569396e20560c13f1f2203f69b09df130a9"
+      ],
+      "selection_hashes": [
+        "000963e6d0cd626e9dab2fdbd97887f63146f55e4184d7f2a4e5c5d27968ed65",
+        "00b37ab7bca70530a30a884ac99a58115827be7c573d02b01950d5c767c4b698"
+      ]
+    }
+  ],
+  "relocation_note": "Logical source references replace machine paths. Historical hash-domain and collection identities and all selections are preserved."
+}

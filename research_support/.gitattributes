@@ -1,0 +1,2 @@
+# Preserve source and fixture bytes referenced by source_provenance.json and content seals.
+* -text

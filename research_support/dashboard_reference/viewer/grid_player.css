@@ -1,0 +1,9 @@
+/* Scoped styles for the recorded-state grid. */
+[data-recorded-grid] { color: #1e2930; font: 14px/1.5 system-ui, sans-serif; }
+[data-recorded-grid] .actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+[data-recorded-grid] button { border: 1px solid #a7adb1; border-radius: .25rem; background: #fff; color: inherit; padding: .4rem .65rem; cursor: pointer; }
+[data-recorded-grid] button:focus-visible, [data-recorded-grid] input:focus-visible { outline: 3px solid #38638e; outline-offset: 2px; }
+[data-recorded-grid] input[type=range] { min-width: 8rem; flex: 1; }
+[data-recorded-grid] .gridDrawing { max-width: 36rem; overflow: auto; margin-block: .75rem; }
+[data-recorded-grid] svg { display: block; width: 100%; height: auto; }
+[data-recorded-grid] pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: .65rem; background: #f3f4f5; border: 1px solid #e0e3e5; }
