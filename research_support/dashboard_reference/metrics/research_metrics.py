@@ -8,13 +8,18 @@ import math
 from pathlib import Path
 from statistics import mean, median, stdev
 
-GRID = (0, 250_000, 500_000, 750_000, 1_000_000)
-REWARDS = ("sparse", "efficiency", "safety", "balanced", "progress")
-FINAL_ROLES = ("FINAL_ID", "FINAL_OOD_HAZARD", "FINAL_OOD_OBSTACLE",
-               "FINAL_OOD_PURSUIT", "FINAL_OOD_COMBINED")
-ROLE_COUNTS = {"TRAIN": 300, "DEV": 100, "LEARNING_VALIDATION": 100,
-               **dict.fromkeys(FINAL_ROLES, 200)}
-PRIMARY_SEEDS = (189707373, 845630960, 1696036709, 3447176590, 1584805801)
+if __package__:
+    from ..protocols import (FINAL_ROLES, LEGACY_PROTOCOL_ID, PRIMARY_SEEDS,
+                             REWARDS, get_protocol, validate_training_steps)
+else:
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from protocols import (FINAL_ROLES, LEGACY_PROTOCOL_ID, PRIMARY_SEEDS,
+                           REWARDS, get_protocol, validate_training_steps)
+
+# Public constants remain the historical defaults for existing callers.
+GRID = get_protocol()["grid"]
+ROLE_COUNTS = get_protocol()["role_counts"]
 
 
 def digest(value):
@@ -77,9 +82,19 @@ def validate_episode(row):
     return row
 
 
-def coverage(rows, models, datasets):
-    """Exact Cartesian coverage; unexpected and duplicate rows are errors."""
-    expected = {(m["model_id"], d["role"], s) for m in models for d in datasets
+def _scheduled_pairs(models, datasets, protocol):
+    """The recurrent schedule evaluates acquisition/final panels only at budget."""
+    return [(m, d) for m in models for d in datasets
+            if protocol["id"] == LEGACY_PROTOCOL_ID
+            or d["role"] in ("DEV", "LEARNING_VALIDATION")
+            or m["checkpoint_step"] == protocol["budget"]]
+
+
+def coverage(rows, models, datasets, *, protocol_id=None):
+    """Exact scheduled coverage; unexpected and duplicate rows are errors."""
+    protocol = get_protocol(protocol_id)
+    expected = {(m["model_id"], d["role"], s)
+                for m, d in _scheduled_pairs(models, datasets, protocol)
                 for s in d["scenario_ids"]}
     seen = set()
     errors = []
@@ -175,37 +190,66 @@ def aggregate(rows, *, model_id, role, scenario_ids):
     return result
 
 
-def learning_metrics(points):
-    """Require all five fully evaluated 100-scenario checkpoints for inference."""
+def learning_metrics(points, *, protocol_id=None):
+    """Require the complete protocol grid; never fill missing evaluations.
+
+    Recurrent areas and threshold times use consumed interactions at completed
+    episodes. The checkpoint grid identifies scheduled panels, not coordinates.
+    """
+    protocol = get_protocol(protocol_id)
+    grid, budget = protocol["grid"], protocol["budget"]
+    recurrent = protocol["id"] != LEGACY_PROTOCOL_ID
+    denominator = protocol["role_counts"]["LEARNING_VALIDATION"]
     by_step = {}
 
     for p in points:
         t = p["checkpoint_step"]
-        if t not in GRID or t in by_step:
+        if t not in grid or t in by_step:
             raise ValueError("Duplicate or off-grid checkpoint")
+
+        if recurrent:
+            validate_training_steps(p, protocol["id"])
+            if any(type(p[k]) is not int for k in ("n_expected", "n_completed", "success_count")):
+                raise ValueError("Learning counts must be integers")
         
         if (type(p["success_count"]) is not int or not
                 0 <= p["success_count"] <= p["n_completed"] <= p["n_expected"] or
-                p["n_expected"] != 100):
+                p["n_expected"] != denominator):
             raise ValueError("Learning validation requires exact 100-scenario counts")
         
         by_step[t] = p
 
-    missing = [t for t in GRID if t not in by_step or by_step[t]["n_completed"] != 100]
+    missing = [t for t in grid if t not in by_step or by_step[t]["n_completed"] != denominator]
 
     result = {"observed_checkpoints": sorted(by_step), "missing_or_partial_checkpoints": missing,
               "normalized_aulc": None, "time_to_80_successes": None,
               "threshold_status": "incomplete", "censoring_timestep": None,
               "reason": "incomplete_grid" if missing else None}
+
+    if recurrent:
+        result.update(coordinate="actual_consumed_interactions",
+                      threshold_rule="two_adjacent_positive_scheduled_checkpoints_at_least80_of100",
+                      checkpoint_coordinates=[{k: by_step[t][k] for k in
+                          ("checkpoint_step", "actual_training_steps", "optimized_training_steps")}
+                          for t in sorted(by_step)])
     
     if missing:
         return result
     
-    rates = [by_step[t]["success_count"] / 100 for t in GRID]
-    result["normalized_aulc"] = sum((a + b) * .125 for a, b in zip(rates, rates[1:]))
-    attained = next((GRID[i] for i in range(2, 5) if rates[i-1] >= .8 and rates[i] >= .8), None)
-    result.update(time_to_80_successes=attained, threshold_status="attained" if attained else "censored",
-                  censoring_timestep=None if attained else 1_000_000)
+    rates = [by_step[t]["success_count"] / denominator for t in grid]
+    actual = [by_step[t]["actual_training_steps"] if recurrent else t for t in grid]
+    if any(a >= b for a, b in zip(actual, actual[1:])):
+        raise ValueError("Consumed interaction coordinates must strictly increase")
+    if recurrent:
+        result["normalized_aulc"] = sum((actual[i] - actual[i-1]) * (rates[i] + rates[i-1]) / 2
+                                         for i in range(1, len(grid))) / budget
+    else:
+        result["normalized_aulc"] = sum((a + b) * .125 for a, b in zip(rates, rates[1:]))
+    attained = next((actual[i] for i in range(2, len(grid))
+                     if rates[i-1] >= .8 and rates[i] >= .8), None)
+    result.update(time_to_80_successes=attained,
+                  threshold_status="attained" if attained is not None else "censored",
+                  censoring_timestep=None if attained is not None else budget)
     
     return result
 
@@ -230,21 +274,25 @@ def holm(p_values):
     return adjusted
 
 
-def paired_contrasts(outcomes, models):
+def paired_contrasts(outcomes, models, *, protocol_id=None):
     """Fixed combined-OOD endpoint: n=5, df=4, nominal CI, four-test Holm.
 
     - Missing pairs retain descriptive differences
     - The df4 two-sided tail is integrated analytically; zero variance is undefined
     """
+    protocol = get_protocol(protocol_id)
+    seeds = protocol["primary_seeds"]
+    rewards = protocol["rewards"]
     inventory = {m["model_id"]: m for m in models}
     values = {}
 
     for o in outcomes:
         m = inventory[o["model_id"]]
-        if o["role"] != "FINAL_OOD_COMBINED" or m["checkpoint_step"] != 1_000_000:
+        if o["role"] != "FINAL_OOD_COMBINED" or m["checkpoint_step"] != protocol["budget"]:
             continue
         
-        if m["seed"] not in PRIMARY_SEEDS or m["reward"] not in REWARDS:
+        validate_training_steps(m, protocol["id"])
+        if m["seed"] not in seeds or m["reward"] not in rewards:
             raise ValueError("Primary comparison contains an unregistered seed or reward")
         
         key = (m["reward"], m["seed"])
@@ -254,10 +302,10 @@ def paired_contrasts(outcomes, models):
         values[key] = o["success_fraction"] if o["complete"] else None
 
     results = []
-    for reward in REWARDS[1:]:
+    for reward in rewards[1:]:
         pairs, missing = [], []
 
-        for seed in PRIMARY_SEEDS:
+        for seed in seeds:
             a, b = values.get((reward, seed)), values.get(("sparse", seed))
 
             if a is None or b is None:
@@ -322,9 +370,10 @@ def robustness(rates):
             "retention_reason": None if base else "zero_ID_denominator"}
 
 
-def family_robustness(assessments):
+def family_robustness(assessments, *, protocol_id=None):
     """Input maps the five prespecified seed identifiers to model assessments."""
-    if set(assessments) - set(PRIMARY_SEEDS):
+    protocol = get_protocol(protocol_id)
+    if set(assessments) - set(protocol["primary_seeds"]):
         raise ValueError("Unexpected primary seed")
     
     n = sum(a["fully_assessed"] for a in assessments.values())
@@ -335,26 +384,31 @@ def family_robustness(assessments):
             "reason": None if n == 5 else "five_fully_assessed_models_required"}
 
 
-def matched_scenarios(datasets):
+def matched_scenarios(datasets, *, protocol_id=None):
     """Preselect solely from IDs, before outcomes: hash then ID tie-break."""
+    get_protocol(protocol_id)
+    # Both registered protocols prescribe this same outcome-blind selection salt.
     return {d["role"]: sorted(d["scenario_ids"], key=lambda s:
-            (digest(["m4-common-ppo-v1", d["role"], s]), s))[:2]
+            (digest([LEGACY_PROTOCOL_ID, d["role"], s]), s))[:2]
             for d in datasets if d["role"] in FINAL_ROLES}
 
 
-def select_traces(rows, models, datasets):
+def select_traces(rows, models, datasets, *, protocol_id=None):
+    protocol = get_protocol(protocol_id)
+    seeds = protocol["primary_seeds"]
     inventory = {m["model_id"]: m for m in models}
     selected, absent = [], []
-    matched = matched_scenarios(datasets)
+    matched = matched_scenarios(datasets, protocol_id=protocol["id"])
     eligible = [r for r in rows if r.get("status") == "completed" and r["role"] in FINAL_ROLES
-                and inventory[r["model_id"]]["checkpoint_step"] == 1_000_000
-                and inventory[r["model_id"]]["seed"] in PRIMARY_SEEDS]
+                and inventory[r["model_id"]]["checkpoint_step"] == protocol["budget"]
+                and inventory[r["model_id"]]["seed"] in seeds]
     for r in eligible:
         m = inventory[r["model_id"]]
-        if m["seed"] == PRIMARY_SEEDS[0] and r["scenario_id"] in matched[r["role"]]:
+        validate_training_steps(m, protocol["id"])
+        if m["seed"] == seeds[0] and r["scenario_id"] in matched[r["role"]]:
             selected.append({**r, "selection_category": "matched"})
     for role in matched:
-        for reward in REWARDS:
+        for reward in protocol["rewards"]:
             for success in (True, False):
                 pool = [r for r in eligible if r["role"] == role and r["success"] == success
                         and inventory[r["model_id"]]["reward"] == reward]
@@ -369,19 +423,39 @@ def select_traces(rows, models, datasets):
     return selected, absent
 
 
-def build_export(*, study_id, provenance, datasets, models, rows, fixture=False, traces=()):
-    matrix = coverage(rows, models, datasets)
+def build_export(*, study_id, provenance, datasets, models, rows, fixture=False, traces=(),
+                 protocol_id=None):
+    protocol = get_protocol(protocol_id)
+    recurrent = protocol["id"] != LEGACY_PROTOCOL_ID
+    seeds, rewards, budget = protocol["primary_seeds"], protocol["rewards"], protocol["budget"]
+    matrix = coverage(rows, models, datasets, protocol_id=protocol["id"])
 
     if len({m["model_id"] for m in models}) != len(models):
         raise ValueError("Duplicate model ID")
     
     if len({d["role"] for d in datasets}) != len(datasets):
         raise ValueError("Duplicate dataset role")
+
+    if recurrent:
+        dimensions = set()
+        for m in models:
+            validate_training_steps(m, protocol["id"])
+            if m["seed"] not in seeds or m["reward"] not in rewards:
+                raise ValueError("Unregistered recurrent seed or reward")
+            dimension = (m["reward"], m["seed"], m["checkpoint_step"])
+            if dimension in dimensions:
+                raise ValueError("Duplicate reward/seed/checkpoint model")
+            dimensions.add(dimension)
+            for key in ("slot", "seed_slot"):
+                if key in m and (type(m[key]) is not int or m[key] != seeds.index(m["seed"])):
+                    raise ValueError("Primary seed slot mismatch")
     
     for d in datasets:
+        if recurrent and d["role"] not in protocol["role_counts"]:
+            raise ValueError("Unknown recurrent dataset role")
         if d["scenario_count"] != len(d["scenario_ids"]) or len(set(d["scenario_ids"])) != len(d["scenario_ids"]):
             raise ValueError("Dataset count mismatch")
-        if not fixture and (d["scenario_count"] != ROLE_COUNTS[d["role"]] or not d["manifest_sha256"]):
+        if not fixture and (d["scenario_count"] != protocol["role_counts"][d["role"]] or not d["manifest_sha256"]):
             raise ValueError("Production datasets require exact counts and hashes")
         
     if not fixture:
@@ -413,11 +487,15 @@ def build_export(*, study_id, provenance, datasets, models, rows, fixture=False,
 
     outcomes = [aggregate([r for r in rows if r["model_id"] == m["model_id"] and r["role"] == d["role"]],
                           model_id=m["model_id"], role=d["role"], scenario_ids=d["scenario_ids"])
-                for m in models for d in datasets]
+                for m, d in _scheduled_pairs(models, datasets, protocol)]
     
     inventory = {m["model_id"]: m for m in models}
     learning = [{**o, "checkpoint_step": inventory[o["model_id"]]["checkpoint_step"]}
                 for o in outcomes if o["role"] in ("DEV", "LEARNING_VALIDATION")]
+    if recurrent:
+        for point in learning:
+            model = inventory[point["model_id"]]
+            point.update({k: model[k] for k in ("actual_training_steps", "optimized_training_steps")})
     
     curves = []
     groups = sorted({(inventory[o["model_id"]]["reward"], inventory[o["model_id"]]["seed"], o["role"])
@@ -426,45 +504,71 @@ def build_export(*, study_id, provenance, datasets, models, rows, fixture=False,
         points = [o for o in learning if o["role"] == role and
                   (inventory[o["model_id"]]["reward"], inventory[o["model_id"]]["seed"]) == (reward, seed)]
         # Tiny viewer fixtures are explicitly outside the 100-scenario protocol.
-        metric = learning_metrics(points) if all(o["n_expected"] == 100 for o in points) else {
+        metric = learning_metrics(points, protocol_id=protocol["id"]) if all(o["n_expected"] == 100 for o in points) else {
             "normalized_aulc": None, "reason": "fixture_denominator"}
         curves.append({"reward": reward, "seed": seed, "role": role, **metric})
 
     assessments = []
     for m in models:
-        if m["checkpoint_step"] == 1_000_000:
+        if m["checkpoint_step"] == budget:
             rates = {o["role"]: o["success_fraction"] for o in outcomes
                      if o["model_id"] == m["model_id"] and o["role"] in FINAL_ROLES}
             assessments.append({"model_id": m["model_id"], "reward": m["reward"], "seed": m["seed"],
                                 **robustness(rates)})
             
     families = [{"reward": reward, **family_robustness({a["seed"]: a for a in assessments
-                 if a["reward"] == reward and a["seed"] in PRIMARY_SEEDS})} for reward in REWARDS]
+                 if a["reward"] == reward and a["seed"] in seeds}, protocol_id=protocol["id"])} for reward in rewards]
     
-    result = {"schema_version": "research-results-v1", "study_id": study_id, "fixture": fixture,
+    result = {"schema_version": protocol["schema_versions"][0], "study_id": study_id, "fixture": fixture,
               "provenance": provenance, "datasets": datasets, "models": models,
               "outcomes": outcomes, "learning": learning, "learning_curves": curves,
-              "comparisons": paired_contrasts(outcomes, models), "traces": list(traces),
+              "comparisons": paired_contrasts(outcomes, models, protocol_id=protocol["id"]), "traces": list(traces),
               "coverage": matrix, "robustness_models": assessments, "robustness_families": families,
               "limitations": ["Five trained seeds are the independent replicates; scenarios are not seeds.",
                               "TRAIN acquisition, adaptive DEV and fresh ID transfer have distinct meanings.",
                               "No ordinary t-test is applied to censored threshold times."]}
     
-    final_models = [(m["reward"], m["seed"]) for m in models if m["checkpoint_step"] == 1_000_000]
+    if recurrent:
+        result["protocol_id"] = protocol["id"]
+
+    final_models = [(m["reward"], m["seed"]) for m in models if m["checkpoint_step"] == budget]
     if len(final_models) != len(set(final_models)):
         raise ValueError("Ambiguous final reward/seed model inventory")
     
-    expected_models = {(r, s) for r in REWARDS for s in PRIMARY_SEEDS}
+    expected_models = {(r, s) for r in rewards for s in seeds}
     missing_models = sorted(expected_models - set(final_models))
     missing_roles = sorted(set(FINAL_ROLES) - {d["role"] for d in datasets})
-    final_rows = [r for r in rows if r["role"] in FINAL_ROLES and r.get("status") == "completed"]
+    final_rows = [r for r in rows if r["role"] in FINAL_ROLES and r.get("status") == "completed"
+                  and (not recurrent or inventory[r["model_id"]]["checkpoint_step"] == budget)]
+    expected_final_episodes = len(expected_models) * sum(protocol["role_counts"][r] for r in FINAL_ROLES)
 
     result["planned_final_coverage"] = {
-        "n_expected_models": 25, "n_expected_conditions": 5, "n_expected_episodes": 25000,
+        "n_expected_models": len(expected_models), "n_expected_conditions": len(FINAL_ROLES),
+        "n_expected_episodes": expected_final_episodes,
         "n_completed_episodes": len(final_rows), "missing_reward_seed_models": missing_models,
         "missing_conditions": missing_roles,
-        "complete": not fixture and not missing_models and not missing_roles and len(final_rows) == 25000 and matrix["complete"],
+        "complete": not fixture and not missing_models and not missing_roles and len(final_rows) == expected_final_episodes and matrix["complete"],
         "requested_coverage_scope": "coverage reports only the explicitly supplied model/dataset inventory"}
+
+    if recurrent:
+        required_roles = protocol["required_roles"]
+        expected_slots = {(reward, seed, step) for reward, seed in expected_models for step in protocol["grid"]}
+        supplied_slots = {(m["reward"], m["seed"], m["checkpoint_step"]) for m in models}
+        missing_slots = sorted(expected_slots - supplied_slots)
+        missing_campaign_roles = sorted(set(required_roles) - {d["role"] for d in datasets})
+        expected_campaign_episodes = len(expected_models) * (
+            protocol["role_counts"]["LEARNING_VALIDATION"] * len(protocol["grid"])
+            + sum(protocol["role_counts"][r] for r in required_roles if r != "LEARNING_VALIDATION"))
+        completed_campaign = sum(r["role"] in required_roles and r.get("status") == "completed" for r in rows)
+        result["planned_campaign_coverage"] = {
+            "n_expected_model_checkpoints": len(expected_slots),
+            "n_expected_evaluation_panels": len(expected_models) * (len(protocol["grid"]) + len(required_roles) - 1),
+            "n_expected_episodes": expected_campaign_episodes,
+            "n_completed_episodes": completed_campaign,
+            "missing_reward_seed_checkpoints": missing_slots,
+            "missing_dataset_roles": missing_campaign_roles,
+            "complete": (not fixture and not missing_slots and not missing_campaign_roles
+                         and completed_campaign == expected_campaign_episodes and matrix["complete"])}
     
     if fixture:
         result["limitations"].append("SYNTHETIC FIXTURE ONLY; no policy or research result.")

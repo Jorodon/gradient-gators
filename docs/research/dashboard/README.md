@@ -36,7 +36,7 @@ This is the agreed integration behavior for the issues. Copying the reference pa
 - Compare task/safety measures across rewards. Compare raw return only within a specified reward definition and scale.
 - Preserve units and denominators: HP damage, pooled invalid actions/transitions, mean episode invalid fraction, safe successes/all episodes and success-conditional metrics answer different questions.
 - Display versioned exporter statistics. Browser code must not silently recalculate confidence intervals, filtered Holm families, learning area or thresholds.
-- Preserve strict final rules: TRAIN300, DEV100, learning-validation100 and final200; learning grid 0/250k/500k/750k/1M; matched final replay at 1M and primary slot0. Development adapters must explicitly represent their own grids and TRAIN100/300/900 rather than weaken final validators.
+- Select scientific rules by the declared supported protocol. The historical protocol retains TRAIN300 and a 1M endpoint; the recurrent protocol uses TRAIN900 and a 2M endpoint with seven learning checkpoints. Both retain 100 learning-validation worlds, 200 per final condition and primary slot0 matched replay. See [protocols and recurrent export](recurrent_protocol.md). Do not weaken historical validators or infer a protocol from an experiment name.
 - Keep final robustness unavailable until accepted final outputs exist. Match scenarios across rewards within a condition, not across unrelated ID/OOD collections.
 - Preserve author, date, evidence cutoff, supporting records, limitations and superseded status for conclusions. New data does not silently rewrite interpretations.
 
