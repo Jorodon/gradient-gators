@@ -19,9 +19,6 @@
   "release_acceptance_path": "final_protocol_data/archive/release_acceptance.json",
   "release_acceptance_sha256": "26e8ce626a14064f4a69feceb0d671aee2f8eff1b2ede652f333cd4e0a696e9b",
   "archive_status": "accepted",
-  "original_exact_id_selection_file_found": false,
-  "bounded_search": "contracts and completed workspace preflight/discovery plus confirmation A/B and recovery matched-scenarios.json; their selected objects are empty because they are TRAIN/DEV-only",
-  "no_final_scenario_contents_or_policy_outcomes_read": true,
   "collections": [
     {
       "role": "FINAL_ID",
@@ -104,5 +101,7 @@
       ]
     }
   ],
-  "relocation_note": "Logical source references replace machine paths. Historical hash-domain and collection identities and all selections are preserved."
+  "relocation_note": "Logical source references replace machine paths. Historical hash-domain and collection identities and all selections are preserved.",
+  "protocol_id": "m4-common-ppo-v1",
+  "selection_scope": "historical_1m_protocol"
 }

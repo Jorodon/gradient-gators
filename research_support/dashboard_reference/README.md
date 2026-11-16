@@ -23,6 +23,9 @@ All Python/JavaScript files are listed below. “Reusable” means suitable for 
 |---|---|---|
 | `readers/bundle_paths.py` | Resolve indexed artifact IDs within explicit local bundle/release roots; verify lengths/hashes and reject ambiguous/escaping paths | Reusable file access |
 | `readers/results_adapter.py` | Validate structured research exports, datasets/models/metrics and final-protocol restrictions; retain legacy schema compatibility | Reusable reader for this format, not a universal importer |
+| `protocols.py` | Define the supported historical and recurrent scientific protocols, grids, endpoints and training-counter checks | Shared protocol selection |
+| `readers/recurrent_export.py` | Convert a completed recurrent producer report into a portable results bundle, optionally with separate saved replay/world assets | Offline export; preserves producer statistics |
+| `readers/recurrent_replay.py` | Verify recurrent case/trace/world joins and normalize recorded frames for the existing player | Saved-data replay; no inference |
 | `readers/replay.py` | Check exact case/world/configuration/checkpoint/trace joins and prepare saved display frames | Reusable replay adapter |
 | `readers/legacy_csv.py` | Read supported older CSV/manual-study records from an explicitly chosen folder | Reusable format-specific reader |
 | `readers/normalized_model.py` | Validate common normalized study records and numeric fields | Reusable validation |
@@ -37,7 +40,7 @@ All Python/JavaScript files are listed below. “Reusable” means suitable for 
 
 `viewer/grid_player.css` styles the player. `schemas/*.schema.json` specifies machine-checkable structure; neighboring contract Markdown explains meaning. `examples/research_results.json` and `normalized_studies.json` are synthetic metadata examples. `examples/bundle_manifest.json` links them to separately released synthetic world/trajectory assets.
 
-`test_results.md` records performed checks. `source_provenance.json` fingerprints reusable code/docs and records adaptations; evidence bundles have separate manifests. The small fixture's selection metadata explains its limited scope; it is not an alternative five-reward answer key. The code-root `.gitattributes` preserves indexed bytes against line-ending conversion. The documentation `.gitignore` excludes downloaded release assets.
+`test_results.md` records performed checks. `source_provenance.json` fingerprints reusable code/docs and identifies the source revision; evidence bundles have separate manifests. The small fixture's selection metadata explains its limited scope; it is not an alternative five-reward answer key. The code-root `.gitattributes` preserves indexed bytes against line-ending conversion. The documentation `.gitignore` excludes downloaded release assets. The `test_recurrent_*.py` modules cover the versioned protocol, metrics, native export and saved replay using labeled synthetic inputs.
 
 These folders use Python namespace packages. Run checks/imports with the repository root on Python's import path.
 
@@ -62,7 +65,7 @@ bundle.verify_all(include_releases=False)
 
 The caller supplies explicit local roots. `read_json` accepts an artifact ID. `artifact_for_source` resolves logical producer ID + relative artifact path + optional source hash. Legacy `storage: repository` means relative to the selected bundle directory, including a bundle extracted from a release; it does not demand Git storage. Missing worlds raise an explicit unavailable-asset error. Recorded hashes of absent model archives are provenance, not newly verified model bytes.
 
-Structured exports use `research-results-v1`; immutable `m4-results-v1` exports remain accepted. Direct readers require an explicit `allowed_root`. Bundle-aware exports use `load_bundle_export`; structured replay uses `load_selected(..., bundle=bundle)`; authentic reference replay uses `load_recorded_binding(bundle, binding)`. Screen-summary normalization and Streamlit integration remain issue work.
+Historical structured exports use `research-results-v1`; immutable `m4-results-v1` exports remain accepted. The recurrent protocol explicitly uses `research-results-v2` with `recurrent-complete-900-2m-v1`. Direct readers require an explicit `allowed_root`. Bundle-aware exports use `load_bundle_export`; structured replay uses `load_selected(..., bundle=bundle)` for either supported recorder; authentic reference replay uses `load_recorded_binding(bundle, binding)`. Screen-summary normalization and Streamlit integration remain issue work. [Recurrent protocol/export instructions](../../docs/research/dashboard/recurrent_protocol.md) describe complete-campaign conversion and metric field mappings.
 
 ```javascript
 const player = window.GatorRecordedGrid.mount(containerElement, validatedReplayPayload);

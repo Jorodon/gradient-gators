@@ -58,7 +58,7 @@ Without the full results download, the small fixture supports limited regression
 | Balanced | 0 / 0 / 7 / 19 | 107 | 7.55% |
 | Progress | 0 / 5 / 10 / 23 | 118 | 11.00% |
 
-The cohort has **3,500 cases, 25 summary panels, 20 DEV curve points and 35 endpoint traces**. AULC is trapezoidal area of success fraction against actual checkpoint steps, divided by the 500k horizon (multiply by 100 for percentages above). This four-point descriptive curve is not the frozen final five-point learning protocol.
+The cohort has **3,500 cases, 25 summary panels, 20 DEV curve points and 35 endpoint traces**. AULC is trapezoidal area of success fraction against actual checkpoint steps, divided by the 500k horizon (multiply by 100 for percentages above). This four-point descriptive curve is separate from the supported final research protocols.
 
 The separately labelled `recurrent_ppo_experiment/wait_example` adds **one case and one trace**, excluded from baseline totals. Source job `anchor_confirmation_s2_recurrent_progress`, model seed **3380075943**, 1M checkpoint, scenario `scn_0c28e5e21850fded08c4fa74388c211d42ccd4818cf2b13ff5dd233395e2dcde`: WAIT at step 3, success after 13 steps, final HP 90.
 
@@ -97,18 +97,18 @@ Frame 0 is reset state. Frame N is state after action N, including enemy movemen
 | Family | Handling |
 |---|---|
 | Repository CSV | Explicit episode/evaluation/checkpoint scope and manifest; parse booleans and join full identities; no one-summary-file precedence |
-| Structured export | Canonical `research-results-v1`; legacy `m4-results-v1` accepted for immutable prior exports; DEV remains DEV |
+| Structured export | Historical `research-results-v1`/`m4-results-v1`; recurrent `research-results-v2` with explicit protocol; DEV remains DEV |
 | Manual studies | Contract/cells/checkpoint/evaluation CSVs and optional gzip traces; preserve seed roles, units, failed-attempt lineage and coverage |
 | Older entropy/terrain | JSONL reset/step traces with matching summary/configuration/checkpoint/mode; distinguish deterministic and sampled evaluation |
 | Historical aggregates | Preserve limitations; unavailable curves/replays remain unavailable |
 
 Readers are format-specific. The initial implementation supports the supplied full recorded corpus, the existing native CSV path and the already supplied structured/normalized readers. Other historical formats are incremental follow-up work when an actual input requires them; unsupported input must be identified clearly. The bundle resolver and recorded-replay helper do not themselves normalize all screen summaries or complete Streamlit integration. Consult the [schema contracts](../../../research_support/dashboard_reference/schemas/results_contract.md) and [normalized-record contract](../../../research_support/dashboard_reference/schemas/normalized_studies_contract.md).
 
-## Frozen final contract
+## Supported final protocols
 
-Final learning measures require genuine 0/250k/500k/750k/1M observations with 100 learning-validation cases each. Sustained 80% is the second of two qualifying positive checkpoints. A complete horizon without attainment is right-censored; missing measurements are incomplete. Do not apply this contract to the four-point pilot curve.
+The historical protocol requires genuine 0/250k/500k/750k/1M observations. The recurrent protocol requires 0/100k/250k/500k/1M/1.5M/2M, using actual consumed steps for learning area and threshold coordinates. Each panel contains 100 learning-validation cases. Sustained 80% is the second of two qualifying positive scheduled checkpoints. A complete horizon without attainment is right-censored at its declared budget; missing measurements are incomplete. Do not apply either contract to the four-point pilot curve. See [recurrent protocol](recurrent_protocol.md) for the versioned reader, exporter and native statistic names.
 
-Final roles are ID, hazard, obstacle, pursuit and combined OOD, with 200 scenarios each. [replay_selection.json](replay_selection.json) contains only matched-ID metadata from the frozen canonical hash rule: primary seed 189707373/slot 0, 1M, two scenarios per role across five rewards (50 planned traces). Historical hash domains and collection IDs remain unchanged. No final worlds or outcomes are supplied.
+Final roles are ID, hazard, obstacle, pursuit and combined OOD, with 200 scenarios each. [replay_selection.json](replay_selection.json) documents the historical 1M selection. The recurrent exporter uses the completed producer's `selected_traces.json` at 2M: two outcome-independent hash-selected scenarios per condition, primary slot0, all five rewards (50 matched selections), plus separately labeled representative selections. The original hash namespace and collection identities are retained. Reference code contains no measured final outcomes or final worlds.
 
 ## Offline validation
 

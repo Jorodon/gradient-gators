@@ -19,6 +19,9 @@ def load_selected(study, index, *, bundle=None, allowed_root=None):
     require(type(index) is int and 0 <= index < len(study['results']['traces']), 'Invalid trace index')
 
     t = study['results']['traces'][index]
+    if t.get('replay_format') == 'recurrent-primary-v1':
+        from .recurrent_replay import load_recurrent_selected
+        return load_recurrent_selected(study, index, bundle=bundle)
     result = dict(available=False, selection=t)
 
     try:

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Research results v1 common minimum interface",
+  "title": "Research results protocol-aware transport interface",
   "type": "object",
   "required": [
     "schema_version",
@@ -18,7 +18,8 @@
     "schema_version": {
       "enum": [
         "research-results-v1",
-        "m4-results-v1"
+        "m4-results-v1",
+        "research-results-v2"
       ]
     },
     "study_id": {
@@ -203,7 +204,425 @@
       "items": {
         "type": "string"
       }
+    },
+    "protocol_id": {
+      "enum": [
+        "m4-common-ppo-v1",
+        "recurrent-complete-900-2m-v1"
+      ]
     }
   },
-  "description": "Frozen minimum transport interface, not sufficient scientific validation. Evaluation owner adds complete documented safety/efficiency/paired-statistics fields. Preserve explicit counts, role-specific denominators, actual per-seed results and missingness. Rates use fractions 0..1, raw damage/reward remain original units, steps are interactions. Artifact IDs resolve only through an explicitly configured bundle/release index. Explicit legacy local paths must remain within a caller-configured root; no network access or host fallback. Missing numbers are null with explicit reasons, never NaN/Infinity or fabricated zero. Fixtures are marked fixture:true and never enter real study catalog. Hashes can be null only for labeled fixtures. Viewer may accept extra fields but cannot invent metrics. Canonical schema remains parent-owned; component extensions additive."
+  "description": "Versioned transport interface for saved results, not scientific qualification. research-results-v1 and m4-results-v1 use m4-common-ppo-v1, also the default when a v1 protocol_id is absent. research-results-v2 requires explicit recurrent-complete-900-2m-v1. Unknown or mismatched identities are rejected. The recurrent protocol uses TRAIN 900, optional DEV 100, LEARNING_VALIDATION 100, and five final roles of 200. Five declared rewards and five reserved primary seeds define the matrix. Missing models or panels remain explicit inventory gaps. Synthetic fixture counts may be smaller, and fixture results never establish scientific qualification. The reader validates cross-record joins, denominators, completion and training counters beyond JSON Schema constraints. Rates use fractions; raw damage/reward retain original units. No NaN/Infinity. Hashes may be null only in labeled fixtures. Extra fields are preserved; artifact IDs resolve only within an explicitly configured bundle.",
+  "$defs": {
+    "recurrentModel": {
+      "type": "object",
+      "required": [
+        "actual_training_steps",
+        "optimized_training_steps"
+      ],
+      "properties": {
+        "reward": {
+          "enum": [
+            "sparse",
+            "efficiency",
+            "safety",
+            "balanced",
+            "progress"
+          ]
+        },
+        "seed": {
+          "enum": [
+            189707373,
+            845630960,
+            1696036709,
+            3447176590,
+            1584805801
+          ]
+        },
+        "checkpoint_step": {
+          "enum": [
+            0,
+            100000,
+            250000,
+            500000,
+            1000000,
+            1500000,
+            2000000
+          ]
+        },
+        "actual_training_steps": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "optimized_training_steps": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "final_unoptimized_steps": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "slot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "seed_slot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "checkpoint_step": {
+                "const": 0
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "actual_training_steps": {
+                "minimum": 0,
+                "maximum": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "checkpoint_step": {
+                "const": 100000
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "actual_training_steps": {
+                "minimum": 100000,
+                "maximum": 101398
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "checkpoint_step": {
+                "const": 250000
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "actual_training_steps": {
+                "minimum": 250000,
+                "maximum": 251398
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "checkpoint_step": {
+                "const": 500000
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "actual_training_steps": {
+                "minimum": 500000,
+                "maximum": 501398
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "checkpoint_step": {
+                "const": 1000000
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "actual_training_steps": {
+                "minimum": 1000000,
+                "maximum": 1001398
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "checkpoint_step": {
+                "const": 1500000
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "actual_training_steps": {
+                "minimum": 1500000,
+                "maximum": 1501398
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "checkpoint_step": {
+                "const": 2000000
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "actual_training_steps": {
+                "minimum": 2000000,
+                "maximum": 2000000
+              }
+            }
+          }
+        }
+      ],
+      "description": "checkpoint_step is the nominal grid coordinate. The reader additionally checks optimized <= actual, optional final_unoptimized_steps = actual - optimized, and slot/seed identity. Model names never determine protocol or seed."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "research-results-v2"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "protocol_id"
+        ],
+        "properties": {
+          "protocol_id": {
+            "const": "recurrent-complete-900-2m-v1"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/$defs/recurrentModel"
+            }
+          },
+          "datasets": {
+            "items": {
+              "properties": {
+                "role": {
+                  "enum": [
+                    "TRAIN",
+                    "DEV",
+                    "LEARNING_VALIDATION",
+                    "FINAL_ID",
+                    "FINAL_OOD_HAZARD",
+                    "FINAL_OOD_OBSTACLE",
+                    "FINAL_OOD_PURSUIT",
+                    "FINAL_OOD_COMBINED"
+                  ]
+                }
+              }
+            }
+          },
+          "learning": {
+            "items": {
+              "properties": {
+                "role": {
+                  "enum": [
+                    "DEV",
+                    "LEARNING_VALIDATION"
+                  ]
+                },
+                "checkpoint_step": {
+                  "enum": [
+                    0,
+                    100000,
+                    250000,
+                    500000,
+                    1000000,
+                    1500000,
+                    2000000
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "not": {
+                "required": [
+                  "fixture"
+                ],
+                "properties": {
+                  "fixture": {
+                    "const": true
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "datasets": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "role": {
+                              "const": "TRAIN"
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "scenario_count": {
+                              "const": 900
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "role": {
+                              "const": "DEV"
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "scenario_count": {
+                              "const": 100
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "role": {
+                              "const": "LEARNING_VALIDATION"
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "scenario_count": {
+                              "const": 100
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "role": {
+                              "const": "FINAL_ID"
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "scenario_count": {
+                              "const": 200
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "role": {
+                              "const": "FINAL_OOD_HAZARD"
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "scenario_count": {
+                              "const": 200
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "role": {
+                              "const": "FINAL_OOD_OBSTACLE"
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "scenario_count": {
+                              "const": 200
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "role": {
+                              "const": "FINAL_OOD_PURSUIT"
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "scenario_count": {
+                              "const": 200
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "role": {
+                              "const": "FINAL_OOD_COMBINED"
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "scenario_count": {
+                              "const": 200
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "else": {
+        "properties": {
+          "protocol_id": {
+            "const": "m4-common-ppo-v1"
+          }
+        }
+      }
+    }
+  ]
 }
