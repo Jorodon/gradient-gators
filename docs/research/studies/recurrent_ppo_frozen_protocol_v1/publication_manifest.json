@@ -5,11 +5,11 @@
   "transport_schema": "research-results-v2",
   "prepared_date": "2026-11-19",
   "publication": {
-    "status": "prepared_not_published",
-    "release_tag": null,
-    "release_url": null,
-    "release_commit": null,
-    "human_reviewer": null
+    "status": "published",
+    "release_tag": "recurrent-ppo-frozen-protocol-v1",
+    "release_url": "https://github.com/Jorodon/gradient-gators/releases/tag/recurrent-ppo-frozen-protocol-v1",
+    "release_commit": "9e25c1df7a94dfcacfbe40d53dc40fa062e4e031",
+    "human_reviewer": "Jorodon"
   },
   "repository": {
     "url": "https://github.com/Jorodon/gradient-gators",
@@ -49,7 +49,7 @@
       "top_level_folder": "recurrent_ppo_frozen_protocol_v1_results",
       "files": 214,
       "purpose": "Dashboard numerical evidence and selected recorded traces",
-      "download_url": null
+      "download_url": "https://github.com/Jorodon/gradient-gators/releases/download/recurrent-ppo-frozen-protocol-v1/recurrent_ppo_frozen_protocol_v1_results.zip"
     },
     {
       "filename": "recurrent_ppo_frozen_protocol_v1_worlds.zip",
@@ -58,7 +58,7 @@
       "top_level_folder": "recurrent_ppo_frozen_protocol_v1_worlds",
       "files": 45,
       "purpose": "Optional selected world dependency for saved replay",
-      "download_url": null
+      "download_url": "https://github.com/Jorodon/gradient-gators/releases/download/recurrent-ppo-frozen-protocol-v1/recurrent_ppo_frozen_protocol_v1_worlds.zip"
     },
     {
       "filename": "recurrent_ppo_frozen_protocol_v1_data.zip",
@@ -67,7 +67,7 @@
       "top_level_folder": "recurrent_ppo_frozen_protocol_v1_data",
       "files": 2040,
       "purpose": "Full frozen datasets and schedules for reproduction",
-      "download_url": null
+      "download_url": "https://github.com/Jorodon/gradient-gators/releases/download/recurrent-ppo-frozen-protocol-v1/recurrent_ppo_frozen_protocol_v1_data.zip"
     },
     {
       "filename": "recurrent_ppo_frozen_protocol_v1_models.zip",
@@ -76,7 +76,7 @@
       "top_level_folder": "recurrent_ppo_frozen_protocol_v1_models",
       "files": 203,
       "purpose": "All named model checkpoints for independent inference research",
-      "download_url": null
+      "download_url": "https://github.com/Jorodon/gradient-gators/releases/download/recurrent-ppo-frozen-protocol-v1/recurrent_ppo_frozen_protocol_v1_models.zip"
     },
     {
       "filename": "recurrent_ppo_frozen_protocol_v1_evidence.zip",
@@ -85,7 +85,7 @@
       "top_level_folder": "recurrent_ppo_frozen_protocol_v1_evidence",
       "files": 65311,
       "purpose": "Complete scientific evaluation cases and accounting for numerical audit",
-      "download_url": null
+      "download_url": "https://github.com/Jorodon/gradient-gators/releases/download/recurrent-ppo-frozen-protocol-v1/recurrent_ppo_frozen_protocol_v1_evidence.zip"
     },
     {
       "filename": "recurrent_ppo_frozen_protocol_v1_source.zip",
@@ -94,7 +94,7 @@
       "top_level_folder": "recurrent_ppo_frozen_protocol_v1_source",
       "files": 104,
       "purpose": "Published source snapshot and original/published provenance mapping",
-      "download_url": null
+      "download_url": "https://github.com/Jorodon/gradient-gators/releases/download/recurrent-ppo-frozen-protocol-v1/recurrent_ppo_frozen_protocol_v1_source.zip"
     }
   ],
   "scientific_boundary": "Completed frozen primary. Final results are reporting evidence, not follow-up protocol-selection data.",
