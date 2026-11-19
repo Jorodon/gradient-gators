@@ -228,3 +228,6 @@ __marimo__/
 /results/pilot_dataset/
 /results/pilot_runs/
 /results/research_frozen_v2/
+
+# Downloaded dashboard release assets are local inputs, not repository data.
+/docs/research/dashboard/downloaded_releases/
