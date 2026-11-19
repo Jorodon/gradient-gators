@@ -1,0 +1,58 @@
+{
+  "schema_version": "publication-validation-v1",
+  "study_id": "recurrent_ppo_frozen_protocol_v1",
+  "status": "passed_for_publication_review",
+  "base_revision": "9dfdacf6f022ae392b7558cd269258da8193375f",
+  "saved_record_checks": {
+    "raw_cases": 65000,
+    "recomputed_panels": 325,
+    "recomputed_learning_curves": 25,
+    "verified_selected_replays": 100,
+    "original_checkpoint_files": 175,
+    "disjoint_worlds": 2000,
+    "dataset_collections": 7,
+    "matched_schedule_groups": 5
+  },
+  "source_checks": {
+    "original_sealed_files_unchanged": 100,
+    "published_source_original_bytes": 92,
+    "published_source_path_derivatives": 8,
+    "python_files_parsed_without_execution": 77
+  },
+  "focused_tests": {
+    "passed": 87,
+    "skipped": 6,
+    "skip_reason": "Optional historical full-release/world tests; distinct from completed primary acceptance"
+  },
+  "loader_checks": {
+    "status": "passed",
+    "loader_revision": "9dfdacf6f022ae392b7558cd269258da8193375f",
+    "application_files_modified": false,
+    "rows": 325,
+    "cases": 65000,
+    "results_only": true,
+    "worlds_added_without_changing_numbers": true,
+    "relocation": true,
+    "historical_namespace": true,
+    "historical_release_summary_rows": 25,
+    "historical_release_cases": 3500,
+    "full_historical_replay_tested": false,
+    "browser_ui_tested": false,
+    "known_application_integration_pending": [
+      "scientific_extensions",
+      "learning_metric_view",
+      "final_results_view",
+      "selected_replay_player"
+    ]
+  },
+  "scientific_statistics": "Preserved original paired comparisons and robustness; no new inference",
+  "no_model_or_environment_execution": true,
+  "pending": [
+    "human_publication_review",
+    "actual_release_urls_and_release_commit",
+    "CI_on_reviewed_repository_revision",
+    "remaining_Streamlit_views_and_browser_acceptance",
+    "portable_training_setup_and_independent_reproduction"
+  ],
+  "reporting_boundary": "Frozen final ID/OOD scores remain reporting-only and excluded from follow-up selection"
+}
