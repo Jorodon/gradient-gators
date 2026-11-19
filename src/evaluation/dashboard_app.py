@@ -7,9 +7,12 @@ import numpy as np
 import pandas as pd
 
 from src.evaluation.dashboard_data import (
+    aggregate_episode_metrics,
+    discover_dashboard_sources,
     load_dashboard_artifacts,
     load_matched_scenario_ids,
     select_matched_episode_rows,
+    source_identity,
     trajectory_frame_data,
 )
 
@@ -123,7 +126,11 @@ def filter_episode_data(
     if reward_types:
         filtered = filtered[filtered["reward_type"].isin(reward_types)]
     if experiment_ids:
-        experiment_column = "run_id" if "run_id" in filtered else "experiment_id"
+        experiment_column = (
+            "run_id"
+            if "run_id" in filtered and filtered["run_id"].notna().any()
+            else "experiment_id"
+        )
         filtered = filtered[filtered[experiment_column].isin(experiment_ids)]
     if distribution and "distribution" in filtered:
         filtered = filtered[filtered["distribution"].isin(distribution)]
@@ -232,13 +239,73 @@ def _render_dashboard() -> None:
     if source_mode == "PILOT DATA":
         with st.sidebar:
             artifact_root = st.text_input(
-                "Pilot artifact directory",
+                "Results/release directory",
                 value=os.environ.get("GATOR_DASHBOARD_DATA_DIR", "results"),
             )
-        artifacts = load_dashboard_artifacts(artifact_root)
+            refresh_requested = st.button("Refresh saved data")
+        if refresh_requested:
+            st.cache_data.clear()
+            st.rerun()
+
+        root_key = str(os.path.abspath(os.path.expanduser(artifact_root)))
+        try:
+            sources = discover_dashboard_sources(artifact_root)
+            if not sources:
+                raise ValueError("No supported dashboard sources were found")
+            if len(sources) == 1:
+                selected_source = sources[0]
+            else:
+                source_options = {source.label: source for source in sources}
+                selected_label = st.sidebar.selectbox(
+                    "Saved study",
+                    list(source_options),
+                    help="Choose one bundle; studies are not pooled automatically.",
+                )
+                selected_source = source_options[selected_label]
+            identity = source_identity(artifact_root)
+
+            @st.cache_data(show_spinner=False)
+            def cached_artifacts(
+                root: str,
+                source_label: str,
+                selected_source_id: str,
+                change_identity: str,
+                refresh_token: int,
+            ):
+                """Load validated artifacts keyed by source content identity."""
+                del change_identity, refresh_token
+                return load_dashboard_artifacts(
+                    root,
+                    source=source_label,
+                    source_id=selected_source_id,
+                )
+
+            artifacts = cached_artifacts(
+                artifact_root,
+                "PILOT",
+                selected_source.source_id,
+                identity,
+                int(st.session_state.get("dashboard_refresh", 0)),
+            )
+            st.session_state["dashboard_last_accepted"] = {
+                "root": root_key,
+                "artifacts": artifacts,
+            }
+        except Exception as error:
+            previous = st.session_state.get("dashboard_last_accepted")
+            if previous and previous.get("root") == root_key:
+                artifacts = previous["artifacts"]
+                st.error(f"Saved data refresh failed; showing last accepted data: {error}")
+            else:
+                st.error(f"Saved data unavailable: {error}")
+                st.stop()
+
         data = artifacts.episodes
         with st.sidebar:
-            st.caption(f"Data source: PILOT DATA ({artifacts.status.upper()})")
+            st.caption(
+                f"Data source: PILOT DATA ({artifacts.status.upper()}) · "
+                f"{artifacts.source_kind}"
+            )
         if data.empty:
             st.info(artifacts.message)
             st.stop()
@@ -255,7 +322,11 @@ def _render_dashboard() -> None:
             default=reward_options,
         )
 
-        experiment_column = "run_id" if "run_id" in data else "experiment_id"
+        experiment_column = (
+            "run_id"
+            if "run_id" in data and data["run_id"].notna().any()
+            else "experiment_id"
+        )
         experiment_options = sorted(data[experiment_column].dropna().unique())
         selected_experiments = st.multiselect(
             "Experiment",
@@ -296,14 +367,16 @@ def _render_dashboard() -> None:
             if selected_checkpoint_value != "All checkpoints":
                 selected_checkpoint = int(selected_checkpoint_value)
 
-        min_episode = int(data["episode"].min())
-        max_episode = int(data["episode"].max())
-        selected_episode_range = st.slider(
-            "Episode range",
-            min_value=min_episode,
-            max_value=max_episode,
-            value=(min_episode, max_episode),
-        )
+        selected_episode_range: tuple[int, int] | None = None
+        if "episode" in data:
+            min_episode = int(data["episode"].min())
+            max_episode = int(data["episode"].max())
+            selected_episode_range = st.slider(
+                "Episode range",
+                min_value=min_episode,
+                max_value=max_episode,
+                value=(min_episode, max_episode),
+            )
 
     filtered = filter_episode_data(
         data,
@@ -319,34 +392,77 @@ def _render_dashboard() -> None:
         st.warning("No episodes match the selected filters.")
         st.stop()
 
+    aggregates = aggregate_episode_metrics(filtered)
     success_values = filtered["success"] if "success" in filtered else None
     success_available = (
         success_values is not None and not success_values.dropna().empty
     )
 
-    def metric_text(column: str, format_string: str) -> str:
-        """Format an available metric without substituting a fake value."""
-        if column not in filtered or filtered[column].dropna().empty:
+    def metric_text(value: object, format_string: str) -> str:
+        """Format an aggregate without substituting a fake value."""
+        if value is None:
             return "N/A"
-        return format_string.format(filtered[column].mean())
+        return format_string.format(value)
 
-    metric_columns = st.columns(4)
-    metric_columns[0].metric("Episodes", f"{len(filtered):,}")
+    metric_columns = st.columns(5)
+    metric_columns[0].metric("Episodes", f"{aggregates['episode_count']:,}")
     metric_columns[1].metric(
         "Success rate",
-        "N/A" if not success_available else f"{success_values.mean():.1%}",
+        metric_text(aggregates["success_rate"], "{:.1%}"),
     )
-    metric_columns[2].metric("Average return", metric_text("episode_return", "{:.2f}"))
-    metric_columns[3].metric("Average damage", metric_text("damage_taken", "{:.2f}"))
+    metric_columns[2].metric(
+        "Deaths",
+        metric_text(aggregates["death_count"], "{:,}"),
+    )
+    metric_columns[3].metric(
+        "Timeouts",
+        metric_text(aggregates["timeout_count"], "{:,}"),
+    )
+    metric_columns[4].metric(
+        "Average steps",
+        metric_text(aggregates["mean_episode_length"], "{:.1f}"),
+    )
+
+    detail_columns = st.columns(4)
+    detail_columns[0].metric(
+        "Total steps",
+        metric_text(aggregates["total_steps"], "{:,}"),
+    )
+    detail_columns[1].metric(
+        "Average return",
+        metric_text(aggregates["mean_episode_return"], "{:.2f}"),
+    )
+    detail_columns[2].metric(
+        "Hazard contacts",
+        metric_text(aggregates["total_hazard_contacts"], "{:,}"),
+    )
+    detail_columns[3].metric(
+        "Enemy contacts",
+        metric_text(aggregates["total_enemy_contacts"], "{:,}"),
+    )
 
     chart_left, chart_right = st.columns(2)
     with chart_left:
         st.subheader("Learning progress")
-        if "episode_return" in filtered:
+        if {"episode", "episode_return"}.issubset(filtered.columns):
             progress = (
                 filtered.groupby(["episode", "reward_type"], as_index=False)["episode_return"]
                 .mean()
                 .pivot(index="episode", columns="reward_type", values="episode_return")
+            )
+            st.line_chart(progress)
+        elif {"checkpoint_timestep", "success_count", "episode_count"}.issubset(
+            filtered.columns
+        ):
+            learning = filtered.copy()
+            learning["success_rate"] = (
+                learning["success_count"] / learning["episode_count"]
+            )
+            progress = learning.pivot_table(
+                index="checkpoint_timestep",
+                columns="reward_type",
+                values="success_rate",
+                aggfunc="mean",
             )
             st.line_chart(progress)
         else:
@@ -363,6 +479,13 @@ def _render_dashboard() -> None:
                 .rename("success_rate")
             )
             st.bar_chart(success_summary)
+        elif {"success_count", "episode_count"}.issubset(filtered.columns):
+            counts = filtered.groupby("reward_type")[[
+                "success_count",
+                "episode_count",
+            ]].sum()
+            success_summary = 100 * counts["success_count"] / counts["episode_count"]
+            st.bar_chart(success_summary.rename("success_rate"))
         else:
             st.info("Success data are not available in this artifact set.")
 
