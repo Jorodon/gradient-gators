@@ -52,7 +52,7 @@ jobs:
       - name: Run all tests
         env:
           MPLBACKEND: Agg # Tells matplotlib to use a noninteractive backend
-        run: python -m pytest -q -ra --durations=10 --junitxml=test-results.xml
+        run: python -m pytest tests research_support/dashboard_reference/tests research_support/recurrent_protocol/tests -q -ra --durations=10 --junitxml=test-results.xml
       
       # Creates report for test that can be reviewed later
       - name: Upload pytest report

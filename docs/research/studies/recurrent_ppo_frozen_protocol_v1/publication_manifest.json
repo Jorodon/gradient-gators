@@ -1,0 +1,103 @@
+{
+  "schema_version": "frozen-study-publication-v1",
+  "study_id": "recurrent_ppo_frozen_protocol_v1",
+  "protocol_id": "recurrent-complete-900-2m-v1",
+  "transport_schema": "research-results-v2",
+  "prepared_date": "2026-11-19",
+  "publication": {
+    "status": "published",
+    "release_tag": "recurrent-ppo-frozen-protocol-v1",
+    "release_url": "https://github.com/Jorodon/gradient-gators/releases/tag/recurrent-ppo-frozen-protocol-v1",
+    "release_commit": "9e25c1df7a94dfcacfbe40d53dc40fa062e4e031",
+    "human_reviewer": "Jorodon"
+  },
+  "repository": {
+    "url": "https://github.com/Jorodon/gradient-gators",
+    "preparation_base_revision": "9dfdacf6f022ae392b7558cd269258da8193375f"
+  },
+  "source": {
+    "producer_source_seal_sha256": "38248c4e72ed6e6077ae84440cb7ba9403d2e258afdf8f3111502e772910f83b",
+    "producer_report_sha256": "af2732bf0d021046a7a331b6cbf5ff809c2290ac5e25515cb818a045f0d5f3b9",
+    "dashboard_export_sha256": "57021ea56d43c65eb37505a60efb339184df6adb018f0c71e3ac6f227a664da6",
+    "publication_source": "100 declared entries; 92 original bytes and eight path-only publication derivatives; original and published digests remain distinct"
+  },
+  "expected_results_file": "expected_results.json",
+  "inventory": {
+    "final_policies": 25,
+    "checkpoint_models": 175,
+    "learning_panels": 175,
+    "train_panels": 25,
+    "final_panels": 125,
+    "unique_cases": 65000,
+    "selected_replays": 100,
+    "selected_worlds": 44,
+    "consumed_training_steps": 50000000
+  },
+  "dashboard": {
+    "results_bundle": "recurrent_ppo_frozen_protocol_v1_results",
+    "worlds_bundle": "recurrent_ppo_frozen_protocol_v1_worlds",
+    "extraction_root": "docs/research/dashboard/downloaded_releases",
+    "discover_depth": "root_and_immediate_children",
+    "worlds_optional_for_numerical_results": true,
+    "model_weights_required": false
+  },
+  "assets": [
+    {
+      "filename": "recurrent_ppo_frozen_protocol_v1_results.zip",
+      "bytes": 5482731,
+      "sha256": "039a089a1a680238633e451e70257d81e766d835a1d7dbc8a3185bcc260833dd",
+      "top_level_folder": "recurrent_ppo_frozen_protocol_v1_results",
+      "files": 214,
+      "purpose": "Dashboard numerical evidence and selected recorded traces",
+      "download_url": "https://github.com/Jorodon/gradient-gators/releases/download/recurrent-ppo-frozen-protocol-v1/recurrent_ppo_frozen_protocol_v1_results.zip"
+    },
+    {
+      "filename": "recurrent_ppo_frozen_protocol_v1_worlds.zip",
+      "bytes": 94366,
+      "sha256": "e8610e483072ee15f107285641b62ef0ae9bc67ebb856f643c97e1df96017166",
+      "top_level_folder": "recurrent_ppo_frozen_protocol_v1_worlds",
+      "files": 45,
+      "purpose": "Optional selected world dependency for saved replay",
+      "download_url": "https://github.com/Jorodon/gradient-gators/releases/download/recurrent-ppo-frozen-protocol-v1/recurrent_ppo_frozen_protocol_v1_worlds.zip"
+    },
+    {
+      "filename": "recurrent_ppo_frozen_protocol_v1_data.zip",
+      "bytes": 8135224,
+      "sha256": "a4bb2e5a1d5ba4518ab8f526293c8457a110db440aaa17edd6e048e94ac88c71",
+      "top_level_folder": "recurrent_ppo_frozen_protocol_v1_data",
+      "files": 2040,
+      "purpose": "Full frozen datasets and schedules for reproduction",
+      "download_url": "https://github.com/Jorodon/gradient-gators/releases/download/recurrent-ppo-frozen-protocol-v1/recurrent_ppo_frozen_protocol_v1_data.zip"
+    },
+    {
+      "filename": "recurrent_ppo_frozen_protocol_v1_models.zip",
+      "bytes": 296052116,
+      "sha256": "94e2a87827fee7ef4b841fb25b20856cbd8598b07d0ed27a12f9b26f15d26ce5",
+      "top_level_folder": "recurrent_ppo_frozen_protocol_v1_models",
+      "files": 203,
+      "purpose": "All named model checkpoints for independent inference research",
+      "download_url": "https://github.com/Jorodon/gradient-gators/releases/download/recurrent-ppo-frozen-protocol-v1/recurrent_ppo_frozen_protocol_v1_models.zip"
+    },
+    {
+      "filename": "recurrent_ppo_frozen_protocol_v1_evidence.zip",
+      "bytes": 298741632,
+      "sha256": "9ffc942cc9c9fb7257562bc190575f85965b1010c8f3331b563643ffa0bcf546",
+      "top_level_folder": "recurrent_ppo_frozen_protocol_v1_evidence",
+      "files": 65311,
+      "purpose": "Complete scientific evaluation cases and accounting for numerical audit",
+      "download_url": "https://github.com/Jorodon/gradient-gators/releases/download/recurrent-ppo-frozen-protocol-v1/recurrent_ppo_frozen_protocol_v1_evidence.zip"
+    },
+    {
+      "filename": "recurrent_ppo_frozen_protocol_v1_source.zip",
+      "bytes": 1778408,
+      "sha256": "3eec0e30dd9286e781a58d35a3555d5ad84257bcc319be0c2bed4ec4ae1c8501",
+      "top_level_folder": "recurrent_ppo_frozen_protocol_v1_source",
+      "files": 104,
+      "purpose": "Published source snapshot and original/published provenance mapping",
+      "download_url": "https://github.com/Jorodon/gradient-gators/releases/download/recurrent-ppo-frozen-protocol-v1/recurrent_ppo_frozen_protocol_v1_source.zip"
+    }
+  ],
+  "scientific_boundary": "Completed frozen primary. Final results are reporting evidence, not follow-up protocol-selection data.",
+  "reproduction_status": "source_inspection_verified; portable_training_setup_and_independent_reproduction_pending",
+  "application_status": "one_folder_data_loading_verified; remaining_view_and_browser_acceptance_under_existing_dashboard_issues"
+}
