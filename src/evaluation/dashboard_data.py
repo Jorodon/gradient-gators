@@ -98,6 +98,7 @@ class DashboardArtifacts:
     source_kind: str = "native_csv"
     source_id: str = ""
     source_path: str = ""
+    scientific_results: dict[str, Any] | None = None
 
 
 def _empty_artifacts(source: str, status: str, message: str) -> DashboardArtifacts:
@@ -767,6 +768,7 @@ def _load_structured_bundle(
         source_kind=source_descriptor.kind,
         source_id=source_descriptor.source_id,
         source_path=str(source_descriptor.path),
+        scientific_results=study["results"],
     )
 
 

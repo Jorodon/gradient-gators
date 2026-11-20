@@ -279,6 +279,19 @@ def test_direct_reference_bundle_loads_namespaced_shared_records():
         artifacts.episodes.columns
     )
 
+def test_structured_bundle_preserves_scientific_results():
+    """Preserve validated producer results without recalculating metrics."""
+    bundle = Path("research_support/dashboard_reference/examples")
+
+    artifacts = load_dashboard_artifacts(bundle)
+
+    from research_support.dashboard_reference.readers.bundle_paths import BundleIndex
+    from research_support.dashboard_reference.readers.results_adapter import load_bundle_export
+
+    index = BundleIndex(bundle, releases_root=bundle.parent)
+    expected = load_bundle_export(index, discover_dashboard_sources(bundle)[0].result_artifact_id)["results"]
+
+    assert artifacts.scientific_results == expected
 
 def test_normalized_reader_is_available_through_the_same_source_contract(tmp_path):
     """Loads supplied normalized interchange w/o treating missing values as zero."""
@@ -416,3 +429,60 @@ def test_native_discovery_does_not_recurse_below_immediate_runs(tmp_path):
     (nested_run / "episodes.csv").write_text("episode_id\nexample\n", encoding="utf-8")
 
     assert discover_dashboard_sources(tmp_path) == ()
+
+
+def test_recurrent_release_summary_when_available():
+    """Verify published recurrent results through the shared loader."""
+    root = Path(
+        "docs/research/dashboard/downloaded_releases/"
+        "recurrent_ppo_frozen_protocol_v1_results"
+    )
+
+    if not root.exists():
+        pytest.skip("Published recurrent results bundle not downloaded")
+
+    artifacts = load_dashboard_artifacts(root)
+    results = artifacts.scientific_results
+
+    assert artifacts.status == "available"
+    assert len(artifacts.records) == 325
+    assert sum(record.episode_count for record in artifacts.records) == 65000
+
+    assert results is not None
+    assert len(results["learning"]) == 175
+    assert len(results["comparisons"]) == 4
+    assert len(results["extensions"]["producer_learning_metrics"]) == 25
+    assert len(results["extensions"]["producer_robustness_models"]) == 25
+    assert len(results["extensions"]["producer_robustness_rewards"]) == 5
+    assert results["extensions"]["compute_accounting"]
+
+    from research_support.dashboard_reference.readers.bundle_paths import BundleIndex
+    from research_support.dashboard_reference.readers.results_adapter import load_bundle_export
+
+    index = BundleIndex(root, releases_root=root.parent)
+    original = load_bundle_export(index, "research_results")
+
+    assert results["protocol_id"] == "recurrent-complete-900-2m-v1"
+    assert results == original["results"]
+
+
+def test_historical_release_summary_when_available():
+    """Verify the separate historical reference cohort."""
+    root = Path(
+        "docs/research/dashboard/downloaded_releases/"
+        "dashboard_recorded_results_v1"
+    )
+
+    if not root.exists():
+        pytest.skip("Historical results bundle not downloaded")
+
+    artifacts = load_dashboard_artifacts(root)
+
+    assert artifacts.status == "available"
+    assert len(artifacts.records) == 25
+    assert sum(r.episode_count for r in artifacts.records) == 3500
+    assert sum(r.dataset_role == "DEV" for r in artifacts.records) == 20
+    assert sum(r.dataset_role == "TRAIN" for r in artifacts.records) == 5
+    assert {
+        r.checkpoint_timestep for r in artifacts.records
+    } == {0, 100000, 250000, 500000}
