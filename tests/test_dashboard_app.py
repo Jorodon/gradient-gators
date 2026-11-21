@@ -29,6 +29,13 @@ def widget_values(app: AppTest, label: str) -> list[object]:
     return next(item.value for item in app.multiselect if item.label == label)
 
 
+def require_saved_bundle(path: str) -> str:
+    """Skips release-backed UI checks when optional assets are unavailable."""
+    if not Path(path).exists():
+        pytest.skip(f"Saved dashboard bundle not downloaded: {path}")
+    return path
+
+
 def test_sample_data_has_expected_demo_columns():
     """Verify that the dashboard is populated by representative mock data."""
     data = build_sample_data(episodes_per_group=2)
@@ -108,7 +115,9 @@ def test_selection_key_changes_when_source_or_options_change():
 def test_saved_dashboard_labels_and_endpoint_controls_match_recorded_bundle():
     """Exercises integrated saved data labels & endpoint filter controls."""
     app = run_saved_dashboard(
-        "docs/research/dashboard/downloaded_releases/dashboard_recorded_results_v1"
+        require_saved_bundle(
+            "docs/research/dashboard/downloaded_releases/dashboard_recorded_results_v1"
+        )
     )
 
     assert not app.exception
@@ -147,7 +156,9 @@ def test_learning_history_expands_phase_and_checkpoint_scope():
 def test_saved_dashboard_switching_bundle_resets_available_selector_values():
     """Refreshes second bundle w/o retaining the first bundle's choices."""
     app = run_saved_dashboard(
-        "docs/research/dashboard/downloaded_releases/dashboard_recorded_results_v1"
+        require_saved_bundle(
+            "docs/research/dashboard/downloaded_releases/dashboard_recorded_results_v1"
+        )
     )
     original_checkpoint_options = tuple(app.selectbox[0].options)
 
