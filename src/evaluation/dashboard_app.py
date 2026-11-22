@@ -268,21 +268,40 @@ def _render_research_evidence(st, artifacts, table, filters, view_scope, metrics
 
     st.subheader("Research conclusions and evidence")
     if conclusions["status"] == "available":
+        claims = conclusions["claims"]
         st.caption(
-            "Researcher-authored study context. Each claim retains its stated "
-            "scope; changing filters does not create a new scientific conclusion."
+            "Browse the reviewed findings below. Each finding applies to its stated "
+            "scope, regardless of the result filters above."
         )
-        for claim in conclusions["claims"]:
-            st.markdown(f"**{claim['id']} — {claim['scope']}**")
+        selected = st.selectbox(
+            "Research finding", range(len(claims)),
+            format_func=lambda index: f"{index + 1} of {len(claims)} — {claims[index]['scope'].split(';')[0]}",
+            key=_selection_key("research-finding", evidence["export_sha256"], [claim["id"] for claim in claims]),
+        )
+        claim = claims[selected]
+        with st.container(border=True):
+            st.markdown(f"**{claim['scope']}**")
             st.write(claim["claim"])
-            for limitation in claim["limitations"]:
-                st.write(f"Limitation: {limitation}")
-            st.caption("Supporting evidence: " + json.dumps(claim["evidence"]))
+            if claim["limitations"]:
+                st.markdown("**Limitations**")
+                st.markdown("\n".join(f"- {item}" for item in claim["limitations"]))
+
+        with st.expander(f"Supporting evidence · {len(claim['evidence'])} references", expanded=False):
+            labels = {
+                "reward": "Reward", "seed": "Training seed", "checkpoint_timestep": "Checkpoint (steps)",
+                "dataset_role": "Dataset", "evaluation_mode": "Evaluation mode", "model_id": "Model ID",
+                "record_id": "Result record", "comparison_id": "Comparison ID", "configuration_id": "Configuration ID",
+            }
+            references = pd.DataFrame(claim["evidence"])
+            columns = [column for column in labels if column in references]
+            st.dataframe(references[columns].rename(columns=labels), hide_index=True, width="stretch")
+            st.caption(f"Finding ID: {claim['id']} · References identify the saved results supporting this finding.")
         st.caption(
             f"Author: {conclusions['author']} · Reviewer: {conclusions['reviewer']} · "
             f"Reviewed: {conclusions['reviewed_at']} · "
             f"Evidence cutoff: {conclusions['evidence_cutoff']}"
         )
+        st.caption("The JSON summary includes all reviewed findings and their evidence references.")
     else:
         st.info(conclusions["message"])
 
