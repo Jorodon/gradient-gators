@@ -190,9 +190,92 @@ def test_frozen_release_defaults_to_a_compatible_endpoint_when_available():
     )
     assert endpoint.value == 2000000
     assert any(metric.label == "Episodes" for metric in app.metric)
-    assert any(item.label == "Trajectory" for item in app.selectbox)
+    assert not any(item.label == "Trajectory" for item in app.selectbox)
     source_caption = next(
         item.value for item in app.caption if item.value.startswith("Data source:")
     )
     assert "origin: measured" in source_caption
     assert "publication: published" in source_caption
+
+def test_recorded_learning_points_preserves_gaps_and_incomplete_data():
+    from src.evaluation.dashboard_app import recorded_learning_points
+
+    def checkpoint(nominal, actual, completed=100, role="LEARNING_VALIDATION"):
+        return {
+            "role": role,
+            "checkpoint_step": nominal,
+            "actual_training_steps": actual,
+            "optimized_training_steps": nominal,
+            "n_expected": 100,
+            "n_completed": completed,
+            "success_count": 50,
+            "source_metrics": {
+                "model_id": "model-a",
+                "reward": "sparse",
+                "seed": 123,
+            },
+        }
+
+    results = {
+        "learning": [
+            checkpoint(0, 0),
+            checkpoint(100000, 100587, completed=90),
+            checkpoint(500000, 500631),
+            checkpoint(2000000, 2000000, role="FINAL_ID"),
+        ]
+    }
+
+    points = recorded_learning_points(results)
+
+    assert points["nominal_steps"].tolist() == [0, 100000, 500000]
+    assert points["actual_steps"].tolist() == [0, 100587, 500631]
+    assert points["complete"].tolist() == [True, False, True]
+    assert 250000 not in points["nominal_steps"].tolist()
+
+def test_frozen_release_learning_history_shows_curves_and_metrics():
+    root = Path("docs/research/dashboard/downloaded_releases/recurrent_ppo_frozen_protocol_v1_results")
+    if not root.exists():
+        pytest.skip("Published recurrent results bundle not downloaded")
+
+    app = run_saved_dashboard(str(root))
+    app.radio[1].set_value("Learning history").run()
+
+    assert not app.exception
+    assert any(item.label == "Learning model" for item in app.selectbox)
+    assert any(metric.label == "Normalized AULC" for metric in app.metric)
+    assert any(metric.label == "Sustained 80%" for metric in app.metric)
+    assert not any(item.label == "Endpoint checkpoint" for item in app.selectbox)
+
+def test_all_recurrent_learning_curves_match_release():
+    from src.evaluation.dashboard_app import recorded_learning_points
+    from src.evaluation.dashboard_data import load_dashboard_artifacts
+
+    root = Path(
+        "docs/research/dashboard/downloaded_releases/"
+        "recurrent_ppo_frozen_protocol_v1_results"
+    )
+    if not root.exists():
+        pytest.skip("Recurrent release not downloaded")
+
+    results = load_dashboard_artifacts(root).scientific_results
+    points = recorded_learning_points(results)
+
+    assert len(points) == 175
+    assert points["model_id"].nunique() == 25
+
+    for source in results["learning"]:
+        if source["role"] != "LEARNING_VALIDATION":
+            continue
+
+        matching = points[
+            (points["model_id"] == source["source_metrics"]["model_id"])
+            & (points["nominal_steps"] == source["checkpoint_step"])
+        ]
+
+        assert len(matching) == 1
+        row = matching.iloc[0]
+        assert row["actual_steps"] == source["actual_training_steps"]
+        assert row["optimized_steps"] == source["optimized_training_steps"]
+        assert row["success_rate"] == (
+            source["success_count"] / source["n_completed"]
+        )

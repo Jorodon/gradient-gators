@@ -37,6 +37,42 @@ DEMO_COLUMNS = (
     "scenario",
 )
 
+def recorded_learning_points(results: dict | None) -> pd.DataFrame:
+    """Read recorded learning checkpoints without inventing missing points."""
+    columns = [
+        "model_id", "reward_type", "seed", "dataset_role",
+        "nominal_steps", "actual_steps", "optimized_steps",
+        "success_rate", "complete",
+    ]
+    if not results:
+        return pd.DataFrame(columns=columns)
+
+    rows = []
+    for point in results.get("learning", []):
+        if point.get("role") != "LEARNING_VALIDATION":
+            continue
+
+        source = point.get("source_metrics") or {}
+        completed = point.get("n_completed")
+        expected = point.get("n_expected")
+
+        rows.append({
+            "model_id": source.get("model_id"),
+            "reward_type": source.get("reward"),
+            "seed": source.get("seed"),
+            "dataset_role": point["role"],
+            "nominal_steps": point.get("checkpoint_step"),
+            "actual_steps": point.get("actual_training_steps"),
+            "optimized_steps": point.get("optimized_training_steps"),
+            "success_rate": (
+                point["success_count"] / completed
+                if completed and point.get("success_count") is not None
+                else None
+            ),
+            "complete": completed == expected if expected is not None else False,
+        })
+
+    return pd.DataFrame(rows, columns=columns)
 
 def build_sample_data(episodes_per_group: int = 12) -> pd.DataFrame:
     """Create demo data for presentation.
@@ -679,8 +715,145 @@ def _render_dashboard() -> None:
             else "Learning progress at selected endpoint"
         )
         st.subheader(chart_title)
-        if {"episode", "episode_return", "reward_type"}.issubset(
-            chart_data.columns
+        recorded = (
+            recorded_learning_points(artifacts.scientific_results)
+            if artifacts is not None
+            else pd.DataFrame()
+        )
+
+        if selected_scope == "Learning history" and not recorded.empty:
+            st.caption("Checkpoint success vs. actual consumed interactions")
+            selected = recorded[
+                recorded["reward_type"].isin(selected_rewards)
+                & recorded["seed"].isin(selected_model_seeds)
+                ]
+            if not selected.empty:
+                model_options = sorted(selected["model_id"].dropna().unique())
+                selected_model = st.selectbox(
+                    "Learning model",
+                    model_options,
+                    key=_selection_key(
+                        "learning-model", source_key, model_options
+                    ),
+                )
+
+                curve = selected[
+                    selected["model_id"] == selected_model
+                    ].sort_values("actual_steps")
+
+                observed = curve[curve["complete"]]
+                grid = artifacts.scientific_results.get("checkpoint_grid", [])
+                missing_steps = sorted(set(grid) - set(curve["nominal_steps"]))
+
+                chart_points = observed.set_index("actual_steps")[["success_rate"]]
+
+                if observed.empty:
+                    st.info("No complete learning evaluations available.")
+                elif missing_steps or len(observed) < len(curve):
+                    st.scatter_chart(
+                        chart_points,
+                        x_label="Actual consumed interactions",
+                        y_label="Success rate",
+                    )
+                else:
+                    st.line_chart(
+                        chart_points,
+                        x_label="Actual consumed interactions",
+                        y_label="Success rate",
+                    )
+
+                if len(observed) < len(curve):
+                    st.caption(
+                        f"{len(curve) - len(observed)} incomplete checkpoint "
+                        "evaluation(s) excluded from the plotted curve."
+                    )
+
+                if missing_steps:
+                    st.caption(f"Missing scheduled checkpoints: {missing_steps}")
+
+                st.caption("Recorded checkpoint coordinates (no imputation):")
+                st.dataframe(
+                    curve[
+                        [
+                            "nominal_steps",
+                            "actual_steps",
+                            "optimized_steps",
+                            "success_rate",
+                            "complete",
+                        ]
+                    ],
+                    hide_index=True,
+                )
+                metrics = (
+                    artifacts.scientific_results
+                    .get("extensions", {})
+                    .get("producer_learning_metrics", [])
+                )
+                matching = next(
+                    (
+                        item for item in metrics
+                        if item.get("model_id") == selected_model
+                    ),
+                    None,
+                )
+
+                if matching is not None:
+                    metric_cols = st.columns(2)
+
+                    metric_cols[0].metric(
+                        "Normalized AULC",
+                        f"{matching['normalized_aulc']:.4f}"
+                        if matching.get("normalized_aulc") is not None
+                        else "Unavailable",
+                    )
+
+                    threshold = matching.get("time_to_sustained_80")
+                    status = matching.get("threshold_status", "unavailable")
+
+                    metric_cols[1].metric(
+                        "Sustained 80%",
+                        f"{threshold:,} interactions"
+                        if threshold is not None
+                        else status.capitalize(),
+                    )
+
+                    st.caption(
+                        f"Threshold status: {status} | "
+                        f"Censoring horizon: "
+                        f"{matching.get('censoring_steps', 'Unavailable'):,} "
+                        f"interactions"
+                        if isinstance(matching.get("censoring_steps"), int)
+                        else f"Threshold status: {status} | "
+                             "Censoring horizon: unavailable"
+                    )
+                    results = artifacts.scientific_results
+                    grid = results.get("checkpoint_grid", [])
+                    horizon = results.get("training_budget")
+
+                    missing = set(grid) - set(curve["nominal_steps"])
+                    incomplete = not curve["complete"].all()
+                    completeness = (
+                        "Incomplete" if missing or incomplete else "Complete"
+                    )
+
+                    st.caption(
+                        f"Protocol: {results.get('protocol_id', 'Unavailable')} | "
+                        f"Horizon: {horizon:,} interactions"
+                        if isinstance(horizon, int)
+                        else "Training horizon unavailable"
+                    )
+                    st.caption(
+                        f"Scheduled checkpoints: {grid} | "
+                        f"Curve: {completeness}"
+                    )
+
+                    accounting = results.get("extensions", {}).get(
+                        "compute_accounting", {}
+                    )
+                    if accounting.get("note"):
+                        st.caption(accounting["note"])
+        elif {"episode", "episode_return", "reward_type"}.issubset(
+                chart_data.columns
         ):
             progress = (
                 chart_data.groupby(
@@ -690,10 +863,13 @@ def _render_dashboard() -> None:
                 .pivot(index="episode", columns="reward_type", values="episode_return")
             )
             st.line_chart(progress)
+
         elif {"checkpoint_timestep", "success_count", "episode_count"}.issubset(
             chart_data.columns
         ):
             learning = chart_data.copy()
+            if "dataset_role" in learning and selected_scope == "Learning history":
+                learning = learning[learning["dataset_role"] == "DEV"]
             learning["success_rate"] = (
                 learning["success_count"] / learning["episode_count"]
             )
