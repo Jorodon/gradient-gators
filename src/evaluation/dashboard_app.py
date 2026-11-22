@@ -3,9 +3,16 @@
 import hashlib
 import json
 import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+from src.evaluation.dashboard_evidence import (
+    build_export,
+    load_conclusions,
+    selected_table,
+)
 
 from src.evaluation.dashboard_data import (
     aggregate_episode_metrics,
@@ -238,6 +245,78 @@ def _provenance_caption(
             labels.append(f"{label}: {', '.join(str(value) for value in values)}")
     labels.append(f"publication: {publication_status}")
     return " · ".join(labels) or "phase/origin metadata unavailable"
+
+
+# --- RESEARCH EVIDENCE --- #
+
+
+def _render_research_evidence(st, artifacts, table, filters, view_scope, metrics):
+    """Display reviewed conclusions, source details and downloads for this selection."""
+    evidence = (
+        artifacts.evidence_context if artifacts is not None else None
+    ) or {"fixture": artifacts is None}
+    conclusions = {
+        "status": "missing", "claims": [],
+        "message": "No approved conclusions available for this evidence.",
+    }
+    study_id = evidence.get("study_id")
+    studies_root = (Path(__file__).resolve().parents[2] / "docs" / "research" / "studies").resolve()
+    if isinstance(study_id, str) and study_id:
+        conclusion_path = (studies_root / study_id / "conclusions.json").resolve()
+        if conclusion_path.is_relative_to(studies_root):
+            conclusions = load_conclusions(conclusion_path, evidence)
+
+    st.subheader("Research conclusions and evidence")
+    if conclusions["status"] == "available":
+        st.caption(
+            "Researcher-authored study context. Each claim retains its stated "
+            "scope; changing filters does not create a new scientific conclusion."
+        )
+        for claim in conclusions["claims"]:
+            st.markdown(f"**{claim['id']} — {claim['scope']}**")
+            st.write(claim["claim"])
+            for limitation in claim["limitations"]:
+                st.write(f"Limitation: {limitation}")
+            st.caption("Supporting evidence: " + json.dumps(claim["evidence"]))
+        st.caption(
+            f"Author: {conclusions['author']} · Reviewer: {conclusions['reviewer']} · "
+            f"Reviewed: {conclusions['reviewed_at']} · "
+            f"Evidence cutoff: {conclusions['evidence_cutoff']}"
+        )
+    else:
+        st.info(conclusions["message"])
+
+    payload = build_export(
+        table, evidence, filters, view_scope, conclusions, displayed_metrics=metrics
+    )
+    with st.expander("Sources, scope and provenance"):
+        st.caption(
+            "Selection identifies the displayed rows. Evidence metadata describes "
+            "the source study; it may cover more models than the selection. "
+            "Missing provenance is unavailable, not inferred."
+        )
+        st.json({
+            "selection": payload["filters"], "view_scope": payload["view_scope"],
+            "evidence": payload["evidence"],
+        })
+        st.caption(
+            "Downloads preserve displayed values. They do not recalculate paired "
+            "comparisons, confidence intervals or multiple-comparison adjustments."
+        )
+
+    columns = st.columns(2)
+    columns[0].download_button(
+        "Download selected table (CSV)", table.to_csv(index=False),
+        file_name="selected_results.csv", mime="text/csv",
+    )
+    columns[1].download_button(
+        "Download selected summary (JSON)",
+        json.dumps(payload, indent=2, ensure_ascii=False, allow_nan=False),
+        file_name="selected_results.json", mime="application/json",
+    )
+
+
+# --- DASHBOARD --- #
 
 
 def _render_dashboard() -> None:
@@ -744,7 +823,14 @@ def _render_dashboard() -> None:
 
     with safety_right:
         st.subheader("Episode records")
-        st.dataframe(filtered, use_container_width=True, hide_index=True)
+        displayed_table = selected_table(filtered)
+        st.dataframe(displayed_table, use_container_width=True, hide_index=True)
+
+    _render_research_evidence(
+        st, artifacts, displayed_table,
+        {**filter_args, "checkpoint_timestep": selected_checkpoint},
+        selected_scope, aggregates,
+    )
 
     if artifacts is not None:
         matched_path = os.environ.get("GATOR_DASHBOARD_MATCHED_SCENARIOS", "")
@@ -861,3 +947,4 @@ def _render_dashboard() -> None:
 
 if __name__ == "__main__":
     _render_dashboard()
+
