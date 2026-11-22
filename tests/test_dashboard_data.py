@@ -416,3 +416,23 @@ def test_native_discovery_does_not_recurse_below_immediate_runs(tmp_path):
     (nested_run / "episodes.csv").write_text("episode_id\nexample\n", encoding="utf-8")
 
     assert discover_dashboard_sources(tmp_path) == ()
+
+def test_structured_bundle_loads_replay_bindings_and_reports_missing_worlds():
+    from src.evaluation.dashboard_data import _load_replay_bindings
+    from research_support.dashboard_reference.readers.bundle_paths import BundleIndex
+
+    fixture_root = (
+        Path(__file__).parent.parent
+        / "research_support"
+        / "dashboard_reference"
+        / "tests"
+        / "fixtures"
+        / "recorded_examples"
+    )
+
+    bundle = BundleIndex(fixture_root, releases_root=fixture_root)
+    bindings = _load_replay_bindings(bundle)
+
+    assert len(bindings) == 3
+    assert all(not binding.get("available", False) for binding in bindings)
+    assert all(binding.get("reason_unavailable") for binding in bindings)

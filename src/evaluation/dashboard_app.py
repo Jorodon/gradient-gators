@@ -1,3 +1,4 @@
+
 """Streamlit proof of concept dashboard for Gradient Gators."""
 
 import json
@@ -546,6 +547,72 @@ def _render_dashboard() -> None:
                     st.info("No model seed slots are available for matched examples.")
             except (OSError, ValueError, json.JSONDecodeError) as error:
                 st.warning(f"Matched scenario configuration unavailable: {error}")
+
+        if artifacts.replay_bindings:
+            st.subheader("Recorded Replay Bindings")
+
+            binding_options = list(range(len(artifacts.replay_bindings)))
+
+            selected_binding_index = st.selectbox(
+                "Recorded episode",
+                binding_options,
+                format_func=lambda index: (
+                    f"Binding {index + 1} — "
+                    + (
+                        "VERIFIED"
+                        if artifacts.replay_bindings[index].get("available")
+                        else "UNAVAILABLE"
+                    )
+                ),
+                key="recorded_replay_binding_selector",
+            )
+
+            binding = artifacts.replay_bindings[selected_binding_index]
+
+            if not binding.get("available", False):
+                st.warning(
+                    binding.get(
+                        "reason_unavailable",
+                        "Replay unavailable; no reason was supplied.",
+                    )
+                )
+                if binding.get("selection"):
+                    st.caption("Recorded binding identity")
+                    st.json(binding["selection"])
+            else:
+                st.success("Recorded replay verified")
+                st.caption("Recorded selection identity")
+                st.json(binding.get("selection", {}))
+
+                st.caption("Recorded outcome")
+                st.json(binding.get("outcome", {}))
+
+                st.caption("Replay verification")
+                st.write(binding.get("verification", {}))
+                st.caption(binding.get("identity_checks", ""))
+
+                st.caption("Recorded map")
+                st.json(binding["map"])
+
+                frames = binding.get("frames", [])
+                if frames:
+                    selected_frame_index = st.slider(
+                        "Recorded frame",
+                        min_value=0,
+                        max_value=len(frames) - 1,
+                        value=0,
+                        key="recorded_replay_frame_slider",
+                    )
+                    st.caption(
+                        binding.get(
+                            "frame_semantics",
+                            "Recorded frame data; no simulation is performed.",
+                        )
+                    )
+                    st.json(frames[selected_frame_index])
+
+                st.caption("Source hashes")
+                st.json(binding.get("source_hashes", {}))
 
         if artifacts.traces:
             st.subheader("Verified trajectory playback")
