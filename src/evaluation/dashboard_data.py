@@ -100,6 +100,7 @@ class DashboardArtifacts:
     source_path: str = ""
     scientific_results: dict[str, Any] | None = None
     publication_status: str = "unknown"
+    evidence_context: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -761,6 +762,24 @@ def _publication_status(
     return "unknown"
 
 
+# --- STRUCTURED EVIDENCE --- #
+
+
+def _structured_evidence(study: Mapping[str, Any], bundle: Any) -> dict[str, Any]:
+    """Load optional publication metadata for the verified study export."""
+    from src.evaluation.dashboard_evidence import build_evidence_context
+
+    studies_root = (Path(__file__).resolve().parents[2] / "docs" / "research" / "studies").resolve()
+    publication_path = (studies_root / study["id"] / "publication_manifest.json").resolve()
+    publication = None
+    if publication_path.is_relative_to(studies_root):
+        try:
+            publication = json.loads(publication_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            pass
+    return build_evidence_context(study, bundle.manifest, publication)
+
+
 def _structured_replays(
     study: Mapping[str, Any],
     bundle: Any,
@@ -878,6 +897,7 @@ def _load_structured_bundle(
         source_id=source_descriptor.source_id,
         source_path=str(source_descriptor.path),
         scientific_results=study["results"],
+        evidence_context=_structured_evidence(study, bundle),
         publication_status=_publication_status(
             str(episodes["study_id"].iloc[0]),
             source_descriptor.path,
@@ -1400,3 +1420,4 @@ def trajectory_frame_data(
             }
         )
     return pd.DataFrame(rows)
+
