@@ -125,11 +125,10 @@ def test_saved_dashboard_labels_and_endpoint_controls_match_recorded_bundle():
     assert widget_values(app, "Dataset phase") == ["DEV"]
     assert widget_values(app, "Condition / distribution") == ["DEV"]
     assert widget_values(app, "Model seed") == [85235071]
-    assert app.selectbox[0].label == "Endpoint checkpoint"
-    assert app.selectbox[0].value == 500000
-    assert "origin: recorded" in app.caption[0].value
-    assert "availability: complete" in app.caption[0].value
-    assert "publication: not_published" in app.caption[0].value
+    assert next(item for item in app.selectbox if item.label == "Endpoint checkpoint").value == 500000
+    assert "origin: recorded" in next(item.value for item in app.caption if item.value.startswith("Data source:"))
+    assert "availability: complete" in next(item.value for item in app.caption if item.value.startswith("Data source:"))
+    assert "publication: not_published" in next(item.value for item in app.caption if item.value.startswith("Data source:"))
 
 
 def test_learning_history_expands_phase_and_checkpoint_scope():
@@ -160,16 +159,17 @@ def test_saved_dashboard_switching_bundle_resets_available_selector_values():
             "docs/research/dashboard/downloaded_releases/dashboard_recorded_results_v1"
         )
     )
-    original_checkpoint_options = tuple(app.selectbox[0].options)
+    original_checkpoint_options = tuple(next(item for item in app.selectbox if item.label == "Endpoint checkpoint").options)
 
     app.text_input[0].set_value("research_support/dashboard_reference/examples").run()
 
     assert not app.exception
     assert widget_values(app, "Study") == ["synthetic_interaction_fixture"]
     assert widget_values(app, "Model seed") == [189707373, 845630960]
-    assert tuple(app.selectbox[0].options) != original_checkpoint_options
-    assert app.selectbox[0].value == 1000000
-    assert "origin: synthetic" in app.caption[0].value
+    endpoint = next(item for item in app.selectbox if item.label == "Endpoint checkpoint")
+    assert tuple(endpoint.options) != original_checkpoint_options
+    assert endpoint.value == 1000000
+    assert "origin: synthetic" in next(item.value for item in app.caption if item.value.startswith("Data source:"))
 
 
 def test_frozen_release_defaults_to_a_compatible_endpoint_when_available():
@@ -179,10 +179,12 @@ def test_frozen_release_defaults_to_a_compatible_endpoint_when_available():
         pytest.skip("Published recurrent results bundle not downloaded")
 
     app = run_saved_dashboard(str(root))
-    app.selectbox[0].set_value(
+    source_option = (
         "Saved results: recurrent_ppo_frozen_protocol_v1_results "
         "(recurrent_ppo_frozen_protocol_v1_results)"
-    ).run()
+    )
+    source_selector = next(item for item in app.selectbox if source_option in item.options)
+    source_selector.set_value(source_option).run()
 
     assert not app.exception
     endpoint = next(
@@ -279,3 +281,35 @@ def test_all_recurrent_learning_curves_match_release():
         assert row["success_rate"] == (
             source["success_count"] / source["n_completed"]
         )
+
+# Ensures evidence downloads use the displayed selection without fixture conclusions
+def test_evidence_downloads_follow_the_displayed_selection(monkeypatch):
+    from src.evaluation import dashboard_app
+
+    captured = []
+    original = dashboard_app.build_export
+
+    def capture(*args, **kwargs):
+        payload = original(*args, **kwargs)
+        captured.append(payload)
+        return payload
+
+    monkeypatch.setattr(dashboard_app, "build_export", capture)
+    app = run_saved_dashboard("research_support/dashboard_reference/examples")
+    assert not app.exception
+    original_rows = len(captured[-1]["table"]["rows"])
+    reward_filter = next(item for item in app.multiselect if item.label == "Reward type")
+    reward_filter.set_value([reward_filter.options[0]]).run()
+    assert not app.exception
+    payload = captured[-1]
+    table = app.dataframe[0].value
+    assert len(payload["table"]["rows"]) < original_rows
+    pd.testing.assert_frame_equal(
+        pd.DataFrame(payload["table"]["rows"], columns=payload["table"]["columns"]),
+        table.reset_index(drop=True), check_dtype=False,
+    )
+    assert payload["filters"]["reward_types"] == reward_filter.value
+    assert payload["conclusions"]["status"] != "available"
+    assert len(app.get("download_button")) == 2
+    assert any("No approved conclusions" in item.value for item in app.info)
+
