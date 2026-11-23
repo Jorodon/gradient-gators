@@ -110,6 +110,60 @@ The historical protocol requires genuine 0/250k/500k/750k/1M observations. The r
 
 Final roles are ID, hazard, obstacle, pursuit and combined OOD, with 200 scenarios each. [replay_selection.json](replay_selection.json) documents the historical 1M selection. The recurrent exporter uses the completed producer's `selected_traces.json` at 2M: two outcome-independent hash-selected scenarios per condition, primary slot0, all five rewards (50 matched selections), plus separately labeled representative selections. The original hash namespace and collection identities are retained. Reference code contains no measured final outcomes or final worlds.
 
+## Conclusions and selected-result downloads
+
+The Streamlit evidence section reads `docs/research/studies/<study_id>/conclusions.json`.
+This is researcher-authored interpretation, separate from the measured results. Its
+`binding` must match the loaded `study_id`, `protocol_id`, verified `release_tag`
+and `export_sha256`. Publication details are attached only when the published
+manifest matches the loaded result-file digest. Moving the downloads directory
+does not change that evidence identity.
+
+The conclusions file uses `schema_version: 1`, a `status` of `draft`, `approved`
+or `superseded`, `author`, `reviewer`, ISO `reviewed_at` and `evidence_cutoff`
+dates, and a `claims` array. Each claim has a stable `id`, an explicit `scope`,
+the `claim` text, a `limitations` array and an `evidence` array referencing
+`record_id`, `model_id`, `comparison_id` or `configuration_id` values supplied
+by that study. The evidence cutoff is the researcher's declared evidence boundary;
+it is not inferred from the publication preparation date. The export hash pins the
+exact evidence bytes. Inspect the source panel for available identities.
+
+Each conclusions file records its review status explicitly. Review the
+interpretation, limitations and supporting identities against the published
+results, and set `status` to `approved` only after review.
+Missing, draft, superseded, malformed or mismatched files leave conclusions
+unavailable without preventing valid numerical results from loading. Refresh or
+rerun the page after editing. A newer result export requires its own reviewed
+binding; an older conclusion must not be silently transferred to it.
+
+Conclusions are labelled study context and retain their authored scope when
+filters change. The source panel separates that study context from the current
+selection. CSV downloads contain the displayed portable table; JSON downloads
+include the same rows, filter values, displayed summary metrics and available
+provenance. Missing values remain missing. Aggregate rows describe evaluation
+panels, not individual episodes. Private absolute paths and raw internal metadata
+are excluded; relative artifact references and original/published hashes remain
+distinct. An unavailable source identity is not guessed for older inputs.
+An empty filter list retains the current dashboard convention of no restriction.
+The downloaded JSON is a selection summary, not a replacement release bundle or
+an input to the strict research-results importer.
+
+Other views can reuse `selected_table` and `build_export` in
+`src/evaluation/dashboard_evidence.py`. Pass the exact displayed table and its
+declared scope. The helpers serialize values; they do not calculate scientific
+metrics or filter a published statistical comparison into a new test. Published
+paired comparisons and learning metrics remain the responsibility of their
+respective views. Do not attach unfiltered study statistics to a filtered subset
+as though those statistics were calculated for that subset.
+
+Results-only downloads support this feature; worlds and model weights are not
+required. Extract releases under the common directory described above and keep
+downloaded contents out of Git. The focused checks are:
+
+```powershell
+python -B -m pytest -q tests/test_dashboard_evidence.py tests/test_dashboard_app.py tests/test_dashboard_data.py
+```
+
 ## Offline validation
 
 From the repository root, basic checks need no RL libraries, worlds or full dataset:

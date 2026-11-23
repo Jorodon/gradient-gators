@@ -196,3 +196,36 @@ def test_frozen_release_defaults_to_a_compatible_endpoint_when_available():
     )
     assert "origin: measured" in source_caption
     assert "publication: published" in source_caption
+
+
+# Ensures evidence downloads use the displayed selection without fixture conclusions
+def test_evidence_downloads_follow_the_displayed_selection(monkeypatch):
+    from src.evaluation import dashboard_app
+
+    captured = []
+    original = dashboard_app.build_export
+
+    def capture(*args, **kwargs):
+        payload = original(*args, **kwargs)
+        captured.append(payload)
+        return payload
+
+    monkeypatch.setattr(dashboard_app, "build_export", capture)
+    app = run_saved_dashboard("research_support/dashboard_reference/examples")
+    assert not app.exception
+    original_rows = len(captured[-1]["table"]["rows"])
+    reward_filter = next(item for item in app.multiselect if item.label == "Reward type")
+    reward_filter.set_value([reward_filter.options[0]]).run()
+    assert not app.exception
+    payload = captured[-1]
+    table = app.dataframe[0].value
+    assert len(payload["table"]["rows"]) < original_rows
+    pd.testing.assert_frame_equal(
+        pd.DataFrame(payload["table"]["rows"], columns=payload["table"]["columns"]),
+        table.reset_index(drop=True), check_dtype=False,
+    )
+    assert payload["filters"]["reward_types"] == reward_filter.value
+    assert payload["conclusions"]["status"] != "available"
+    assert len(app.get("download_button")) == 2
+    assert any("No approved conclusions" in item.value for item in app.info)
+
