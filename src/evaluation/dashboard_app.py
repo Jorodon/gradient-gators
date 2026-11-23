@@ -721,7 +721,12 @@ def _render_dashboard() -> None:
             else pd.DataFrame()
         )
 
-        if selected_scope == "Learning history" and not recorded.empty:
+        if (
+                selected_scope == "Learning history"
+                and not recorded.empty
+                and artifacts.scientific_results.get("protocol_id")
+                == "recurrent-complete-900-2m-v1"
+        ):
             st.caption("Checkpoint success vs. actual consumed interactions")
             selected = recorded[
                 recorded["reward_type"].isin(selected_rewards)
@@ -852,6 +857,29 @@ def _render_dashboard() -> None:
                     )
                     if accounting.get("note"):
                         st.caption(accounting["note"])
+                        final_points = curve[
+                            curve["nominal_steps"] == horizon
+                            ]
+
+                        if len(final_points) == 1:
+                            final_point = final_points.iloc[0]
+                            actual = final_point["actual_steps"]
+                            optimized = final_point["optimized_steps"]
+
+                            if pd.notna(actual) and pd.notna(optimized):
+                                excluded_tail = int(actual - optimized)
+                                st.caption(
+                                    f"Excluded final-tail interactions: "
+                                    f"{excluded_tail:,} "
+                                    f"(actual: {int(actual):,}; "
+                                    f"optimized: {int(optimized):,})"
+                                )
+
+                        st.caption(
+                            "Repeated/discarded recovery interactions: "
+                            "separately accounted for by the producer; "
+                            "numerical total not available in this export."
+                        )
         elif {"episode", "episode_return", "reward_type"}.issubset(
                 chart_data.columns
         ):
