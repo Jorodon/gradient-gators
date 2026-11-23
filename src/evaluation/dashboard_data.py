@@ -98,6 +98,7 @@ class DashboardArtifacts:
     source_kind: str = "native_csv"
     source_id: str = ""
     source_path: str = ""
+    replay_bindings: tuple[dict, ...] = ()
     scientific_results: dict[str, Any] | None = None
     publication_status: str = "unknown"
     evidence_context: dict[str, Any] | None = None
@@ -833,6 +834,7 @@ def _load_structured_bundle(
     bundle = BundleIndex(
         source_descriptor.path, releases_root=source_descriptor.path.parent
     )
+
     artifact_ids = source_descriptor.result_artifact_ids or (
         source_descriptor.result_artifact_id,
     )
@@ -847,6 +849,9 @@ def _load_structured_bundle(
                 artifact_ids,
                 source_label=source_label,
             )
+            
+            replay_bindings = _load_replay_bindings(bundle)
+
             return DashboardArtifacts(
                 source=source_label,
                 status="available",
@@ -857,6 +862,7 @@ def _load_structured_bundle(
                 trace_errors=(),
                 run_ids=tuple(episodes["run_id"].dropna().unique()),
                 records=records,
+                replay_bindings=replay_bindings,
                 source_kind=source_descriptor.kind,
                 source_id=source_descriptor.source_id,
                 source_path=str(source_descriptor.path),
@@ -873,6 +879,21 @@ def _load_structured_bundle(
     episodes, records = _structured_records_frame(
         study, source_descriptor, source_label=source_label
     )
+    recurrent_traces = study.get("results", {}).get("traces", [])
+
+    if recurrent_traces and any(
+            trace.get("replay_format") == "recurrent-primary-v1"
+            for trace in recurrent_traces
+    ):
+        from research_support.dashboard_reference.readers.replay import load_selected
+
+        replay_bindings = tuple(
+            load_selected(study, i, bundle=bundle)
+            for i in range(len(recurrent_traces))
+        )
+    else:
+        replay_bindings = _load_replay_bindings(bundle)
+
     traces, trace_errors = _structured_replays(study, bundle)
     return DashboardArtifacts(
         source=source_label,
@@ -893,6 +914,7 @@ def _load_structured_bundle(
             )
         ),
         records=records,
+        replay_bindings=replay_bindings,
         source_kind=source_descriptor.kind,
         source_id=source_descriptor.source_id,
         source_path=str(source_descriptor.path),
@@ -905,6 +927,52 @@ def _load_structured_bundle(
         ),
     )
 
+def _load_replay_bindings(bundle):
+    """Loads and validates replay bindings declared in a bundle manifest."""
+    from research_support.dashboard_reference.readers.replay import (
+        load_recorded_binding,
+    )
+
+    binding_artifacts = [
+        artifact_id
+        for artifact_id, entry in bundle.entries.items()
+        if entry.get("category") == "replay_bindings"
+    ]
+
+    if not binding_artifacts:
+        return ()
+
+    if len(binding_artifacts) != 1:
+        return ({
+            "available": False,
+            "reason_unavailable": (
+                "Bundle contains multiple replay-binding artifacts"
+            ),
+        },)
+
+    try:
+        document = bundle.read_json(binding_artifacts[0])
+        bindings = document.get("bindings")
+        if not isinstance(bindings, list):
+            raise ValueError("Replay-binding document has no bindings list")
+    except (ValueError, OSError, KeyError, TypeError) as error:
+        return ({
+            "available": False,
+            "reason_unavailable": f"Replay-binding artifact invalid: {error}",
+        },)
+
+    results = []
+    for binding in bindings:
+        try:
+            results.append(load_recorded_binding(bundle, binding))
+        except (ValueError, OSError, KeyError, TypeError) as error:
+            results.append({
+                "available": False,
+                "selection": binding,
+                "reason_unavailable": str(error),
+            })
+
+    return tuple(results)
 
 def _load_normalized_document(
     source_descriptor: DashboardSource,
