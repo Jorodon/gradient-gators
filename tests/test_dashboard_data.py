@@ -13,6 +13,7 @@ from src.environment.action_space import Action
 from src.environment.gator_env import GatorEnv
 from src.environment.map import GameMap, Tile
 from src.evaluation.dashboard_data import (
+    _structured_replays,
     aggregate_episode_metrics,
     discover_dashboard_sources,
     filter_episode_data,
@@ -173,7 +174,9 @@ def test_matched_selection_uses_median_length_and_reports_missing_categories():
     assert len(selection.selected) == 10
     assert set(selection.selected["selection_outcome"]) == {"success"}
     assert len(selection.unavailable) == 10
-    assert all(item["reason"] == "no eligible episode" for item in selection.unavailable)
+    assert all(
+        item["reason"] == "no eligible episode" for item in selection.unavailable
+    )
 
     failure_rows = episodes.iloc[[0, 1]].copy()
     failure_rows["success"] = False
@@ -251,11 +254,13 @@ def test_join_rejects_mismatched_trace_identity():
     """Rejects trace that can't be joined to claimed episode."""
     trace = make_trace()
     episodes = pd.DataFrame(
-        [{
-            "episode_id": trace.episode_id,
-            "scenario_id": "different-scenario",
-            "reward_type": "sparse",
-        }]
+        [
+            {
+                "episode_id": trace.episode_id,
+                "scenario_id": "different-scenario",
+                "reward_type": "sparse",
+            }
+        ]
     )
 
     with pytest.raises(ValueError, match="scenario IDs"):
@@ -274,17 +279,87 @@ def test_direct_reference_bundle_loads_namespaced_shared_records():
     assert artifacts.source_kind == "structured_bundle"
     assert artifacts.records
     assert all(record.source_id == sources[0].source_id for record in artifacts.records)
-    assert all(record.study_id == "synthetic_interaction_fixture" for record in artifacts.records)
+    assert all(
+        record.study_id == "synthetic_interaction_fixture"
+        for record in artifacts.records
+    )
     assert {"episode_count", "success_count", "dataset_role"}.issubset(
         artifacts.episodes.columns
     )
+    assert set(artifacts.episodes["data_origin"]) == {"synthetic"}
+    assert set(artifacts.episodes["study_status"]) == {"partial"}
+
+
+def test_structured_bundle_preserves_scientific_results():
+    """Preserves validated producer results w/o recalculating metrics."""
+    bundle = Path("research_support/dashboard_reference/examples")
+
+    artifacts = load_dashboard_artifacts(bundle)
+
+    from research_support.dashboard_reference.readers.bundle_paths import BundleIndex
+    from research_support.dashboard_reference.readers.results_adapter import (
+        load_bundle_export,
+    )
+
+    index = BundleIndex(bundle, releases_root=bundle.parent)
+    expected = load_bundle_export(
+        index, discover_dashboard_sources(bundle)[0].result_artifact_id
+    )["results"]
+
+    assert artifacts.scientific_results == expected
+
+
+def test_structured_replay_adapter_preserves_verified_frames(monkeypatch):
+    """Adapts a validated structured replay without simulating the environment."""
+    from research_support.dashboard_reference.readers import replay as replay_reader
+
+    def fake_load_selected(study, index, *, bundle):
+        del study, index, bundle
+        return {
+            "available": True,
+            "selection": {
+                "model_id": "balanced-seed-0",
+                "role": "FINAL_ID",
+                "scenario_id": "scenario-1",
+            },
+            "map": {"width": 3, "height": 2},
+            "frames": [
+                {
+                    "step": 0,
+                    "agent_position": [0, 0],
+                    "enemy_position": [2, 1],
+                    "terminated": False,
+                    "truncated": False,
+                }
+            ],
+        }
+
+    monkeypatch.setattr(replay_reader, "load_selected", fake_load_selected)
+    replays, errors = _structured_replays(
+        {"results": {"traces": [{"available": True}]}}, object()
+    )
+
+    assert not errors
+    replay = replays["balanced-seed-0:FINAL_ID:scenario-1"]
+    assert replay.record_id == "balanced-seed-0:FINAL_ID"
+    assert replay.map_width == 3
+    assert replay.frames[0]["agent_position"] == [0, 0]
+    frame_data = trajectory_frame_data(replay)
+    assert list(frame_data[["agent_x", "agent_y", "enemy_x", "enemy_y"]].iloc[0]) == [
+        0,
+        0,
+        2,
+        1,
+    ]
 
 
 def test_normalized_reader_is_available_through_the_same_source_contract(tmp_path):
     """Loads supplied normalized interchange w/o treating missing values as zero."""
     source_dir = Path(tmp_path) / "normalized"
     source_dir.mkdir()
-    normalized = Path("research_support/dashboard_reference/examples/normalized_studies.json")
+    normalized = Path(
+        "research_support/dashboard_reference/examples/normalized_studies.json"
+    )
     shutil.copy2(normalized, source_dir / "normalized_studies.json")
 
     artifacts = load_dashboard_artifacts(source_dir)
@@ -293,6 +368,7 @@ def test_normalized_reader_is_available_through_the_same_source_contract(tmp_pat
     assert len(artifacts.records) == 2
     assert artifacts.records[0].study_id == "example-future-study"
     assert artifacts.episodes.iloc[0]["deaths"] is None
+    assert set(artifacts.episodes["data_origin"]) == {"unknown"}
     assert aggregate_episode_metrics(artifacts.episodes)["death_count"] == 0
 
 
@@ -369,6 +445,7 @@ def test_recorded_bundle_combines_one_legacy_summary_per_reward(tmp_path):
 
     assert len(artifacts.episodes) == 2
     assert set(artifacts.episodes["reward_type"]) == {"sparse", "balanced"}
+    assert set(artifacts.episodes["data_origin"]) == {"unknown"}
     assert aggregate_episode_metrics(artifacts.episodes)["episode_count"] == 200
 
 
@@ -436,3 +513,64 @@ def test_structured_bundle_loads_replay_bindings_and_reports_missing_worlds():
     assert len(bindings) == 3
     assert all(not binding.get("available", False) for binding in bindings)
     assert all(binding.get("reason_unavailable") for binding in bindings)
+
+def test_recurrent_release_summary_when_available():
+    """Verify published recurrent results through the shared loader."""
+    root = Path(
+        "docs/research/dashboard/downloaded_releases/"
+        "recurrent_ppo_frozen_protocol_v1_results"
+    )
+
+    if not root.exists():
+        pytest.skip("Published recurrent results bundle not downloaded")
+
+    artifacts = load_dashboard_artifacts(root)
+    results = artifacts.scientific_results
+
+    assert artifacts.status == "available"
+    assert len(artifacts.records) == 325
+    assert sum(record.episode_count for record in artifacts.records) == 65000
+
+    assert results is not None
+    assert len(results["learning"]) == 175
+    assert len(results["comparisons"]) == 4
+    assert len(results["extensions"]["producer_learning_metrics"]) == 25
+    assert len(results["extensions"]["producer_robustness_models"]) == 25
+    assert len(results["extensions"]["producer_robustness_rewards"]) == 5
+    assert results["extensions"]["compute_accounting"]
+
+    from research_support.dashboard_reference.readers.bundle_paths import BundleIndex
+    from research_support.dashboard_reference.readers.results_adapter import (
+        load_bundle_export,
+    )
+
+    index = BundleIndex(root, releases_root=root.parent)
+    original = load_bundle_export(index, "research_results")
+
+    assert results["protocol_id"] == "recurrent-complete-900-2m-v1"
+    assert results == original["results"]
+
+
+def test_historical_release_summary_when_available():
+    """Verify the separate historical reference cohort."""
+    root = Path(
+        "docs/research/dashboard/downloaded_releases/" "dashboard_recorded_results_v1"
+    )
+
+    if not root.exists():
+        pytest.skip("Historical results bundle not downloaded")
+
+    artifacts = load_dashboard_artifacts(root)
+
+    assert artifacts.status == "available"
+    assert len(artifacts.records) == 25
+    assert sum(r.episode_count for r in artifacts.records) == 3500
+    assert sum(r.dataset_role == "DEV" for r in artifacts.records) == 20
+    assert sum(r.dataset_role == "TRAIN" for r in artifacts.records) == 5
+    assert set(artifacts.episodes["data_origin"]) == {"recorded"}
+    assert {r.checkpoint_timestep for r in artifacts.records} == {
+        0,
+        100000,
+        250000,
+        500000,
+    }

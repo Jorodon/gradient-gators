@@ -91,7 +91,7 @@ class DashboardArtifacts:
     message: str
     episodes: pd.DataFrame
     checkpoint_metrics: pd.DataFrame
-    traces: dict[str, TrajectoryTrace]
+    traces: dict[str, TrajectoryTrace | DashboardReplay]
     trace_errors: tuple[str, ...]
     run_ids: tuple[str, ...]
     records: tuple[DashboardRecord, ...] = ()
@@ -99,6 +99,22 @@ class DashboardArtifacts:
     source_id: str = ""
     source_path: str = ""
     replay_bindings: tuple[dict, ...] = ()
+    scientific_results: dict[str, Any] | None = None
+    publication_status: str = "unknown"
+    evidence_context: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class DashboardReplay:
+    """Verified replay frames adapted from structured research bundle."""
+
+    trace_id: str
+    record_id: str
+    scenario_id: str
+    map_width: int
+    map_height: int
+    frames: tuple[dict[str, Any], ...]
+
 
 def _empty_artifacts(source: str, status: str, message: str) -> DashboardArtifacts:
     """Constructs an empty artifact result w/o placeholder metrics."""
@@ -512,6 +528,8 @@ def _structured_records_frame(
 ) -> tuple[pd.DataFrame, tuple[DashboardRecord, ...]]:
     """Adapts validated export records to  dashboards common table shape."""
     provenance = study.get("metadata", {}).get("provenance", {})
+    data_origin = "synthetic" if study.get("fixture") is True else "measured"
+    study_status = study.get("status", "unknown")
     rows: list[dict[str, Any]] = []
     records: list[DashboardRecord] = []
     for record in study["records"]:
@@ -550,6 +568,8 @@ def _structured_records_frame(
             "optimized_training_steps": record.get("optimized_training_steps"),
             "source_reference": record.get("source"),
             "data_source": source_label,
+            "data_origin": data_origin,
+            "study_status": study_status,
             "record_type": "aggregate",
             "evidence": record.get("evidence"),
             "data_status": record.get("data_status"),
@@ -578,6 +598,7 @@ def _normalized_records_frame(
     records: list[DashboardRecord] = []
     for study in document["studies"]:
         metadata = study.get("metadata", {})
+        data_origin = "synthetic" if study.get("fixture") is True else "unknown"
         for record in study["records"]:
             row = dict(record)
             row.update(
@@ -599,6 +620,8 @@ def _normalized_records_frame(
                     "timeout_count": record.get("timeouts"),
                     "source_reference": record.get("source"),
                     "data_source": source_label,
+                    "data_origin": data_origin,
+                    "study_status": study.get("status", "unknown"),
                     "record_type": "aggregate",
                 }
             )
@@ -624,6 +647,13 @@ def _legacy_result_records_frame(
     """Adapts one recorded result summary per reward into shared rows."""
     rows: list[dict[str, Any]] = []
     records: list[DashboardRecord] = []
+    evidence_origin = str(bundle.manifest.get("evidence_origin", "unknown"))
+    if "synthetic" in evidence_origin.lower():
+        data_origin = "synthetic"
+    elif evidence_origin != "unknown":
+        data_origin = "recorded"
+    else:
+        data_origin = "unknown"
     for artifact_id in artifact_ids:
         result = bundle.read_json(artifact_id)
         entry = bundle.entries[artifact_id]
@@ -679,6 +709,8 @@ def _legacy_result_records_frame(
                 ),
                 "source_reference": source_reference,
                 "data_source": source_label,
+                "data_origin": data_origin,
+                "study_status": result.get("status", "unknown"),
                 "record_type": "aggregate",
                 "evidence": "recorded pilot result summary",
                 "data_status": result.get("status", "unknown"),
@@ -694,6 +726,98 @@ def _legacy_result_records_frame(
                 )
             )
     return pd.DataFrame(rows), tuple(records)
+
+
+def _publication_status(
+    study_id: str,
+    bundle_path: Path,
+    bundle_manifest: Mapping[str, Any],
+) -> str:
+    """Resolves publication status from bundle or repository study metadata."""
+    bundle_status = bundle_manifest.get("publication_status")
+    if bundle_status and str(bundle_status).lower() != "unknown":
+        return str(bundle_status)
+
+    repository_manifest = (
+        Path(__file__).resolve().parents[2]
+        / "docs"
+        / "research"
+        / "studies"
+        / study_id
+        / "publication_manifest.json"
+    )
+    candidates = (repository_manifest, bundle_path / "publication_manifest.json")
+    for path in candidates:
+        if not path.is_file():
+            continue
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if document.get("study_id") != study_id:
+            continue
+        publication = document.get("publication", {})
+        status = publication.get("status")
+        if status:
+            return str(status)
+    return "unknown"
+
+
+# --- STRUCTURED EVIDENCE --- #
+
+
+def _structured_evidence(study: Mapping[str, Any], bundle: Any) -> dict[str, Any]:
+    """Load optional publication metadata for the verified study export."""
+    from src.evaluation.dashboard_evidence import build_evidence_context
+
+    studies_root = (Path(__file__).resolve().parents[2] / "docs" / "research" / "studies").resolve()
+    publication_path = (studies_root / study["id"] / "publication_manifest.json").resolve()
+    publication = None
+    if publication_path.is_relative_to(studies_root):
+        try:
+            publication = json.loads(publication_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            pass
+    return build_evidence_context(study, bundle.manifest, publication)
+
+
+def _structured_replays(
+    study: Mapping[str, Any],
+    bundle: Any,
+) -> tuple[dict[str, DashboardReplay], tuple[str, ...]]:
+    """Loads available validated replays from  structured result export."""
+    selections = study.get("results", {}).get("traces", [])
+    if not selections:
+        return {}, ()
+
+    from research_support.dashboard_reference.readers.replay import load_selected
+
+    replays: dict[str, DashboardReplay] = {}
+    errors: list[str] = []
+    for index, selection in enumerate(selections):
+        if not selection.get("available"):
+            continue
+        try:
+            replay = load_selected(study, index, bundle=bundle)
+            if not replay.get("available"):
+                continue
+            selected = replay["selection"]
+            grid = replay["map"]
+            trace_id = ":".join(
+                str(selected.get(field, "unknown"))
+                for field in ("model_id", "role", "scenario_id")
+            )
+            replays[trace_id] = DashboardReplay(
+                trace_id=trace_id,
+                record_id=f"{selected['model_id']}:{selected['role']}",
+                scenario_id=str(selected["scenario_id"]),
+                map_width=int(grid["width"]),
+                map_height=int(grid["height"]),
+                frames=tuple(replay["frames"]),
+            )
+        except (KeyError, TypeError, ValueError, OSError) as error:
+            errors.append(f"structured replay {index}: {error}")
+    return replays, tuple(errors)
 
 
 def _load_structured_bundle(
@@ -742,6 +866,11 @@ def _load_structured_bundle(
                 source_kind=source_descriptor.kind,
                 source_id=source_descriptor.source_id,
                 source_path=str(source_descriptor.path),
+                publication_status=_publication_status(
+                    str(episodes["study_id"].iloc[0]),
+                    source_descriptor.path,
+                    bundle.manifest,
+                ),
             )
         raise ValueError(
             "Multiple structured results artifacts require an explicit study adapter"
@@ -765,14 +894,15 @@ def _load_structured_bundle(
     else:
         replay_bindings = _load_replay_bindings(bundle)
 
+    traces, trace_errors = _structured_replays(study, bundle)
     return DashboardArtifacts(
         source=source_label,
         status="available",
         message=f"{source_label} structured results loaded",
         episodes=episodes,
         checkpoint_metrics=pd.DataFrame(),
-        traces={},
-        trace_errors=(),
+        traces=traces,
+        trace_errors=trace_errors,
         run_ids=tuple(
             sorted(
                 {
@@ -788,6 +918,13 @@ def _load_structured_bundle(
         source_kind=source_descriptor.kind,
         source_id=source_descriptor.source_id,
         source_path=str(source_descriptor.path),
+        scientific_results=study["results"],
+        evidence_context=_structured_evidence(study, bundle),
+        publication_status=_publication_status(
+            str(episodes["study_id"].iloc[0]),
+            source_descriptor.path,
+            bundle.manifest,
+        ),
     )
 
 def _load_replay_bindings(bundle):
@@ -874,6 +1011,7 @@ def _load_normalized_document(
         source_kind=source_descriptor.kind,
         source_id=source_descriptor.source_id,
         source_path=str(source_descriptor.path),
+        publication_status=str(document.get("publication_status", "unknown")),
     )
 
 
@@ -1015,19 +1153,58 @@ def filter_episode_data(
     reward_types: Iterable[str] | None = None,
     run_ids: Iterable[str] | None = None,
     model_seed_slots: Iterable[int] | None = None,
+    model_seeds: Iterable[int | str] | None = None,
     distributions: Iterable[str] | None = None,
+    study_ids: Iterable[str] | None = None,
+    dataset_roles: Iterable[str] | None = None,
+    evaluation_modes: Iterable[str] | None = None,
+    configuration_ids: Iterable[str] | None = None,
     checkpoint_timestep: int | None = None,
 ) -> pd.DataFrame:
-    """Filters real episode summaries w/o filling unavailable metrics."""
+    """Filters real episode summaries w/o filling unavailable metrics.
+
+    Args:
+        data: Episode or aggregate result rows.
+        reward_types: Reward conditions to retain.
+        run_ids: Run IDs to retain.
+        model_seed_slots: Model seed slots to retain.
+        model_seeds: Actual model seed values to retain.
+        distributions: ID/OOD or equivalent condition labels to retain.
+        study_ids: Study IDs to retain.
+        dataset_roles: Dataset phases such as TRAIN or DEV to retain.
+        evaluation_modes: Evaluation modes to retain.
+        configuration_ids: Configuration or run IDs to retain.
+        checkpoint_timestep: Checkpoint to retain.
+
+    Returns:
+        pandas.DataFrame: Filtered copy without synthesized metrics.
+    """
     filtered = data.copy()
     for column, values in (
         ("reward_type", reward_types),
         ("run_id", run_ids),
         ("model_seed_slot", model_seed_slots),
+        ("model_seed", model_seeds),
         ("distribution", distributions),
+        ("study_id", study_ids),
+        ("dataset_role", dataset_roles),
+        ("evaluation_mode", evaluation_modes),
     ):
         if values is not None and column in filtered:
             filtered = filtered[filtered[column].isin(list(values))]
+    if configuration_ids:
+        configuration_column = next(
+            (
+                column
+                for column in ("configuration_id", "run_id", "experiment_id")
+                if column in filtered
+            ),
+            None,
+        )
+        if configuration_column is not None:
+            filtered = filtered[
+                filtered[configuration_column].isin(list(configuration_ids))
+            ]
     if checkpoint_timestep is not None and "checkpoint_timestep" in filtered:
         filtered = filtered[filtered["checkpoint_timestep"] == checkpoint_timestep]
     return filtered.copy()
@@ -1253,8 +1430,38 @@ def select_matched_episode_rows(
     )
 
 
-def trajectory_frame_data(trace: TrajectoryTrace) -> pd.DataFrame:
+def trajectory_frame_data(
+    trace: TrajectoryTrace | DashboardReplay,
+) -> pd.DataFrame:
     """Converts validated frames into actual coordinates for 2D playback."""
+    if isinstance(trace, DashboardReplay):
+        rows = []
+        for frame in trace.frames:
+            agent_x, agent_y = frame["agent_position"]
+            enemy_position = frame.get("enemy_position")
+            enemy_x, enemy_y = (
+                (None, None) if enemy_position is None else enemy_position
+            )
+            rows.append(
+                {
+                    "step": frame["step"],
+                    "agent_x": agent_x,
+                    "agent_y": agent_y,
+                    "enemy_x": enemy_x,
+                    "enemy_y": enemy_y,
+                    "agent_hp": frame.get("agent_hp"),
+                    "action": frame.get("action"),
+                    "reward": frame.get("reward"),
+                    "terminated": frame.get("terminated"),
+                    "truncated": frame.get("truncated"),
+                    "end_reason": frame.get("end_reason"),
+                    "map_width": trace.map_width,
+                    "map_height": trace.map_height,
+                    **(frame.get("events") or {}),
+                }
+            )
+        return pd.DataFrame(rows)
+
     map_data = trace.scenario_manifest["map"]
     rows = []
     for frame in trace.frames:
@@ -1281,3 +1488,4 @@ def trajectory_frame_data(trace: TrajectoryTrace) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows)
+

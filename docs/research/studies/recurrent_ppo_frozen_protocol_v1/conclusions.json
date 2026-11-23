@@ -1,0 +1,1685 @@
+{
+  "schema_version": 1,
+  "status": "approved",
+  "binding": {
+    "study_id": "recurrent_ppo_frozen_protocol_v1",
+    "protocol_id": "recurrent-complete-900-2m-v1",
+    "release_tag": "recurrent-ppo-frozen-protocol-v1",
+    "export_sha256": "57021ea56d43c65eb37505a60efb339184df6adb018f0c71e3ac6f227a664da6"
+  },
+  "author": "Jorodon",
+  "reviewer": "Jorodon",
+  "reviewed_at": "2026-11-22",
+  "evidence_cutoff": "2026-11-22",
+  "claims": [
+    {
+      "id": "f01_evaluation_scope",
+      "scope": "Completed frozen protocol; all five rewards and all five matched training seeds",
+      "claim": "The study contains 25 trained policies: Sparse, Efficiency, Safety, Balanced, and Progress, each trained for 2,000,000 consumed interactions on 900 TRAIN scenarios. Matched seed slots 0-4 are 189707373, 845630960, 1696036709, 3447176590, 1584805801. Each final policy was evaluated deterministically on 200 scenarios in each of ID, hazard OOD, obstacle OOD, pursuit OOD, and combined OOD: 125 complete final panels, and 25,000 final policy-scenario evaluations. Together with 17,500 learning-validation and 22,500 TRAIN evaluations, the released summary covers 65,000 evaluation cases. The percentages below are equal-weight means over five training seeds. Each final reward-condition mean also equals its successes divided by 1000 because all five of the panels contain 200 cases.",
+      "limitations": [
+        "The independent training sample size is five per reward, not 1,000; the same 200 scenarios in a condition are evaluated by multiple policies.",
+        "The conclusions are limited to the published frozen protocol and its declared scenario distributions.",
+        "This review checks exported results and model/condition joins."
+      ],
+      "evidence": [
+        {
+          "model_id": "primary_s0_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_safety__t2000000",
+          "reward": "safety",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_safety__t2000000",
+          "reward": "safety",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_safety__t2000000",
+          "reward": "safety",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_safety__t2000000",
+          "reward": "safety",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_safety__t2000000",
+          "reward": "safety",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_progress__t2000000",
+          "reward": "progress",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_progress__t2000000",
+          "reward": "progress",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_progress__t2000000",
+          "reward": "progress",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_progress__t2000000",
+          "reward": "progress",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_progress__t2000000",
+          "reward": "progress",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        }
+      ]
+    },
+    {
+      "id": "f02_sparse_final_success",
+      "scope": "Sparse reward; all five seeds; final 2M endpoint; all final conditions",
+      "claim": "Mean task success was ID 72.7% (727/1,000; observed seed range 69.5-76.5%); hazard OOD 66.2% (662/1,000; observed seed range 63.5-68.5%); obstacle OOD 62.5% (625/1,000; observed seed range 60.0-64.5%); pursuit OOD 49.6% (496/1,000; observed seed range 46.5-52.5%); combined OOD 38.9% (389/1,000; observed seed range 35.5-42.5%). In seed-slot order 0-4, ID success was [69.5, 76.5, 70.5, 70.5, 76.5]% and combined-OOD success was [36.5, 38.0, 42.5, 35.5, 42.0]%.",
+      "limitations": [
+        "The minimum-maximum ranges describe observed training-seed variation; they are not confidence intervals.",
+        "Note: a ranking of means does not by itself establish a statistically supported reward difference or a reward-family robustness pass."
+      ],
+      "evidence": [
+        {
+          "model_id": "primary_s0_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        }
+      ]
+    },
+    {
+      "id": "f03_efficiency_final_success",
+      "scope": "Efficiency reward; all five seeds; final 2M endpoint; all final conditions",
+      "claim": "Mean task success was ID 74.7% (747/1,000; observed seed range 71.5-75.5%); hazard OOD 66.8% (668/1,000; observed seed range 64.5-68.5%); obstacle OOD 65.0% (650/1,000; observed seed range 60.5-69.0%); pursuit OOD 47.8% (478/1,000; observed seed range 43.5-53.5%); combined OOD 39.1% (391/1,000; observed seed range 37.0-40.5%). In seed-slot order 0-4, ID success was [75.5, 71.5, 75.5, 75.5, 75.5]% and combined-OOD success was [39.5, 40.0, 37.0, 38.5, 40.5]%.",
+      "limitations": [
+        "The minimum-maximum ranges describe observed training-seed variation; they are not confidence intervals.",
+        "Note: a ranking of means does not by itself establish a statistically supported reward difference or a reward-family robustness pass."
+      ],
+      "evidence": [
+        {
+          "model_id": "primary_s0_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        }
+      ]
+    },
+    {
+      "id": "f04_safety_final_success",
+      "scope": "Safety reward; all five seeds; final 2M endpoint; all final conditions",
+      "claim": "Mean task success was ID 70.0% (700/1,000; observed seed range 67.5-71.5%); hazard OOD 62.8% (628/1,000; observed seed range 62.0-65.0%); obstacle OOD 61.3% (613/1,000; observed seed range 58.0-63.0%); pursuit OOD 44.1% (441/1,000; observed seed range 40.0-47.0%); combined OOD 30.9% (309/1,000; observed seed range 23.0-36.5%). In seed-slot order 0-4, ID success was [69.5, 71.5, 67.5, 70.0, 71.5]% and combined-OOD success was [31.0, 31.5, 36.5, 32.5, 23.0]%.",
+      "limitations": [
+        "The minimum-maximum ranges describe observed training-seed variation; they are not confidence intervals.",
+        "Note: a ranking of means does not by itself establish a statistically supported reward difference or a reward-family robustness pass."
+      ],
+      "evidence": [
+        {
+          "model_id": "primary_s0_safety__t2000000",
+          "reward": "safety",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_safety__t2000000",
+          "reward": "safety",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_safety__t2000000",
+          "reward": "safety",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_safety__t2000000",
+          "reward": "safety",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_safety__t2000000",
+          "reward": "safety",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        }
+      ]
+    },
+    {
+      "id": "f05_balanced_final_success",
+      "scope": "Balanced reward; all five seeds; final 2M endpoint; all final conditions",
+      "claim": "Mean task success was ID 72.1% (721/1,000; observed seed range 70.0-74.5%); hazard OOD 62.6% (626/1,000; observed seed range 60.5-63.5%); obstacle OOD 62.4% (624/1,000; observed seed range 59.5-66.0%); pursuit OOD 44.4% (444/1,000; observed seed range 36.0-50.0%); combined OOD 33.6% (336/1,000; observed seed range 27.0-39.5%). In seed-slot order 0-4, ID success was [70.0, 74.5, 74.0, 72.0, 70.0]% and combined-OOD success was [27.0, 38.5, 39.5, 33.0, 30.0]%.",
+      "limitations": [
+        "The minimum-maximum ranges describe observed training-seed variation; they are not confidence intervals.",
+        "Note: a ranking of means does not by itself establish a statistically supported reward difference or a reward-family robustness pass."
+      ],
+      "evidence": [
+        {
+          "model_id": "primary_s0_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        }
+      ]
+    },
+    {
+      "id": "f06_progress_final_success",
+      "scope": "Progress reward; all five seeds; final 2M endpoint; all final conditions",
+      "claim": "Mean task success was ID 71.9% (719/1,000; observed seed range 63.5-78.0%); hazard OOD 68.8% (688/1,000; observed seed range 65.0-71.0%); obstacle OOD 63.8% (638/1,000; observed seed range 61.5-66.0%); pursuit OOD 49.1% (491/1,000; observed seed range 40.0-53.5%); combined OOD 43.4% (434/1,000; observed seed range 39.5-47.5%). In seed-slot order 0-4, ID success was [75.0, 63.5, 71.0, 78.0, 72.0]% and combined-OOD success was [41.5, 39.5, 46.0, 42.5, 47.5]%.",
+      "limitations": [
+        "The minimum-maximum ranges describe observed training-seed variation; they are not confidence intervals.",
+        "Note: a ranking of means does not by itself establish a statistically supported reward difference or a reward-family robustness pass."
+      ],
+      "evidence": [
+        {
+          "model_id": "primary_s0_progress__t2000000",
+          "reward": "progress",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_progress__t2000000",
+          "reward": "progress",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_progress__t2000000",
+          "reward": "progress",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_progress__t2000000",
+          "reward": "progress",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_progress__t2000000",
+          "reward": "progress",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        }
+      ]
+    },
+    {
+      "id": "f07_primary_combined_comparisons",
+      "scope": "Four prespecified shaped-minus-Sparse combined-OOD comparisons; five matched seed pairs; final 2M endpoint",
+      "claim": "The published paired comparisons report Efficiency +0.2 percentage points (Holm-adjusted p=0.90924); Safety -8.0 percentage points (Holm-adjusted p=0.14035); Balanced -5.3 percentage points (Holm-adjusted p=0.17200); Progress +4.5 percentage points (Holm-adjusted p=0.03432). Only Progress rejects the null of zero mean difference at the family-adjusted 0.05 level. Progress exceeded Sparse in every matched seed, by [5.0, 1.5, 3.5, 7.0, 5.5] percentage points in slot order. Its nominal, unadjusted 95% paired-t interval is [1.90, 7.10] percentage points. This supports a specific combined OOD advantage under this protocol, but not a universal superiority.",
+      "limitations": [
+        "The paired-t analysis has five independent differences and assumes approximately normal differences; this is a small training-seed sample.",
+        "The reported confidence intervals are nominal and unadjusted. The significance decision uses the supplied Holm adjustment across all four comparisons.",
+        "Safety's nominal interval excludes zero, but its Holm-adjusted test does not reject.",
+        "Note: no primary inferential result here establishes a reward advantage on every condition, seed, or safety metric."
+      ],
+      "evidence": [
+        {
+          "model_id": "primary_s0_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s1_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s2_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s3_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s4_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s0_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s1_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s2_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s3_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s4_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s0_safety__t2000000",
+          "reward": "safety",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s1_safety__t2000000",
+          "reward": "safety",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s2_safety__t2000000",
+          "reward": "safety",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s3_safety__t2000000",
+          "reward": "safety",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s4_safety__t2000000",
+          "reward": "safety",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s0_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s1_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s2_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s3_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s4_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s0_progress__t2000000",
+          "reward": "progress",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s1_progress__t2000000",
+          "reward": "progress",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s2_progress__t2000000",
+          "reward": "progress",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s3_progress__t2000000",
+          "reward": "progress",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        },
+        {
+          "model_id": "primary_s4_progress__t2000000",
+          "reward": "progress",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "FINAL_OOD_COMBINED"
+        }
+      ]
+    },
+    {
+      "id": "f08_broad_robustness",
+      "scope": "Published model-level and reward-family robustness assessments; all final conditions",
+      "claim": "No reward family passed the prespecified broad-robustness rule. Individually qualifying models were Sparse 2/5, Efficiency 1/5, Safety 0/5, Balanced 1/5, Progress 3/5. A model must satisfy every criterion: ID success at least 70%, each isolated OOD at least 50%, combined OOD at least 35%, ID-minus-isolated drops at most 25 percentage points and ID-minus-combined drop at most 40 points. A family needs five fully assessed models and at least four passing. All five families were fully assessed; failure is an observed research outcome, not missing evaluation.",
+      "limitations": [
+        "A reward-family mean above an individual threshold does not imply that its individual models pass all criteria.",
+        "The progress vs sparse primary comparison and the broad robustness rule answer different questions; a significant relative improvement does not imply an absolute robustness pass."
+      ],
+      "evidence": [
+        {
+          "model_id": "primary_s0_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_safety__t2000000",
+          "reward": "safety",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_safety__t2000000",
+          "reward": "safety",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_safety__t2000000",
+          "reward": "safety",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_safety__t2000000",
+          "reward": "safety",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_safety__t2000000",
+          "reward": "safety",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_progress__t2000000",
+          "reward": "progress",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_progress__t2000000",
+          "reward": "progress",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_progress__t2000000",
+          "reward": "progress",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_progress__t2000000",
+          "reward": "progress",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_progress__t2000000",
+          "reward": "progress",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        }
+      ]
+    },
+    {
+      "id": "f09_distribution_shift_and_failures",
+      "scope": "Descriptive final-condition comparison across all rewards and seeds",
+      "claim": "Mean final ID success was 70.0-74.7% across reward families, versus 44.1-49.6% for pursuit OOD and 30.9-43.4% for combined OOD. Pursuit was the lowest-success isolated shift for every reward family. Failures also changed character: obstacle OOD had 25.0-32.8% timeouts and 5.9-10.0% deaths, while pursuit OOD had 47.4-52.5% deaths and 2.9-3.4% timeouts; combined OOD had 51.5-62.1% deaths and 4.8-7.0% timeouts. This is consistent with a substantial vulnerability under the held-out enemy-behavior condition, with additional failure under combined shifts.",
+      "limitations": [
+        "These are ranges of five-seed reward family means, not ranges of individual episodes or confidence intervals.",
+        "Condition contrasts use different scenario collections.",
+        "A death outcome does not by itself prove that enemy contact caused the death, since the termination counts are not a damage source analysis."
+      ],
+      "evidence": [
+        {
+          "model_id": "primary_s0_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_safety__t2000000",
+          "reward": "safety",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_safety__t2000000",
+          "reward": "safety",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_safety__t2000000",
+          "reward": "safety",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_safety__t2000000",
+          "reward": "safety",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_safety__t2000000",
+          "reward": "safety",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_progress__t2000000",
+          "reward": "progress",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_progress__t2000000",
+          "reward": "progress",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_progress__t2000000",
+          "reward": "progress",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_progress__t2000000",
+          "reward": "progress",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_progress__t2000000",
+          "reward": "progress",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        }
+      ]
+    },
+    {
+      "id": "f10_safety_tradeoff",
+      "scope": "Descriptive Safety versus Sparse comparison; five seeds per reward; final conditions",
+      "claim": "On final ID, Safety reduced mean damage from 22.67 to 17.98 HP and deaths from 9.0% to 6.3%, while success fell from 72.7% to 70.0% and timeouts rose from 18.3% to 23.7%. Zero-damage successful episodes increased from 22.0% to 25.7% of all ID episodes. The lower-damage/lower-death pattern also appeared on hazard and obstacle OOD, alongside lower success and more timeouts. It did not extend to pursuit or combined OOD: on combined OOD, Safety had 74.33 versus 73.18 HP mean damage, 62.1% versus 55.8% deaths and 30.9% versus 38.9% success.",
+      "limitations": [
+        "These safety contrasts are descriptive and are not additional claims of significance from the primary combined-success test family.",
+        "Mean damage is measured over all episodes; zero-damage success uses all episodes as its denominator."
+      ],
+      "evidence": [
+        {
+          "model_id": "primary_s0_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_safety__t2000000",
+          "reward": "safety",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_safety__t2000000",
+          "reward": "safety",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_safety__t2000000",
+          "reward": "safety",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_safety__t2000000",
+          "reward": "safety",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_safety__t2000000",
+          "reward": "safety",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        }
+      ]
+    },
+    {
+      "id": "f11_learning_efficiency_and_threshold",
+      "scope": "Fresh LEARNING_VALIDATION collection; seven scheduled checkpoints through 2M; all 25 policies",
+      "claim": "Mean normalized area under the learning curve (AULC) was Sparse 0.5393, Efficiency 0.5255, Safety 0.4442, Balanced 0.4744, Progress 0.5267. These are averages of the producer values, calculated by trapezoidal integration of evaluated success over actual consumed interactions and divided by the 2M horizon. Final learning-validation success means were Sparse 61.6%, Efficiency 59.8%, Safety 56.6%, Balanced 58.2%, Progress 61.4%. None of the 25 policies attained sustained 80% success; every time-to-threshold result is right-censored at 2M. The sustained criterion requires at least 80 successes of 100 at two adjacent positive scheduled checkpoints. Sparse had the numerically highest mean AULC, so the final combined-OOD advantage of Progress does not establish faster learning.",
+      "limitations": [
+        "Right-censoring means the target was not observed within the budget; it does not mean that the policy reached the target at 2M.",
+        "Learning-validation and final ID use different scenario collections. Their scores should not be treated as interchangeable checkpoints.",
+        "AULC rankings are descriptive; no additional statistical test of these learning metrics is claimed."
+      ],
+      "evidence": [
+        {
+          "model_id": "primary_s0_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s1_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s2_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s3_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s4_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s0_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s1_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s2_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s3_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s4_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s0_safety__t2000000",
+          "reward": "safety",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s1_safety__t2000000",
+          "reward": "safety",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s2_safety__t2000000",
+          "reward": "safety",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s3_safety__t2000000",
+          "reward": "safety",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s4_safety__t2000000",
+          "reward": "safety",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s0_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s1_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s2_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s3_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s4_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s0_progress__t2000000",
+          "reward": "progress",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s1_progress__t2000000",
+          "reward": "progress",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s2_progress__t2000000",
+          "reward": "progress",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s3_progress__t2000000",
+          "reward": "progress",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        },
+        {
+          "model_id": "primary_s4_progress__t2000000",
+          "reward": "progress",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic",
+          "dataset_role": "LEARNING_VALIDATION"
+        }
+      ]
+    },
+    {
+      "id": "f12_familiar_and_held_out_performance",
+      "scope": "Final TRAIN900 evaluation versus held-out evaluation; all rewards and five seeds",
+      "claim": "Success on the 900 familiar TRAIN scenarios averaged Sparse 79.4%, Efficiency 81.6%, Safety 73.8%, Balanced 73.8%, Progress 80.6%. Each TRAIN mean uses five policies evaluated on 900 scenarios, or 4,500 policy-scenario cases per reward. These scores were higher than the corresponding final ID and learning-validation means, while even familiar-map performance remained imperfect. This establishes both incomplete task mastery and a descriptive familiar-versus-held-out performance gap under the frozen protocol.",
+      "limitations": [
+        "These TRAIN results are evaluations of final saved policies on familiar maps, not training-rollout returns.",
+        "Different collections can differ in difficulty. The gap alone does not distinguish map memorization, scenario difficulty, or optimization/observation limitations.",
+        "No comparison of raw shaped returns across different reward formulas is used as a quality ranking."
+      ],
+      "evidence": [
+        {
+          "model_id": "primary_s0_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_safety__t2000000",
+          "reward": "safety",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_safety__t2000000",
+          "reward": "safety",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_safety__t2000000",
+          "reward": "safety",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_safety__t2000000",
+          "reward": "safety",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_safety__t2000000",
+          "reward": "safety",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_progress__t2000000",
+          "reward": "progress",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_progress__t2000000",
+          "reward": "progress",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_progress__t2000000",
+          "reward": "progress",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_progress__t2000000",
+          "reward": "progress",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_progress__t2000000",
+          "reward": "progress",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        }
+      ]
+    },
+    {
+      "id": "f13_interpretation_boundary",
+      "scope": "Interpretation of this completed primary study",
+      "claim": "The study supports a qualified reward effect: Progress improved the prespecified combined-OOD success comparison against Sparse, but no reward family met the full robustness definition and all policies missed the sustained learning-validation target within budget. The results therefore document partial generalization and unresolved transfer limitations, rather than a universally successful reward or evidence that reward learning cannot solve the environment.",
+      "limitations": [
+        "The experiment compares reward structures under one frozen recurrent method; it does not isolate the cause of detour failures or compare all plausible algorithms and architectures.",
+        "The compact results bundle is not the full raw case audit archive. Raw case recomputation, independent reproduction and future experiments can add evidence without changing the meaning of this frozen result."
+      ],
+      "evidence": [
+        {
+          "model_id": "primary_s0_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_sparse__t2000000",
+          "reward": "sparse",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_efficiency__t2000000",
+          "reward": "efficiency",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_safety__t2000000",
+          "reward": "safety",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_safety__t2000000",
+          "reward": "safety",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_safety__t2000000",
+          "reward": "safety",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_safety__t2000000",
+          "reward": "safety",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_safety__t2000000",
+          "reward": "safety",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_balanced__t2000000",
+          "reward": "balanced",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s0_progress__t2000000",
+          "reward": "progress",
+          "seed": 189707373,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s1_progress__t2000000",
+          "reward": "progress",
+          "seed": 845630960,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s2_progress__t2000000",
+          "reward": "progress",
+          "seed": 1696036709,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s3_progress__t2000000",
+          "reward": "progress",
+          "seed": 3447176590,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        },
+        {
+          "model_id": "primary_s4_progress__t2000000",
+          "reward": "progress",
+          "seed": 1584805801,
+          "checkpoint_timestep": 2000000,
+          "evaluation_mode": "deterministic"
+        }
+      ]
+    }
+  ]
+}
