@@ -287,6 +287,273 @@ def _provenance_caption(
 # --- RESEARCH EVIDENCE --- #
 
 
+ROBUSTNESS_CRITERIA = (
+    "ID success at least 70%",
+    "each isolated OOD condition at least 50%",
+    "combined OOD at least 35%",
+    "ID minus isolated drop at most 25 percentage points",
+    "ID minus combined drop at most 40 percentage points",
+)
+
+CONDITION_LABELS = {
+    "FINAL_ID": "ID",
+    "FINAL_OOD_HAZARD": "Hazard",
+    "FINAL_OOD_OBSTACLE": "Obstacle",
+    "FINAL_OOD_PURSUIT": "Pursuit",
+    "FINAL_OOD_COMBINED": "Combined",
+}
+
+CHECK_LABELS = {
+    "id": "ID at least 70%",
+    "combined": "combined at least 35%",
+    "combined_drop": "ID minus combined at most 40pp",
+    "FINAL_OOD_HAZARD": "hazard floor and drop",
+    "FINAL_OOD_OBSTACLE": "obstacle floor and drop",
+    "FINAL_OOD_PURSUIT": "pursuit floor and drop",
+}
+
+
+def _endpoint_mismatches(results, protocol):
+    """Models whose checkpoint is not the endpoint this protocol prescribes.
+
+    A model evaluated at an earlier checkpoint is not a weaker version of the
+    final result; it is a different measurement. The recurrent protocol requires
+    the 2,000,000-interaction endpoint, and allowing a 1,000,000 checkpoint to
+    stand in would publish a robustness verdict for a budget nobody declared.
+    """
+    budget = protocol["budget"]
+    mismatched = []
+
+    for model in results.get("models", ()):
+        step = model.get("checkpoint_step")
+
+        if step != budget:
+            mismatched.append(
+                f"{model.get('model_id', 'unknown')} at {step!r}"
+            )
+
+    return budget, tuple(mismatched)
+
+
+def _condition_rate_rows(results):
+    """One row per model and final condition, carrying its own denominator.
+
+    `success_fraction` is None whenever the condition is not fully evaluated, so
+    an incomplete cell stays blank rather than reading as a low score. The
+    completed/expected counts travel with it so a reader can tell the two apart.
+    """
+    rewards = {
+        model["model_id"]: (model.get("reward"), model.get("seed"))
+        for model in results.get("models", ())
+    }
+    rows = []
+
+    for outcome in results.get("outcomes", ()):
+        role = outcome.get("role")
+
+        if role not in CONDITION_LABELS:
+            continue
+
+        reward, seed = rewards.get(outcome["model_id"], (None, None))
+        fraction = outcome.get("success_fraction")
+
+        rows.append({
+            "reward": reward,
+            "seed": seed,
+            "condition": CONDITION_LABELS[role],
+            "success_rate": None if fraction is None else round(100 * fraction, 1),
+            "completed": outcome.get("n_completed"),
+            "expected": outcome.get("n_expected"),
+            "deaths": outcome.get("death_count"),
+            "timeouts": outcome.get("timeout_count"),
+        })
+
+    return rows
+
+
+def _failed_checks(assessment):
+    """Name the criteria a model failed, rather than only that it failed."""
+    checks = assessment.get("checks") or {}
+    failed = [CHECK_LABELS.get(name, name) for name, passed in checks.items() if not passed]
+    return ", ".join(failed)
+
+
+def _render_robustness(st, artifacts) -> None:
+    """Display the frozen broad-robustness assessment for final-protocol results.
+
+    Every number shown here is read from the authoritative export. This function
+    computes no rates, intervals, Holm families or thresholds of its own - the
+    reference metrics own that, and recalculating any of it in the interface
+    would mean two sources of truth for a published claim.
+
+    The view has four states, and distinguishing them is the whole job:
+    absent evidence is pending, synthetic evidence is labelled and never yields
+    a verdict, incomplete evaluation shows its coverage but no pass, and only a
+    complete accepted cohort produces a qualification.
+    """
+    st.subheader("Robustness")
+
+    results = artifacts.scientific_results if artifacts is not None else None
+
+    if not results:
+        st.info(
+            "Pending: no accepted final-protocol results are loaded. "
+            "Robustness is reported only from a final evaluation cohort; "
+            "development results cannot stand in for one."
+        )
+        return
+
+    try:
+        from research_support.dashboard_reference.protocols import get_protocol
+
+        protocol = get_protocol(results.get("protocol_id"))
+    except (ImportError, ValueError) as error:
+        st.warning(
+            f"Unsupported or unstated scientific protocol: {error}. "
+            "Robustness criteria are selected by declared protocol, so no "
+            "assessment is shown."
+        )
+        return
+
+    st.caption(
+        "A model passes when all of: "
+        + "; ".join(ROBUSTNESS_CRITERIA)
+        + f". A reward family passes when five models are fully assessed and at "
+        f"least four pass. Protocol {protocol['id']}, "
+        f"{protocol['budget']:,} interaction endpoint, "
+        f"{protocol['role_counts']['FINAL_ID']} cases per final condition."
+    )
+
+    fixture = bool(results.get("fixture"))
+    coverage = results.get("coverage") or {}
+    complete = bool(coverage.get("complete"))
+    budget, mismatched = _endpoint_mismatches(results, protocol)
+    verdict_allowed = complete and not fixture and not mismatched
+
+    if fixture:
+        st.warning(
+            "Synthetic example - labelled fixture data. Shown to exercise the "
+            "view; it is not evidence and yields no qualification."
+        )
+
+    if mismatched:
+        st.error(
+            f"Endpoint mismatch: this protocol requires the {budget:,} "
+            f"interaction endpoint, but these models report another checkpoint: "
+            f"{', '.join(mismatched)}. An earlier checkpoint is a different "
+            "measurement, not a substitute, so no qualification is shown."
+        )
+
+    if not complete and not fixture:
+        missing = []
+
+        if coverage.get("missing_conditions"):
+            missing.append(f"conditions {sorted(coverage['missing_conditions'])}")
+        if coverage.get("missing_reward_seed_models"):
+            missing.append(
+                f"{len(coverage['missing_reward_seed_models'])} reward/seed models"
+            )
+
+        st.warning(
+            "Incomplete evaluation: "
+            + (", ".join(missing) if missing else "coverage is not complete")
+            + f". Completed {coverage.get('n_completed_episodes')} of "
+            f"{coverage.get('n_expected_episodes')} expected final episodes. "
+            "Coverage is shown below; no pass is produced from an incomplete cohort."
+        )
+
+    rate_rows = _condition_rate_rows(results)
+
+    if rate_rows:
+        st.markdown("**Success by condition**")
+        rates = pd.DataFrame(rate_rows)
+        st.dataframe(
+            rates.sort_values(["reward", "seed", "condition"]),
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.caption(
+            "Blank success rate means the condition was not fully evaluated. "
+            "Missing is not zero. Deaths and timeouts are counts over completed "
+            "episodes; a blank is unavailable, not an absence of the outcome."
+        )
+    else:
+        st.info("No final-condition outcomes are present in this export.")
+
+    assessments = results.get("robustness_models") or ()
+
+    if assessments:
+        st.markdown("**Per-model qualification**")
+        st.dataframe(
+            pd.DataFrame([
+                {
+                    "reward": item.get("reward"),
+                    "seed": item.get("seed"),
+                    "fully assessed": item.get("fully_assessed"),
+                    "passes": None if not verdict_allowed else item.get("passes"),
+                    "failed criteria": _failed_checks(item) if verdict_allowed else "",
+                    "reason": item.get("reason") or "",
+                }
+                for item in assessments
+            ]),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    families = results.get("robustness_families") or ()
+
+    if families:
+        st.markdown("**Reward family qualification**")
+        st.dataframe(
+            pd.DataFrame([
+                {
+                    "reward": item.get("reward"),
+                    "fully assessed": f"{item.get('n_fully_assessed')} of {item.get('n_expected')}",
+                    "passing models": item.get("n_pass"),
+                    "family passes": None if not verdict_allowed else item.get("passes"),
+                    "reason": item.get("reason") or "",
+                }
+                for item in families
+            ]),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    comparisons = [
+        item for item in (results.get("comparisons") or ())
+        if item.get("role") == "FINAL_OOD_COMBINED"
+    ]
+
+    if comparisons:
+        st.markdown("**Shaped minus sparse on combined OOD**")
+        st.dataframe(
+            pd.DataFrame([
+                {
+                    "reward": item.get("reward"),
+                    "reference": item.get("reference"),
+                    "paired seeds": item.get("n_pairs"),
+                    "mean difference": item.get("mean_difference"),
+                    "95% CI": item.get("ci95"),
+                    "p (two-sided)": item.get("p_two_sided"),
+                    "p (Holm)": item.get("p_holm"),
+                    "rejects at 0.05": item.get("reject_holm_05"),
+                    "reason": item.get("reason") or "",
+                }
+                for item in comparisons
+            ]),
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.caption(
+            "Paired over trained model seeds, which are the independent "
+            "replicates; episodes and repeated scenarios are not. Intervals and "
+            "Holm-adjusted p-values are read from the export, not recomputed here."
+        )
+
+    for limitation in results.get("limitations") or ():
+        st.caption(limitation)
+
+
 def _render_research_evidence(st, artifacts, table, filters, view_scope, metrics):
     """Display reviewed conclusions, source details and downloads for this selection."""
     evidence = (
@@ -1049,6 +1316,8 @@ def _render_dashboard() -> None:
         st.subheader("Episode records")
         displayed_table = selected_table(filtered)
         st.dataframe(displayed_table, use_container_width=True, hide_index=True)
+
+    _render_robustness(st, artifacts)
 
     _render_research_evidence(
         st, artifacts, displayed_table,
