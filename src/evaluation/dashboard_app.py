@@ -505,6 +505,488 @@ def _is_synthetic(artifacts, results):
     return False
 
 
+# --- DASH-05 results view -------------------------------------------------
+#
+# Every figure below is read from the producer's exported `outcomes`. The UI
+# does not recalculate success, safety or coverage: the reference says browser
+# code must not silently recalculate exporter statistics, and a second
+# derivation is exactly how a dashboard comes to disagree with the study it is
+# displaying. Fields that an export omits stay unavailable; they never become
+# zero, because a missing evaluation and a failed one are different claims.
+
+# label -> (source, key, unit). "outcome" reads the record itself, "metrics"
+# reads its source_metrics block. Nothing here is required: a release that
+# omits a field renders it as unavailable.
+_SAFETY_FIELDS = (
+    # Counts are summed over the condition and shown against the completed
+    # denominator. Means are averaged across seeds with equal weight per seed,
+    # which is a deliberate aggregation and is labelled as one: a pooled
+    # cohort statistic would need the producer's own weighting, and inventing
+    # one here is exactly the recalculation the reference forbids.
+    ("Deaths", "outcome", "death_count", "count"),
+    ("Timeouts", "outcome", "timeout_count", "count"),
+    ("Mean damage", "outcome", "mean_damage", "HP"),
+    ("Fall damage", "metrics", "fall_damage_mean", "HP"),
+    ("Hazard damage", "metrics", "hazard_damage_mean", "HP"),
+    ("Enemy damage", "metrics", "enemy_damage_mean", "HP"),
+    ("Final HP", "metrics", "final_hp_mean", "HP"),
+    # The two invalid-move denominators answer different questions and the
+    # reference calls for both by name. Pooling counts every invalid action
+    # over every transition; the episode mean weights each episode equally, so
+    # one long flailing episode cannot dominate it.
+    ("Invalid moves (pooled over transitions)", "metrics",
+     "illegal_moves_fraction_pooled", "fraction"),
+    ("Invalid moves (mean per-episode fraction)", "metrics",
+     "illegal_moves_fraction_episode_mean", "fraction"),
+)
+
+_FINAL_ROLE_MARKER = "FINAL"
+
+
+def _result_records(artifacts) -> list[dict]:
+    """Flattens exported outcomes into one record per model, role and reward."""
+    results = getattr(artifacts, "scientific_results", None) or {}
+    outcomes = results.get("outcomes")
+    if not isinstance(outcomes, list):
+        return []
+
+    records = []
+    for outcome in outcomes:
+        if not isinstance(outcome, dict):
+            continue
+        metrics = outcome.get("source_metrics")
+        metrics = metrics if isinstance(metrics, dict) else {}
+        reward = metrics.get("reward")
+        role = outcome.get("role")
+        if not reward or not role:
+            continue
+        records.append({
+            "reward": str(reward),
+            "role": str(role),
+            "seed": metrics.get("seed"),
+            "model_id": outcome.get("model_id"),
+            "checkpoint_step": _optional_int(outcome.get("checkpoint_step")),
+            "expected": _optional_int(outcome.get("n_expected")),
+            "completed": _optional_int(outcome.get("n_completed")),
+            "successes": _optional_int(outcome.get("success_count")),
+            "safe_successes": _optional_int(
+                metrics.get("zero_damage_success_count")
+            ),
+            "raw_return": metrics.get("raw_return_mean"),
+            "outcome": outcome,
+            "metrics": metrics,
+        })
+    return records
+
+
+def _result_roles(records: list[dict]) -> list[str]:
+    """Returns the roles present in the records, final conditions first."""
+    roles = sorted({record["role"] for record in records})
+    final = [role for role in roles if _FINAL_ROLE_MARKER in role.upper()]
+    return final + [role for role in roles if role not in final]
+
+
+def _primary_role(records: list[dict]) -> str | None:
+    """Picks the role the headline panels describe, from the records alone."""
+    roles = _result_roles(records)
+    return roles[0] if roles else None
+
+
+def _rate(numerator: int | None, denominator: int | None) -> float | None:
+    """Fraction, or None when either side is missing or the base is empty.
+
+    Missing is not zero. A condition that was never evaluated has no rate, and
+    returning 0.0 here would present an unevaluated model as a total failure.
+    """
+    if numerator is None or not denominator:
+        return None
+    return numerator / denominator
+
+
+def _field_value(record: dict, source: str, key: str):
+    """Reads one exported field, or None when the release omits it."""
+    container = record["metrics"] if source == "metrics" else record["outcome"]
+    value = container.get(key)
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)) and pd.isna(value):
+        return None
+    return value if isinstance(value, (int, float)) else None
+
+
+def _reward_summary(records: list[dict], role: str) -> list[dict]:
+    """Aggregates one role's records per reward, keeping denominators intact.
+
+    Seeds are independent policies, so the seed count is reported as the
+    independent sample size. Repeated episodes within a seed are not additional
+    seeds and never widen that number.
+    """
+    summary = []
+    for reward in sorted({record["reward"] for record in records}):
+        subset = [
+            record for record in records
+            if record["reward"] == reward and record["role"] == role
+        ]
+        if not subset:
+            continue
+
+        seeds = {record["seed"] for record in subset if record["seed"] is not None}
+        expected = [record["expected"] for record in subset]
+        completed = [record["completed"] for record in subset]
+        successes = [record["successes"] for record in subset]
+        safe = [record["safe_successes"] for record in subset]
+
+        total_expected = None if any(v is None for v in expected) else sum(expected)
+        total_completed = (
+            None if any(v is None for v in completed) else sum(completed)
+        )
+        total_successes = (
+            None if any(v is None for v in successes) else sum(successes)
+        )
+        total_safe = None if any(v is None for v in safe) else sum(safe)
+        fully_evaluated = (
+            total_completed is not None
+            and total_expected is not None
+            and total_completed == total_expected
+        )
+
+        summary.append({
+            "reward": reward,
+            "models": len(subset),
+            "seeds": len(seeds),
+            "expected": total_expected,
+            "completed": total_completed,
+            "successes": total_successes,
+            "safe_successes": total_safe,
+            # Rates are withheld until the cohort is complete: a partial
+            # denominator produces a number that looks like a result and is not
+            # one.
+            "success_rate": (
+                _rate(total_successes, total_completed) if fully_evaluated else None
+            ),
+            "safe_success_rate": (
+                _rate(total_safe, total_completed) if fully_evaluated else None
+            ),
+            "complete": fully_evaluated,
+        })
+    return summary
+
+
+def _seed_rows(records: list[dict], role: str) -> list[dict]:
+    """Returns one row per independent training seed for the selected role."""
+    rows = []
+    for record in sorted(
+        (record for record in records if record["role"] == role),
+        key=lambda record: (record["reward"], str(record["seed"])),
+    ):
+        rows.append({
+            "reward": record["reward"],
+            "seed": record["seed"],
+            "successes": record["successes"],
+            "completed": record["completed"],
+            "expected": record["expected"],
+            "success_rate": (
+                _rate(record["successes"], record["completed"])
+                if record["completed"] == record["expected"]
+                else None
+            ),
+            "raw_return": record["raw_return"],
+        })
+    return rows
+
+
+def _cohort_mismatches(records: list[dict], role: str) -> list[str]:
+    """Names the ways the displayed records fail to be one comparable cohort."""
+    subset = [record for record in records if record["role"] == role]
+    notes = []
+
+    checkpoints = {
+        record["checkpoint_step"] for record in subset
+        if record["checkpoint_step"] is not None
+    }
+    if len(checkpoints) > 1:
+        listed = ", ".join(f"{step:,}" for step in sorted(checkpoints))
+        notes.append(f"mixed training budgets ({listed} interactions)")
+
+    expected = {
+        record["expected"] for record in subset if record["expected"] is not None
+    }
+    if len(expected) > 1:
+        listed = ", ".join(str(value) for value in sorted(expected))
+        notes.append(f"unequal expected case counts ({listed})")
+
+    seeds_per_reward = {
+        reward: len({
+            record["seed"] for record in subset
+            if record["reward"] == reward and record["seed"] is not None
+        })
+        for reward in {record["reward"] for record in subset}
+    }
+    if len(set(seeds_per_reward.values())) > 1:
+        notes.append("unequal independent-seed counts across rewards")
+
+    return notes
+
+
+def _format_count(value: int | None) -> str:
+    """Counts render as themselves; an absent count renders as unavailable."""
+    return "Unavailable" if value is None else f"{value:,}"
+
+
+def _format_rate(value: float | None) -> str:
+    """Rates render as percentages; an unevaluated cohort has no percentage."""
+    return "Unavailable" if value is None else f"{100 * value:.1f}%"
+
+
+def _format_measure(value, unit: str) -> str:
+    """Safety measures keep their unit so two denominators cannot be conflated."""
+    if value is None:
+        return "Unavailable"
+    if unit == "fraction":
+        return f"{value:.4f}"
+    if unit == "HP":
+        return f"{value:.2f} HP"
+    return f"{value:.2f}"
+
+
+def _success_chart_frame(summary: list[dict]) -> pd.DataFrame:
+    """Builds the headline success chart, omitting incomplete rewards."""
+    rows = [
+        {"reward_type": entry["reward"], "success_rate": 100 * entry["success_rate"]}
+        for entry in summary
+        if entry["success_rate"] is not None
+    ]
+    return pd.DataFrame(rows).set_index("reward_type") if rows else pd.DataFrame()
+
+
+def _safety_chart_frame(records: list[dict], role: str) -> pd.DataFrame:
+    """Charts mean damage per reward, which is one measure and says so."""
+    rows = []
+    for reward in sorted({record["reward"] for record in records}):
+        values = [
+            _field_value(record, "outcome", "mean_damage")
+            for record in records
+            if record["reward"] == reward and record["role"] == role
+        ]
+        present = [value for value in values if value is not None]
+        if present and len(present) == len(values):
+            rows.append({
+                "reward_type": reward,
+                "mean_damage": sum(present) / len(present),
+            })
+    return pd.DataFrame(rows).set_index("reward_type") if rows else pd.DataFrame()
+
+
+def _declaration(artifacts, records: list[dict], role: str) -> str:
+    """States what produced the numbers, so no rate is read without its scope."""
+    results = getattr(artifacts, "scientific_results", None) or {}
+    subset = [record for record in records if record["role"] == role]
+    checkpoints = {
+        record["checkpoint_step"] for record in subset
+        if record["checkpoint_step"] is not None
+    }
+    seeds = {record["seed"] for record in subset if record["seed"] is not None}
+
+    if len(checkpoints) == 1:
+        endpoint = f"{next(iter(checkpoints)):,} consumed interactions"
+    elif checkpoints:
+        endpoint = "mixed endpoints"
+    else:
+        endpoint = "endpoint unavailable"
+
+    protocol = results.get("protocol_id") or "Unavailable"
+    return (
+        f"Protocol: {protocol} | Endpoint: {endpoint} | Condition: {role} | "
+        f"Independent training seeds: {len(seeds)} per reward | "
+        f"Models in view: {len(subset)}"
+    )
+
+
+def _render_success_panel(st, records: list[dict], role: str | None) -> None:
+    """Headline success by reward, read from the export for a single role."""
+    if not records or role is None:
+        st.info("Success data are not available in this artifact set.")
+        return
+
+    summary = _reward_summary(records, role)
+    frame = _success_chart_frame(summary)
+    st.caption(f"Condition: {role}. Successes over completed episodes.")
+    if frame.empty:
+        st.info(
+            "No reward has a fully evaluated cohort for this condition, so no "
+            "success rate is shown. Coverage is in the results table below."
+        )
+        return
+    st.bar_chart(frame)
+
+    withheld = [entry["reward"] for entry in summary if entry["success_rate"] is None]
+    if withheld:
+        st.caption(
+            "Withheld as incomplete: " + ", ".join(sorted(withheld))
+        )
+
+
+def _render_safety_panel(st, records: list[dict], role: str | None) -> None:
+    """Mean damage by reward; the full safety picture is in the table below."""
+    if not records or role is None:
+        st.info("Safety metrics are not available in this artifact set.")
+        return
+
+    frame = _safety_chart_frame(records, role)
+    st.caption(
+        f"Condition: {role}. Mean damage in HP. Low damage alone is not "
+        "evidence of safe navigation; read it with completion and success."
+    )
+    if frame.empty:
+        st.info("Damage is not reported for this condition in this artifact set.")
+        return
+    st.bar_chart(frame)
+
+
+def _render_results(st, artifacts) -> None:
+    """Results view: coverage, per-seed variation and denominated safety.
+
+    This section exists because a pooled success percentage answers almost none
+    of the questions a reader actually has. Separating condition, denominator
+    and seed is what makes the comparison interpretable.
+    """
+    records = _result_records(artifacts)
+    st.subheader("Results")
+
+    if not records:
+        st.info(
+            "Exported result summaries are not available in this artifact set."
+        )
+        return
+
+    roles = _result_roles(records)
+    role = st.selectbox(
+        "Evaluation condition",
+        roles,
+        index=0,
+        key=_selection_key("results-role", str(getattr(artifacts, "source_id", "")), roles),
+        help=(
+            "Conditions are shown one at a time. Training, learning-validation "
+            "and final conditions are different populations and are never "
+            "pooled into a single success figure."
+        ),
+    )
+
+    st.caption(_declaration(artifacts, records, role))
+
+    mismatches = _cohort_mismatches(records, role)
+    if mismatches:
+        st.warning(
+            "These records are not one comparable cohort: "
+            + "; ".join(mismatches)
+            + ". Compare them only with that in mind."
+        )
+
+    summary = _reward_summary(records, role)
+    table = pd.DataFrame([
+        {
+            "Reward": entry["reward"],
+            "Seeds": entry["seeds"],
+            "Successes / completed": (
+                f"{_format_count(entry['successes'])} / "
+                f"{_format_count(entry['completed'])}"
+            ),
+            "Completed / expected": (
+                f"{_format_count(entry['completed'])} / "
+                f"{_format_count(entry['expected'])}"
+            ),
+            "Success rate": _format_rate(entry["success_rate"]),
+            "Safe success rate": _format_rate(entry["safe_success_rate"]),
+        }
+        for entry in summary
+    ])
+    st.dataframe(table, use_container_width=True, hide_index=True)
+    st.caption(
+        "Success rate = successes / completed episodes. Safe success rate = "
+        "successes taking no damage / completed episodes. A rate is shown only "
+        "where completed equals expected; otherwise the cohort is incomplete "
+        "and the cell reads Unavailable rather than zero."
+    )
+
+    st.markdown("**Per-seed values**")
+    seed_rows = _seed_rows(records, role)
+    seed_table = pd.DataFrame([
+        {
+            "Reward": row["reward"],
+            "Seed": row["seed"],
+            "Successes / completed": (
+                f"{_format_count(row['successes'])} / "
+                f"{_format_count(row['completed'])}"
+            ),
+            "Success rate": _format_rate(row["success_rate"]),
+            "Mean raw return": (
+                "Unavailable" if row["raw_return"] is None
+                else f"{row['raw_return']:.2f}"
+            ),
+        }
+        for row in seed_rows
+    ])
+    st.dataframe(seed_table, use_container_width=True, hide_index=True)
+
+    seed_counts = {entry["reward"]: entry["seeds"] for entry in summary}
+    single_seed = sorted(
+        reward for reward, count in seed_counts.items() if count < 2
+    )
+    if single_seed:
+        st.caption(
+            "Single independent seed for: " + ", ".join(single_seed)
+            + ". No spread across training seeds can be estimated from one seed."
+        )
+    st.caption(
+        "Each training seed is an independent policy; repeated episodes within "
+        "a seed are not additional seeds. Raw return is comparable only within "
+        "one reward definition and scale, never as a ranking across rewards."
+    )
+
+    st.markdown("**Safety outcomes**")
+    safety_rows = []
+    for reward in sorted({record["reward"] for record in records}):
+        subset = [
+            record for record in records
+            if record["reward"] == reward and record["role"] == role
+        ]
+        if not subset:
+            continue
+        completed = [record["completed"] for record in subset]
+        total_completed = (
+            None if any(value is None for value in completed) else sum(completed)
+        )
+        row = {"Reward": reward}
+        for label, source, key, unit in _SAFETY_FIELDS:
+            values = [_field_value(record, source, key) for record in subset]
+            present = [value for value in values if value is not None]
+            # A partially reported measure is not aggregated: a figure drawn
+            # from whichever models happen to report it is not the cohort's.
+            if not present or len(present) != len(values):
+                row[label] = "Unavailable"
+            elif unit == "count":
+                row[label] = (
+                    f"{int(sum(present)):,} / {_format_count(total_completed)}"
+                )
+            else:
+                row[label] = _format_measure(sum(present) / len(present), unit)
+        safety_rows.append(row)
+    st.dataframe(
+        pd.DataFrame(safety_rows), use_container_width=True, hide_index=True
+    )
+    st.caption(
+        "Deaths and timeouts are totals over the condition shown against "
+        "completed episodes. Damage and invalid-move figures are means across "
+        "the independent seeds, each seed weighted equally. The two "
+        "invalid-move figures use different denominators \u2014 pooled over all "
+        "transitions, and the mean of each episode's own fraction \u2014 and "
+        "answer different questions. Missing measures read Unavailable, never "
+        "zero."
+    )
+
+
 def _render_robustness(st, artifacts) -> None:
     """Display the frozen broad-robustness assessment for final-protocol results.
 
@@ -1408,45 +1890,28 @@ def _render_dashboard() -> None:
         else:
             st.info("Learning-return data are not available in this artifact set.")
 
+    # Both headline panels read the producer's exported summaries rather than
+    # re-deriving rates from the episode frame. The previous derivation pooled
+    # whatever the filters left standing, which mixed training, learning and
+    # final conditions into one percentage and lost the expected denominator.
+    result_records = _result_records(artifacts)
+    headline_role = _primary_role(result_records)
+
     with chart_right:
         st.subheader("Success by reward type")
-        if success_available:
-            success_summary = (
-                filtered.assign(success=success_values)
-                .groupby("reward_type")["success"]
-                .mean()
-                .mul(100)
-                .rename("success_rate")
-            )
-            st.bar_chart(success_summary)
-        elif {"success_count", "episode_count"}.issubset(filtered.columns):
-            counts = filtered.groupby("reward_type")[[
-                "success_count",
-                "episode_count",
-            ]].sum()
-            success_summary = 100 * counts["success_count"] / counts["episode_count"]
-            st.bar_chart(success_summary.rename("success_rate"))
-        else:
-            st.info("Success data are not available in this artifact set.")
+        _render_success_panel(st, result_records, headline_role)
 
     safety_left, safety_right = st.columns(2)
     with safety_left:
         st.subheader("Safety metrics")
-        safety_columns = [
-            column
-            for column in ("damage_taken", "fall_damage", "invalid_moves")
-            if column in filtered
-        ]
-        if safety_columns:
-            safety_summary = filtered.groupby("reward_type")[safety_columns].mean()
-            st.bar_chart(safety_summary)
-        else:
-            st.info("Safety metrics are not available in this artifact set.")
+        _render_safety_panel(st, result_records, headline_role)
 
     with safety_right:
         st.subheader("Episode records")
         displayed_table = selected_table(filtered)
         st.dataframe(displayed_table, use_container_width=True, hide_index=True)
+
+    _render_results(st, artifacts)
 
     _render_robustness(st, artifacts)
 
