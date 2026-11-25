@@ -690,6 +690,7 @@ def _legacy_result_records_frame(
                 "reward_type": reward,
                 "model_seed": model_seed,
                 "checkpoint_timestep": checkpoint,
+                "checkpoint_sha256": checkpoint_info.get("sha256"),
                 "dataset_role": split,
                 "distribution": split,
                 "evaluation_mode": "recorded",
@@ -782,25 +783,18 @@ def _structured_evidence(study: Mapping[str, Any], bundle: Any) -> dict[str, Any
 
 
 def _structured_replays(
-    study: Mapping[str, Any],
-    bundle: Any,
+    bindings: tuple[dict, ...],
 ) -> tuple[dict[str, DashboardReplay], tuple[str, ...]]:
-    """Loads available validated replays from  structured result export."""
-    selections = study.get("results", {}).get("traces", [])
-    if not selections:
-        return {}, ()
-
-    from research_support.dashboard_reference.readers.replay import load_selected
+    '''
+    Reuses verified replay frames for the shared trajectory view.
+    '''
 
     replays: dict[str, DashboardReplay] = {}
     errors: list[str] = []
-    for index, selection in enumerate(selections):
-        if not selection.get("available"):
+    for index, replay in enumerate(bindings):
+        if not replay.get("available"):
             continue
         try:
-            replay = load_selected(study, index, bundle=bundle)
-            if not replay.get("available"):
-                continue
             selected = replay["selection"]
             grid = replay["map"]
             trace_id = ":".join(
@@ -879,22 +873,20 @@ def _load_structured_bundle(
     episodes, records = _structured_records_frame(
         study, source_descriptor, source_label=source_label
     )
-    recurrent_traces = study.get("results", {}).get("traces", [])
+    selections = study.get("results", {}).get("traces", [])
 
-    if recurrent_traces and any(
-            trace.get("replay_format") == "recurrent-primary-v1"
-            for trace in recurrent_traces
-    ):
+    if selections:
         from research_support.dashboard_reference.readers.replay import load_selected
 
         replay_bindings = tuple(
             load_selected(study, i, bundle=bundle)
-            for i in range(len(recurrent_traces))
+            for i in range(len(selections))
         )
+        traces, trace_errors = _structured_replays(replay_bindings)
     else:
         replay_bindings = _load_replay_bindings(bundle)
+        traces, trace_errors = {}, ()
 
-    traces, trace_errors = _structured_replays(study, bundle)
     return DashboardArtifacts(
         source=source_label,
         status="available",
@@ -952,6 +944,8 @@ def _load_replay_bindings(bundle):
 
     try:
         document = bundle.read_json(binding_artifacts[0])
+        if not isinstance(document, dict):
+            raise ValueError("Replay-binding document must be a JSON object")
         bindings = document.get("bindings")
         if not isinstance(bindings, list):
             raise ValueError("Replay-binding document has no bindings list")

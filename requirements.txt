@@ -5,4 +5,4 @@ numpy
 pandas
 matplotlib
 pytest
-streamlit
+streamlit>=1.67
