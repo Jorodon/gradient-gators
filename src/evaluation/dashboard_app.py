@@ -295,6 +295,14 @@ ROBUSTNESS_CRITERIA = (
     "ID minus combined drop at most 40 percentage points",
 )
 
+FINAL_CONDITIONS = (
+    "FINAL_ID",
+    "FINAL_OOD_HAZARD",
+    "FINAL_OOD_OBSTACLE",
+    "FINAL_OOD_PURSUIT",
+    "FINAL_OOD_COMBINED",
+)
+
 CONDITION_LABELS = {
     "FINAL_ID": "ID",
     "FINAL_OOD_HAZARD": "Hazard",
@@ -313,62 +321,142 @@ CHECK_LABELS = {
 }
 
 
-def _endpoint_mismatches(results, protocol):
-    """Models whose checkpoint is not the endpoint this protocol prescribes.
+def _optional_int(value):
+    """Integer when a value is present, None when it is not.
 
-    A model evaluated at an earlier checkpoint is not a weaker version of the
-    final result; it is a different measurement. The recurrent protocol requires
-    the 2,000,000-interaction endpoint, and allowing a 1,000,000 checkpoint to
-    stand in would publish a robustness verdict for a budget nobody declared.
+    Records from different sources leave counts absent as None or as NaN, and
+    both mean the same thing here: unavailable. Converting either to a number
+    would turn a gap in the evidence into a figure, which is the one thing this
+    view must never do.
     """
-    budget = protocol["budget"]
-    mismatched = []
+    if value is None or pd.isna(value):
+        return None
 
-    for model in results.get("models", ()):
-        step = model.get("checkpoint_step")
-
-        if step != budget:
-            mismatched.append(
-                f"{model.get('model_id', 'unknown')} at {step!r}"
-            )
-
-    return budget, tuple(mismatched)
+    return int(value)
 
 
-def _condition_rate_rows(results):
-    """One row per model and final condition, carrying its own denominator.
+def _final_condition_records(artifacts, protocol):
+    """Per-model final-condition counts, taken from the normalized records.
 
-    `success_fraction` is None whenever the condition is not fully evaluated, so
-    an incomplete cell stays blank rather than reading as a low score. The
-    completed/expected counts travel with it so a reader can tell the two apart.
+    The episode records are the one place reward, seed, condition and counts
+    appear together for every supported bundle. Reading them here rather than
+    from an optional summary block means the view works against a released
+    bundle, not only against a locally produced export.
+
+    A rate is reported only when the condition was evaluated to its full
+    prescribed size. A partially evaluated condition yields None, never a low
+    score computed over whatever happened to complete.
     """
-    rewards = {
-        model["model_id"]: (model.get("reward"), model.get("seed"))
-        for model in results.get("models", ())
-    }
-    rows = []
+    frame = getattr(artifacts, "episodes", None)
 
-    for outcome in results.get("outcomes", ()):
-        role = outcome.get("role")
+    if frame is None or not len(frame):
+        return []
 
-        if role not in CONDITION_LABELS:
+    required = {"reward_type", "training_seed", "dataset_role",
+                "success_count", "episode_count"}
+
+    if not required.issubset(frame.columns):
+        return []
+
+    finals = frame[frame["dataset_role"].isin(FINAL_CONDITIONS)]
+    models = {}
+
+    for row in finals.to_dict("records"):
+        reward = row.get("reward_type")
+        seed = row.get("training_seed")
+
+        # A record without a reward and seed cannot be attributed to a trained
+        # model, and a model is the unit this whole assessment is defined over.
+        # Other sources legitimately carry rows with neither, so skip rather
+        # than fail - the inventory check below is what reports a short cohort.
+        if reward is None or pd.isna(reward) or seed is None or pd.isna(seed):
             continue
 
-        reward, seed = rewards.get(outcome["model_id"], (None, None))
-        fraction = outcome.get("success_fraction")
-
-        rows.append({
-            "reward": reward,
-            "seed": seed,
-            "condition": CONDITION_LABELS[role],
-            "success_rate": None if fraction is None else round(100 * fraction, 1),
-            "completed": outcome.get("n_completed"),
-            "expected": outcome.get("n_expected"),
-            "deaths": outcome.get("death_count"),
-            "timeouts": outcome.get("timeout_count"),
+        key = (str(reward), int(seed))
+        model = models.setdefault(key, {
+            "reward": key[0], "seed": key[1], "conditions": {}, "checkpoints": set(),
         })
 
-    return rows
+        role = row["dataset_role"]
+        expected = protocol["role_counts"].get(role)
+        completed = _optional_int(row.get("episode_count"))
+        successes = _optional_int(row.get("success_count"))
+        complete = completed is not None and completed == expected
+
+        model["conditions"][role] = {
+            "completed": completed,
+            "expected": expected,
+            "successes": successes,
+            "fraction": (successes / expected) if complete and successes is not None else None,
+            "deaths": row.get("death_count"),
+            "timeouts": row.get("timeout_count"),
+            "damage": row.get("mean_damage"),
+        }
+
+        checkpoint = row.get("checkpoint_timestep")
+
+        # An unrecorded checkpoint is not evidence of the wrong one, so it is
+        # left out of the endpoint comparison rather than counted against it.
+        if (step := _optional_int(checkpoint)) is not None:
+            model["checkpoints"].add(step)
+
+    return sorted(models.values(), key=lambda m: (m["reward"], m["seed"]))
+
+
+def _endpoint_mismatches(models, budget):
+    """Models evaluated at a checkpoint other than the prescribed endpoint.
+
+    An earlier checkpoint is not a weaker final result; it is a different
+    measurement. Letting a 1,000,000 checkpoint stand in for a required
+    2,000,000 endpoint would publish a robustness verdict for a budget nobody
+    declared.
+    """
+    mismatched = []
+
+    for model in models:
+        off = sorted(step for step in model["checkpoints"] if step != budget)
+
+        if off:
+            mismatched.append(f"{model['reward']}/{model['seed']} at {off}")
+
+    return tuple(mismatched)
+
+
+def _assess_models(models, protocol_id):
+    """Qualification per model, using the supplied criteria implementation.
+
+    `robustness` and `family_robustness` live in the reference metrics and own
+    the thresholds. Calling them is reuse; restating 0.70 or 0.25 here would
+    create a second definition that could drift from the published one.
+    """
+    from research_support.dashboard_reference.metrics.research_metrics import (
+        family_robustness,
+        robustness,
+    )
+
+    assessed, families = [], []
+
+    for model in models:
+        rates = {role: model["conditions"].get(role, {}).get("fraction")
+                 for role in FINAL_CONDITIONS}
+        assessed.append({"reward": model["reward"], "seed": model["seed"],
+                         **robustness(rates)})
+
+    by_reward = {}
+
+    for item in assessed:
+        by_reward.setdefault(item["reward"], {})[item["seed"]] = item
+
+    for reward, seeds in sorted(by_reward.items()):
+        try:
+            families.append({"reward": reward,
+                             **family_robustness(seeds, protocol_id=protocol_id)})
+        except ValueError as error:
+            families.append({"reward": reward, "n_expected": 5,
+                             "n_fully_assessed": len(seeds), "n_pass": None,
+                             "passes": None, "reason": str(error)})
+
+    return assessed, families
 
 
 def _failed_checks(assessment):
@@ -378,18 +466,57 @@ def _failed_checks(assessment):
     return ", ".join(failed)
 
 
+def _completeness(results):
+    """Whether the cohort is complete, and what is missing if it is not."""
+    inventory = results.get("inventory") or {}
+    missing_roles = list(results.get("missing_final_roles") or [])
+    missing_models = list(inventory.get("missing_models") or [])
+    missing_datasets = list(inventory.get("missing_dataset_roles") or [])
+    complete = bool(inventory.get("complete")) and not missing_roles
+
+    reasons = []
+
+    if missing_roles:
+        reasons.append(f"final conditions {sorted(missing_roles)}")
+    if missing_models:
+        reasons.append(f"{len(missing_models)} models")
+    if missing_datasets:
+        reasons.append(f"dataset roles {sorted(missing_datasets)}")
+    if not complete and not reasons:
+        reasons.append("the bundle does not declare a complete inventory")
+
+    observed = inventory.get("observed_models")
+    expected = inventory.get("expected_models")
+
+    return complete, reasons, observed, expected
+
+
+def _is_synthetic(artifacts, results):
+    """Labelled fixture or synthetic-origin evidence, which never qualifies."""
+    if results.get("fixture"):
+        return True
+
+    frame = getattr(artifacts, "episodes", None)
+
+    if frame is not None and "data_origin" in getattr(frame, "columns", ()):
+        origins = {str(value).lower() for value in frame["data_origin"].unique()}
+        return any("synthetic" in origin or "mock" in origin for origin in origins)
+
+    return False
+
+
 def _render_robustness(st, artifacts) -> None:
     """Display the frozen broad-robustness assessment for final-protocol results.
 
-    Every number shown here is read from the authoritative export. This function
-    computes no rates, intervals, Holm families or thresholds of its own - the
-    reference metrics own that, and recalculating any of it in the interface
-    would mean two sources of truth for a published claim.
+    Rates come from the normalized episode records and the verdict comes from
+    the reference metrics. This function restates no threshold, recomputes no
+    interval and runs no test of its own - doing any of that would create a
+    second definition of a published claim.
 
-    The view has four states, and distinguishing them is the whole job:
-    absent evidence is pending, synthetic evidence is labelled and never yields
-    a verdict, incomplete evaluation shows its coverage but no pass, and only a
-    complete accepted cohort produces a qualification.
+    The four states are the substance of the view: absent evidence is pending,
+    synthetic evidence is labelled and never qualifies, an incomplete cohort
+    shows its coverage without a pass, and only a complete cohort evaluated at
+    the prescribed endpoint produces a qualification.
     """
     st.subheader("Robustness")
 
@@ -415,22 +542,31 @@ def _render_robustness(st, artifacts) -> None:
         )
         return
 
+    budget = results.get("training_budget") or protocol["budget"]
+
     st.caption(
         "A model passes when all of: "
         + "; ".join(ROBUSTNESS_CRITERIA)
-        + f". A reward family passes when five models are fully assessed and at "
-        f"least four pass. Protocol {protocol['id']}, "
-        f"{protocol['budget']:,} interaction endpoint, "
-        f"{protocol['role_counts']['FINAL_ID']} cases per final condition."
+        + ". A reward family passes when five models are fully assessed and at "
+        f"least four pass. Protocol {protocol['id']}, {budget:,} interaction "
+        f"endpoint, {protocol['role_counts']['FINAL_ID']} cases per final condition."
     )
 
-    fixture = bool(results.get("fixture"))
-    coverage = results.get("coverage") or {}
-    complete = bool(coverage.get("complete"))
-    budget, mismatched = _endpoint_mismatches(results, protocol)
-    verdict_allowed = complete and not fixture and not mismatched
+    models = _final_condition_records(artifacts, protocol)
 
-    if fixture:
+    if not models:
+        st.info(
+            "No final-condition records are present in this selection. "
+            "Robustness requires the final evaluation conditions."
+        )
+        return
+
+    synthetic = _is_synthetic(artifacts, results)
+    complete, missing, observed, expected = _completeness(results)
+    mismatched = _endpoint_mismatches(models, budget)
+    verdict_allowed = complete and not synthetic and not mismatched
+
+    if synthetic:
         st.warning(
             "Synthetic example - labelled fixture data. Shown to exercise the "
             "view; it is not evidence and yields no qualification."
@@ -444,85 +580,83 @@ def _render_robustness(st, artifacts) -> None:
             "measurement, not a substitute, so no qualification is shown."
         )
 
-    if not complete and not fixture:
-        missing = []
-
-        if coverage.get("missing_conditions"):
-            missing.append(f"conditions {sorted(coverage['missing_conditions'])}")
-        if coverage.get("missing_reward_seed_models"):
-            missing.append(
-                f"{len(coverage['missing_reward_seed_models'])} reward/seed models"
-            )
-
+    if not complete and not synthetic:
         st.warning(
-            "Incomplete evaluation: "
-            + (", ".join(missing) if missing else "coverage is not complete")
-            + f". Completed {coverage.get('n_completed_episodes')} of "
-            f"{coverage.get('n_expected_episodes')} expected final episodes. "
+            "Incomplete evaluation: missing " + ", ".join(missing)
+            + f". Observed {observed} of {expected} expected models. "
             "Coverage is shown below; no pass is produced from an incomplete cohort."
         )
 
-    rate_rows = _condition_rate_rows(results)
+    rows = []
 
-    if rate_rows:
-        st.markdown("**Success by condition**")
-        rates = pd.DataFrame(rate_rows)
-        st.dataframe(
-            rates.sort_values(["reward", "seed", "condition"]),
-            use_container_width=True,
-            hide_index=True,
-        )
-        st.caption(
-            "Blank success rate means the condition was not fully evaluated. "
-            "Missing is not zero. Deaths and timeouts are counts over completed "
-            "episodes; a blank is unavailable, not an absence of the outcome."
-        )
-    else:
-        st.info("No final-condition outcomes are present in this export.")
+    for model in models:
+        for role in FINAL_CONDITIONS:
+            condition = model["conditions"].get(role, {})
+            fraction = condition.get("fraction")
+            rows.append({
+                "reward": model["reward"],
+                "seed": model["seed"],
+                "condition": CONDITION_LABELS[role],
+                "success_rate": None if fraction is None else round(100 * fraction, 1),
+                "successes": condition.get("successes"),
+                "completed": condition.get("completed"),
+                "expected": condition.get("expected"),
+                "deaths": condition.get("deaths"),
+                "timeouts": condition.get("timeouts"),
+                "mean damage (HP)": condition.get("damage"),
+            })
 
-    assessments = results.get("robustness_models") or ()
+    st.markdown("**Success by condition**")
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    st.caption(
+        "Success rate is successes over expected cases, and is blank unless the "
+        "condition was evaluated to its full prescribed size - missing is not "
+        "zero. Deaths, timeouts and damage are over completed episodes; blank "
+        "means unavailable, not absent. Damage is HP; low damage alone is not "
+        "evidence of safe navigation, so read it with the success column."
+    )
 
-    if assessments:
-        st.markdown("**Per-model qualification**")
-        st.dataframe(
-            pd.DataFrame([
-                {
-                    "reward": item.get("reward"),
-                    "seed": item.get("seed"),
-                    "fully assessed": item.get("fully_assessed"),
-                    "passes": None if not verdict_allowed else item.get("passes"),
-                    "failed criteria": _failed_checks(item) if verdict_allowed else "",
-                    "reason": item.get("reason") or "",
-                }
-                for item in assessments
-            ]),
-            use_container_width=True,
-            hide_index=True,
-        )
+    try:
+        assessed, families = _assess_models(models, protocol["id"])
+    except (ImportError, ValueError) as error:
+        st.warning(f"Qualification unavailable: {error}")
+        return
 
-    families = results.get("robustness_families") or ()
+    st.markdown("**Per-model qualification**")
+    st.dataframe(
+        pd.DataFrame([
+            {
+                "reward": item["reward"],
+                "seed": item["seed"],
+                "fully assessed": item.get("fully_assessed"),
+                "passes": item.get("passes") if verdict_allowed else None,
+                "failed criteria": _failed_checks(item) if verdict_allowed else "",
+                "reason": item.get("reason") or "",
+            }
+            for item in assessed
+        ]),
+        use_container_width=True,
+        hide_index=True,
+    )
 
-    if families:
-        st.markdown("**Reward family qualification**")
-        st.dataframe(
-            pd.DataFrame([
-                {
-                    "reward": item.get("reward"),
-                    "fully assessed": f"{item.get('n_fully_assessed')} of {item.get('n_expected')}",
-                    "passing models": item.get("n_pass"),
-                    "family passes": None if not verdict_allowed else item.get("passes"),
-                    "reason": item.get("reason") or "",
-                }
-                for item in families
-            ]),
-            use_container_width=True,
-            hide_index=True,
-        )
+    st.markdown("**Reward family qualification**")
+    st.dataframe(
+        pd.DataFrame([
+            {
+                "reward": item["reward"],
+                "fully assessed": f"{item.get('n_fully_assessed')} of {item.get('n_expected')}",
+                "passing models": item.get("n_pass"),
+                "family passes": item.get("passes") if verdict_allowed else None,
+                "reason": item.get("reason") or "",
+            }
+            for item in families
+        ]),
+        use_container_width=True,
+        hide_index=True,
+    )
 
-    comparisons = [
-        item for item in (results.get("comparisons") or ())
-        if item.get("role") == "FINAL_OOD_COMBINED"
-    ]
+    comparisons = [item for item in (results.get("comparisons") or ())
+                   if item.get("role") == "FINAL_OOD_COMBINED"]
 
     if comparisons:
         st.markdown("**Shaped minus sparse on combined OOD**")
@@ -549,9 +683,6 @@ def _render_robustness(st, artifacts) -> None:
             "replicates; episodes and repeated scenarios are not. Intervals and "
             "Holm-adjusted p-values are read from the export, not recomputed here."
         )
-
-    for limitation in results.get("limitations") or ():
-        st.caption(limitation)
 
 
 def _render_research_evidence(st, artifacts, table, filters, view_scope, metrics):

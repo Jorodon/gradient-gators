@@ -1,12 +1,18 @@
 """Robustness view: what it shows, and more importantly what it refuses to show.
 
 The risk this view carries is not a wrong number on screen - it is a
-qualification printed from evidence that does not support one. So most of these
-tests assert an absence: no verdict from synthetic data, no pass from an
-incomplete cohort, no final claim from a checkpoint the protocol did not
-prescribe. A blank cell is the correct output for a condition nobody evaluated,
-and a test that only checked the happy path would never notice if it became a
-zero instead.
+qualification printed from evidence that does not support one, or a complete
+cohort reported as incomplete. So most of these tests assert an absence: no
+verdict from synthetic data, no pass from an incomplete cohort, no final claim
+from a checkpoint the protocol did not prescribe, and a blank cell rather than a
+zero for a condition nobody finished evaluating.
+
+The first version of this suite was built entirely from fixtures shaped by hand,
+and every test passed while the view was broken against a real released bundle -
+the fixtures encoded the same wrong assumption as the code. So the completeness
+and verdict paths are now driven by the actual downloaded release where it is
+available, and hand-built records are used only for the states a correct release
+cannot exhibit.
 """
 
 import pandas as pd
@@ -19,13 +25,15 @@ from research_support.dashboard_reference.protocols import (
 )
 from src.evaluation.dashboard_app import _render_robustness
 
-FINAL_ROLES = (
+FINAL_CONDITIONS = (
     "FINAL_ID",
     "FINAL_OOD_HAZARD",
     "FINAL_OOD_OBSTACLE",
     "FINAL_OOD_PURSUIT",
     "FINAL_OOD_COMBINED",
 )
+
+RELEASE_DIR = "docs/research/dashboard/downloaded_releases"
 
 
 class Recorder:
@@ -52,9 +60,6 @@ class Recorder:
     def text(self, kind):
         return " ".join(self.messages[kind])
 
-    def all_text(self):
-        return " ".join(sum(self.messages.values(), []))
-
     def frame_with(self, column):
         for frame in self.frames:
             if column in getattr(frame, "columns", ()):
@@ -63,76 +68,56 @@ class Recorder:
 
 
 class Artifacts:
-    def __init__(self, scientific_results):
+    def __init__(self, scientific_results, episodes=None):
         self.scientific_results = scientific_results
+        self.episodes = pd.DataFrame() if episodes is None else episodes
 
 
-def build_results(
-    *,
-    protocol_id=RECURRENT_PROTOCOL_ID,
-    checkpoint_step=2_000_000,
-    fixture=False,
-    complete=True,
-    rates=None,
-    missing_role=None,
-):
-    """An export shaped like research_metrics.build_export output."""
-    rates = rates if rates is not None else {role: 0.9 for role in FINAL_ROLES}
+def render(artifacts):
+    recorder = Recorder()
+    _render_robustness(recorder, artifacts)
+    return recorder
 
-    models, outcomes, assessments = [], [], []
 
-    for seed in PRIMARY_SEEDS:
-        model_id = f"sparse_{seed}"
-        models.append({
-            "model_id": model_id, "reward": "sparse", "seed": seed,
-            "checkpoint_step": checkpoint_step,
-        })
+# --------------------------------------------------------------------------- #
+# Hand-built records, for states a correct release cannot exhibit
+# --------------------------------------------------------------------------- #
 
-        for role in FINAL_ROLES:
-            fraction = None if role == missing_role else rates[role]
-            outcomes.append({
-                "model_id": model_id, "role": role,
-                "n_expected": 200,
-                "n_completed": 0 if fraction is None else 200,
-                "success_fraction": fraction,
-                "death_count": None if fraction is None else 4,
-                "timeout_count": None if fraction is None else 2,
-            })
 
-        base = rates["FINAL_ID"]
-        checks = {
-            "id": base >= 0.70,
-            "combined": rates["FINAL_OOD_COMBINED"] >= 0.35,
-            "combined_drop": base - rates["FINAL_OOD_COMBINED"] <= 0.40,
-            **{
-                role: rates[role] >= 0.50 and base - rates[role] <= 0.25
-                for role in FINAL_ROLES[1:-1]
-            },
-        }
-        assessed = missing_role is None
-        assessments.append({
-            "model_id": model_id, "reward": "sparse", "seed": seed,
-            "fully_assessed": assessed,
-            "passes": all(checks.values()) if assessed else None,
-            "checks": checks if assessed else None,
-            "reason": None if assessed else "missing_conditions",
-        })
+def episode_rows(*, checkpoint=2_000_000, counts=None, successes=None,
+                 origin="measured", rewards=("sparse",), seeds=PRIMARY_SEEDS):
+    """Normalized episode records of the shape the dashboard loader produces."""
+    counts = counts or {role: 200 for role in FINAL_CONDITIONS}
+    successes = successes or {role: 180 for role in FINAL_CONDITIONS}
+    rows = []
 
-    n_pass = sum(1 for item in assessments if item["passes"] is True)
-    n_assessed = sum(1 for item in assessments if item["fully_assessed"])
+    for reward in rewards:
+        for seed in seeds:
+            for role in FINAL_CONDITIONS:
+                rows.append({
+                    "reward_type": reward, "training_seed": seed,
+                    "dataset_role": role, "episode_count": counts[role],
+                    "success_count": successes[role], "death_count": 4,
+                    "timeout_count": 2, "mean_damage": 12.5,
+                    "checkpoint_timestep": checkpoint, "data_origin": origin,
+                })
 
+    return pd.DataFrame(rows)
+
+
+def results(*, protocol_id=RECURRENT_PROTOCOL_ID, complete=True, budget=2_000_000,
+            missing_roles=(), fixture=None):
     return {
         "protocol_id": protocol_id,
+        "training_budget": budget,
         "fixture": fixture,
-        "models": models,
-        "outcomes": outcomes,
-        "robustness_models": assessments,
-        "robustness_families": [{
-            "reward": "sparse", "n_expected": 5,
-            "n_fully_assessed": n_assessed, "n_pass": n_pass,
-            "passes": n_pass >= 4 if n_assessed == 5 else None,
-            "reason": None if n_assessed == 5 else "five_fully_assessed_models_required",
-        }],
+        "missing_final_roles": list(missing_roles),
+        "inventory": {
+            "complete": complete, "expected_models": 175,
+            "observed_models": 175 if complete else 150,
+            "missing_models": [] if complete else ["sparse_s4"],
+            "missing_dataset_roles": [],
+        },
         "comparisons": [{
             "reward": "efficiency", "reference": "sparse",
             "role": "FINAL_OOD_COMBINED", "n_pairs": 5,
@@ -140,21 +125,7 @@ def build_results(
             "p_two_sided": 0.03, "p_holm": 0.09,
             "reject_holm_05": False, "reason": None,
         }],
-        "coverage": {
-            "complete": complete,
-            "n_expected_episodes": 5000,
-            "n_completed_episodes": 5000 if complete else 4200,
-            "missing_conditions": [] if complete else ["FINAL_OOD_PURSUIT"],
-            "missing_reward_seed_models": [],
-        },
-        "limitations": ["Five trained seeds are the independent replicates."],
     }
-
-
-def render(results):
-    recorder = Recorder()
-    _render_robustness(recorder, Artifacts(results) if results is not None else None)
-    return recorder
 
 
 # --------------------------------------------------------------------------- #
@@ -162,20 +133,27 @@ def render(results):
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize("artifacts_results", [None, {}])
-def test_absent_results_render_pending_and_no_table(artifacts_results):
+@pytest.mark.parametrize("payload", [None, {}])
+def test_absent_results_render_pending_and_no_table(payload):
     """Pending is a state, not an error, and it must not render a table."""
-    recorder = render(artifacts_results)
+    recorder = render(Artifacts(payload) if payload is not None else None)
 
     assert "Pending" in recorder.text("info")
     assert not recorder.frames
 
 
 def test_pending_message_refuses_development_data_as_a_substitute():
-    """The specific confusion this view exists to prevent."""
     recorder = render(None)
 
     assert "development results cannot stand in" in recorder.text("info")
+
+
+def test_results_without_final_records_do_not_render_a_verdict():
+    """A bundle can be loaded and still carry no final conditions."""
+    recorder = render(Artifacts(results(), pd.DataFrame()))
+
+    assert "No final-condition records" in recorder.text("info")
+    assert not recorder.frames
 
 
 # --------------------------------------------------------------------------- #
@@ -183,22 +161,25 @@ def test_pending_message_refuses_development_data_as_a_substitute():
 # --------------------------------------------------------------------------- #
 
 
-def test_fixture_data_is_labelled_and_yields_no_verdict():
-    """A synthetic example may be drawn, but it cannot qualify anything."""
-    recorder = render(build_results(fixture=True))
+def test_synthetic_origin_is_labelled_and_yields_no_verdict():
+    recorder = render(Artifacts(results(), episode_rows(origin="synthetic")))
 
     assert "Synthetic example" in recorder.text("warning")
-
-    models = recorder.frame_with("passes")
-    families = recorder.frame_with("family passes")
-
-    assert models["passes"].isna().all()
-    assert families["family passes"].isna().all()
+    assert recorder.frame_with("passes")["passes"].isna().all()
+    assert recorder.frame_with("family passes")["family passes"].isna().all()
 
 
-def test_fixture_data_does_not_also_claim_incompleteness():
-    """Labelling it synthetic is the point; an incomplete warning would bury that."""
-    recorder = render(build_results(fixture=True, complete=False))
+def test_declared_fixture_flag_also_suppresses_the_verdict():
+    recorder = render(Artifacts(results(fixture=True), episode_rows()))
+
+    assert "Synthetic example" in recorder.text("warning")
+    assert recorder.frame_with("passes")["passes"].isna().all()
+
+
+def test_synthetic_data_does_not_also_claim_incompleteness():
+    recorder = render(
+        Artifacts(results(complete=False), episode_rows(origin="synthetic"))
+    )
 
     assert "Incomplete evaluation" not in recorder.text("warning")
 
@@ -208,21 +189,30 @@ def test_fixture_data_does_not_also_claim_incompleteness():
 # --------------------------------------------------------------------------- #
 
 
-def test_incomplete_cohort_shows_coverage_but_withholds_the_pass():
-    recorder = render(build_results(complete=False))
+def test_incomplete_inventory_shows_coverage_but_withholds_the_pass():
+    recorder = render(Artifacts(results(complete=False), episode_rows()))
     text = recorder.text("warning")
 
     assert "Incomplete evaluation" in text
-    assert "4200" in text and "5000" in text
-    assert "FINAL_OOD_PURSUIT" in text
+    assert "150 of 175" in text
     assert recorder.frame_with("passes")["passes"].isna().all()
 
 
-def test_unevaluated_condition_is_blank_not_zero():
-    """Missing is not zero - a blank cell and a 0% score mean opposite things."""
-    recorder = render(build_results(missing_role="FINAL_OOD_PURSUIT", complete=False))
-    rates = recorder.frame_with("success_rate")
+def test_missing_final_condition_is_reported_as_incomplete():
+    recorder = render(
+        Artifacts(results(missing_roles=["FINAL_OOD_PURSUIT"]), episode_rows())
+    )
 
+    assert "FINAL_OOD_PURSUIT" in recorder.text("warning")
+
+
+def test_partially_evaluated_condition_is_blank_not_zero():
+    """Missing is not zero - a blank cell and a 0% score mean opposite things."""
+    counts = {role: 200 for role in FINAL_CONDITIONS}
+    counts["FINAL_OOD_PURSUIT"] = 120
+    recorder = render(Artifacts(results(complete=False), episode_rows(counts=counts)))
+
+    rates = recorder.frame_with("success_rate")
     pursuit = rates[rates["condition"] == "Pursuit"]
     hazard = rates[rates["condition"] == "Hazard"]
 
@@ -231,13 +221,17 @@ def test_unevaluated_condition_is_blank_not_zero():
     assert hazard["success_rate"].notna().all()
 
 
-def test_unavailable_safety_counts_stay_unavailable():
-    recorder = render(build_results(missing_role="FINAL_OOD_PURSUIT", complete=False))
+def test_partial_condition_still_reports_its_counts():
+    """Blanking the rate must not hide how much was actually evaluated."""
+    counts = {role: 200 for role in FINAL_CONDITIONS}
+    counts["FINAL_OOD_PURSUIT"] = 120
+    recorder = render(Artifacts(results(complete=False), episode_rows(counts=counts)))
+
     rates = recorder.frame_with("success_rate")
     pursuit = rates[rates["condition"] == "Pursuit"]
 
-    assert pursuit["deaths"].isna().all()
-    assert pursuit["timeouts"].isna().all()
+    assert pursuit["completed"].eq(120).all()
+    assert pursuit["expected"].eq(200).all()
 
 
 # --------------------------------------------------------------------------- #
@@ -248,7 +242,7 @@ def test_unavailable_safety_counts_stay_unavailable():
 def test_recurrent_protocol_rejects_a_one_million_checkpoint():
     """An earlier checkpoint is a different measurement, not a weaker final one."""
     recorder = render(
-        build_results(protocol_id=RECURRENT_PROTOCOL_ID, checkpoint_step=1_000_000)
+        Artifacts(results(), episode_rows(checkpoint=1_000_000))
     )
     text = recorder.text("error")
 
@@ -258,65 +252,65 @@ def test_recurrent_protocol_rejects_a_one_million_checkpoint():
 
 
 def test_recurrent_protocol_accepts_its_own_endpoint():
-    recorder = render(build_results(protocol_id=RECURRENT_PROTOCOL_ID))
+    recorder = render(Artifacts(results(), episode_rows()))
 
     assert not recorder.messages["error"]
-    assert recorder.frame_with("passes")["passes"].eq(True).all()
+    assert recorder.frame_with("passes")["passes"].notna().all()
 
 
 def test_legacy_protocol_keeps_its_own_endpoint_requirement():
     """Widening the recurrent rule must not weaken the historical validator."""
     recorder = render(
-        build_results(protocol_id=LEGACY_PROTOCOL_ID, checkpoint_step=1_000_000)
+        Artifacts(
+            results(protocol_id=LEGACY_PROTOCOL_ID, budget=1_000_000),
+            episode_rows(checkpoint=1_000_000),
+        )
     )
 
     assert not recorder.messages["error"]
-    assert recorder.frame_with("passes")["passes"].eq(True).all()
 
 
 def test_legacy_protocol_rejects_the_recurrent_endpoint():
     recorder = render(
-        build_results(protocol_id=LEGACY_PROTOCOL_ID, checkpoint_step=2_000_000)
+        Artifacts(
+            results(protocol_id=LEGACY_PROTOCOL_ID, budget=1_000_000),
+            episode_rows(checkpoint=2_000_000),
+        )
     )
 
     assert "Endpoint mismatch" in recorder.text("error")
 
 
 def test_unsupported_protocol_claim_shows_no_assessment():
-    recorder = render(build_results(protocol_id="invented-protocol-v9"))
+    recorder = render(Artifacts(results(protocol_id="invented-v9"), episode_rows()))
 
     assert "Unsupported" in recorder.text("warning")
     assert not recorder.frames
 
 
 # --------------------------------------------------------------------------- #
-# Complete cohort
+# Presentation rules
 # --------------------------------------------------------------------------- #
 
 
-def test_complete_cohort_reports_a_verdict_and_names_failed_criteria():
-    failing = {"FINAL_ID": 0.9, "FINAL_OOD_HAZARD": 0.4, "FINAL_OOD_OBSTACLE": 0.8,
-               "FINAL_OOD_PURSUIT": 0.8, "FINAL_OOD_COMBINED": 0.6}
-    recorder = render(build_results(rates=failing))
-    models = recorder.frame_with("passes")
-
-    assert models["passes"].eq(False).all()
-    assert models["failed criteria"].str.contains("hazard").all()
-
-
 def test_criteria_and_protocol_scope_are_stated_on_screen():
-    recorder = render(build_results())
+    recorder = render(Artifacts(results(), episode_rows()))
     text = recorder.text("caption")
 
     assert "70%" in text and "50%" in text and "35%" in text
     assert "25 percentage points" in text and "40 percentage points" in text
-    assert "2,000,000" in text
-    assert "200 cases" in text
+    assert "2,000,000" in text and "200 cases" in text
+
+
+def test_damage_is_not_offered_as_evidence_of_safe_navigation():
+    recorder = render(Artifacts(results(), episode_rows()))
+
+    assert "low damage alone is not" in recorder.text("caption")
 
 
 def test_contrasts_are_displayed_without_being_recomputed():
     """The UI shows the exported inference; it must not invent its own."""
-    recorder = render(build_results())
+    recorder = render(Artifacts(results(), episode_rows()))
     contrasts = recorder.frame_with("p (Holm)")
 
     assert contrasts["p (Holm)"].iloc[0] == 0.09
@@ -326,12 +320,93 @@ def test_contrasts_are_displayed_without_being_recomputed():
 
 
 def test_seed_is_the_replicate_unit_in_the_caption():
-    recorder = render(build_results())
+    recorder = render(Artifacts(results(), episode_rows()))
 
     assert "episodes and repeated scenarios are not" in recorder.text("caption")
 
 
-def test_export_limitations_are_surfaced():
-    recorder = render(build_results())
+# --------------------------------------------------------------------------- #
+# The downloaded release
+# --------------------------------------------------------------------------- #
 
-    assert "independent replicates" in recorder.text("caption")
+
+@pytest.fixture(scope="module")
+def release_artifacts():
+    """The published frozen study, when it has been downloaded.
+
+    Skipped rather than failed when absent: the release is deliberately not
+    committed, so a checkout without it is a normal state. These are the tests
+    the hand-built records above cannot replace, because the defect they exist
+    to catch was a mismatch between assumed and actual bundle shape.
+    """
+    from pathlib import Path
+
+    from src.evaluation.dashboard_data import load_dashboard_artifacts
+
+    root = Path(__file__).resolve().parents[1] / RELEASE_DIR
+
+    if not root.is_dir() or not any(root.iterdir()):
+        pytest.skip(f"frozen study release not downloaded to {RELEASE_DIR}")
+
+    artifacts = load_dashboard_artifacts(root)
+
+    if not artifacts.scientific_results:
+        pytest.skip("downloaded release carries no scientific results")
+
+    return artifacts
+
+
+def test_released_study_is_not_reported_as_incomplete(release_artifacts):
+    """The defect that shipped: a complete cohort rendered as incomplete."""
+    recorder = render(release_artifacts)
+
+    assert "Incomplete evaluation" not in recorder.text("warning")
+    assert not recorder.messages["error"]
+
+
+def test_released_study_populates_every_column(release_artifacts):
+    """Reward, seed and success rate were all blank against the real bundle."""
+    rates = render(release_artifacts).frame_with("success_rate")
+
+    assert rates is not None and len(rates) == 125
+    assert rates["reward"].notna().all()
+    assert rates["seed"].notna().all()
+    assert rates["success_rate"].notna().all()
+    assert rates["expected"].eq(200).all()
+
+
+def test_released_study_produces_per_model_and_family_verdicts(release_artifacts):
+    recorder = render(release_artifacts)
+    models = recorder.frame_with("failed criteria")
+    families = recorder.frame_with("family passes")
+
+    assert len(models) == 25
+    assert models["fully assessed"].all()
+    assert models["passes"].notna().all()
+    assert len(families) == 5
+    assert families["fully assessed"].eq("5 of 5").all()
+
+
+def test_released_study_verdicts_match_the_recorded_rates(release_artifacts):
+    """Spot-check one model end to end, so a wrong join would be visible."""
+    recorder = render(release_artifacts)
+    rates = recorder.frame_with("success_rate")
+    models = recorder.frame_with("failed criteria")
+
+    sparse = rates[(rates["reward"] == "sparse") & (rates["seed"] == PRIMARY_SEEDS[0])]
+    identity = sparse[sparse["condition"] == "ID"]["success_rate"].iloc[0]
+
+    assert identity == 69.5
+
+    verdict = models[(models["reward"] == "sparse") & (models["seed"] == PRIMARY_SEEDS[0])]
+
+    assert bool(verdict["passes"].iloc[0]) is False
+    assert "ID at least 70%" in verdict["failed criteria"].iloc[0]
+
+
+def test_released_study_contrasts_carry_holm_adjusted_values(release_artifacts):
+    contrasts = render(release_artifacts).frame_with("p (Holm)")
+
+    assert len(contrasts) == 4
+    assert contrasts["p (Holm)"].notna().all()
+    assert contrasts["paired seeds"].eq(5).all()
