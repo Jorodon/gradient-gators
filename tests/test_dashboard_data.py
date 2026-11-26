@@ -309,35 +309,28 @@ def test_structured_bundle_preserves_scientific_results():
     assert artifacts.scientific_results == expected
 
 
-def test_structured_replay_adapter_preserves_verified_frames(monkeypatch):
+def test_structured_replay_adapter_preserves_verified_frames():
     """Adapts a validated structured replay without simulating the environment."""
-    from research_support.dashboard_reference.readers import replay as replay_reader
+    binding = {
+        "available": True,
+        "selection": {
+            "model_id": "balanced-seed-0",
+            "role": "FINAL_ID",
+            "scenario_id": "scenario-1",
+        },
+        "map": {"width": 3, "height": 2},
+        "frames": [
+            {
+                "step": 0,
+                "agent_position": [0, 0],
+                "enemy_position": [2, 1],
+                "terminated": False,
+                "truncated": False,
+            }
+        ],
+    }
 
-    def fake_load_selected(study, index, *, bundle):
-        del study, index, bundle
-        return {
-            "available": True,
-            "selection": {
-                "model_id": "balanced-seed-0",
-                "role": "FINAL_ID",
-                "scenario_id": "scenario-1",
-            },
-            "map": {"width": 3, "height": 2},
-            "frames": [
-                {
-                    "step": 0,
-                    "agent_position": [0, 0],
-                    "enemy_position": [2, 1],
-                    "terminated": False,
-                    "truncated": False,
-                }
-            ],
-        }
-
-    monkeypatch.setattr(replay_reader, "load_selected", fake_load_selected)
-    replays, errors = _structured_replays(
-        {"results": {"traces": [{"available": True}]}}, object()
-    )
+    replays, errors = _structured_replays((binding,))
 
     assert not errors
     replay = replays["balanced-seed-0:FINAL_ID:scenario-1"]
@@ -513,6 +506,25 @@ def test_structured_bundle_loads_replay_bindings_and_reports_missing_worlds():
     assert len(bindings) == 3
     assert all(not binding.get("available", False) for binding in bindings)
     assert all(binding.get("reason_unavailable") for binding in bindings)
+
+
+def test_non_object_optional_replay_document_is_unavailable():
+    '''
+    Keeps malformed optional replay metadata from crashing the results loader.
+    '''
+    from types import SimpleNamespace
+    from src.evaluation.dashboard_data import _load_replay_bindings
+
+    bundle = SimpleNamespace(
+        entries={"bindings": {"category": "replay_bindings"}},
+        read_json=lambda artifact_id: [],
+    )
+
+    bindings = _load_replay_bindings(bundle)
+
+    assert len(bindings) == 1
+    assert bindings[0]["available"] is False
+    assert "must be a JSON object" in bindings[0]["reason_unavailable"]
 
 def test_recurrent_release_summary_when_available():
     """Verify published recurrent results through the shared loader."""

@@ -1,6 +1,8 @@
 """Tests for dashboard data preparation and filtering."""
 
 from pathlib import Path
+import json
+import re
 
 import pandas as pd
 import pytest
@@ -145,7 +147,7 @@ def test_learning_history_expands_phase_and_checkpoint_scope():
         "FINAL_OOD_PURSUIT",
         "LEARNING_VALIDATION",
     }
-    assert not app.selectbox
+    assert not any(item.label == "Endpoint checkpoint" for item in app.selectbox)
     assert any(
         "Learning history uses all available checkpoints." in item.value
         for item in app.caption
@@ -312,4 +314,135 @@ def test_evidence_downloads_follow_the_displayed_selection(monkeypatch):
     assert payload["conclusions"]["status"] != "available"
     assert len(app.get("download_button")) == 2
     assert any("No approved conclusions" in item.value for item in app.info)
+
+
+# Replay choices must belong to one displayed panel, including unavailable choices
+def test_replay_options_require_one_matching_recurrent_row():
+    '''
+    Rejects identities assembled from different displayed model rows.
+    '''
+    from src.evaluation.dashboard_app import _replay_options
+
+    rows = pd.DataFrame([
+        dict(record_id="model-a:FINAL_ID", checkpoint_timestep=100, model_seed=11),
+        dict(record_id="model-b:FINAL_OOD_HAZARD", checkpoint_timestep=200, model_seed=22),
+    ])
+    selected = dict(model_id="model-a", role="FINAL_ID", checkpoint=100, seed=11)
+    bindings = [
+        dict(available=False, selection=selected),
+        dict(selection={**selected, "role": "FINAL_OOD_HAZARD"}),
+        dict(selection={**selected, "checkpoint": 200, "seed": 22}),
+        dict(selection={**selected, "seed": 22}),
+        dict(selection=dict(model_id="model-b", role="FINAL_OOD_HAZARD", checkpoint=200, seed=22)),
+    ]
+
+    assert _replay_options(bindings, rows) == [0, 4]
+
+
+def test_replay_options_keep_historical_and_supplemental_scopes_separate():
+    '''
+    Matches historical panels without treating evaluation seeds as model seeds.
+    '''
+    from src.evaluation.dashboard_app import _replay_options
+
+    rows = pd.DataFrame([
+        dict(study_id="study-a", reward_type="sparse", dataset_role="DEV", checkpoint_timestep=100, model_seed=11, checkpoint_sha256="a" * 64),
+        dict(study_id="study-b", reward_type="balanced", dataset_role="TRAIN", checkpoint_timestep=200, model_seed=22, checkpoint_sha256="b" * 64),
+    ])
+    selected = dict(experiment_id="study-a", condition_id="sparse", role="DEV", checkpoint_step=100, evaluation_seed=999, checkpoint_sha256="a" * 64)
+    bindings = [
+        dict(selection=selected),
+        dict(selection={**selected, "condition_id": "balanced", "role": "TRAIN", "checkpoint_step": 200}),
+        dict(selection=dict(experiment_id="study-b", condition_id="balanced", role="TRAIN", checkpoint_step=200, checkpoint_sha256="b" * 64)),
+        dict(selection=dict(experiment_id="other-study", condition_id="wait_example", evidence_scope="supplemental_wait")),
+        dict(selection={**selected, "checkpoint_sha256": "c" * 64}),
+    ]
+
+    assert _replay_options(bindings, rows) == [0, 2]
+    assert _replay_options(bindings, rows, supplemental=True) == [3]
+
+
+def test_replay_html_preserves_payload_without_executable_recorded_text():
+    '''
+    Escapes recorded strings while embedding the canonical player and stylesheet.
+    '''
+    from src.evaluation.dashboard_app import _replay_html
+
+    recorded_text = '</script><script>window.replayInjected=true</script>'
+    binding = dict(fixture=True, selection={"scenario_id": recorded_text}, frames=[{"step": 0}])
+    document = _replay_html(binding, "render-one")
+    embedded = re.search(r'<script id="recorded-data" type="application/json">(.*?)</script>', document, re.S)
+    viewer = Path(__file__).resolve().parents[1] / "research_support" / "dashboard_reference" / "viewer"
+
+    assert recorded_text not in document
+    assert "\\u003c/script>" in embedded.group(1)
+    assert json.loads(embedded.group(1)) == {"render_id": "render-one", "replay": binding}
+    assert (viewer / "grid_player.js").read_text(encoding="utf-8") in document
+    assert (viewer / "grid_player.css").read_text(encoding="utf-8") in document
+
+
+def test_recorded_replay_rerun_selection_and_unavailable_source_replace_iframe():
+    '''
+    Checks iframe documents and reset identities; browser playback is verified separately.
+    '''
+    def render(bindings, rows):
+        '''
+        Exercises the replay section with explicit source changes.
+        '''
+        import pandas as pd
+        import streamlit as st
+        from src.evaluation.dashboard_app import _render_recorded_replay
+
+        source = st.radio("Replay test source", ("first", "second", "missing"))
+        selected = bindings if source == "first" else [bindings[1]]
+        if source == "missing":
+            selected = [{**bindings[0], "available": False, "reason_unavailable": "World bundle unavailable."}]
+        _render_recorded_replay(st, selected, pd.DataFrame(rows), source)
+
+    # These invented payloads exercise transport only, not reader or game semantics
+    bindings = [
+        dict(available=True, fixture=True, selection=dict(model_id="model-a", role="FINAL_ID", checkpoint=100, seed=11,
+             scenario_id="first-world", reward="sparse"), frames=[{"step": 0}, {"step": 1}]),
+        dict(available=True, fixture=True, selection=dict(model_id="model-b", role="FINAL_ID", checkpoint=200, seed=22,
+             scenario_id="second-world", reward="balanced"), frames=[{"step": 0}, {"step": 1}, {"step": 2}]),
+    ]
+    rows = [
+        dict(record_id="model-a:FINAL_ID", checkpoint_timestep=100, model_seed=11),
+        dict(record_id="model-b:FINAL_ID", checkpoint_timestep=200, model_seed=22),
+    ]
+    app = AppTest.from_function(render, args=(bindings, rows)).run()
+
+    def payload():
+        '''
+        Reads the document sent to the single player iframe.
+        '''
+        assert not app.exception
+        assert len(app.get("iframe")) == 1
+        document = app.get("iframe")[0].proto.srcdoc
+        embedded = re.search(r'<script id="recorded-data" type="application/json">(.*?)</script>', document, re.S)
+        return json.loads(embedded.group(1))
+
+    first = payload()
+    assert first["replay"] == bindings[0]
+    app.run()
+    rerun = payload()
+    assert rerun["render_id"] != first["render_id"]
+    assert rerun["replay"] == bindings[0]
+
+    next(item for item in app.selectbox if item.label == "Recorded episode").set_value(1).run()
+    second = payload()
+    assert second["replay"] == bindings[1]
+    assert second["render_id"] != rerun["render_id"]
+
+    app.radio[0].set_value("second").run()
+    assert payload()["replay"] == bindings[1]
+    app.radio[0].set_value("missing").run()
+    assert not app.exception
+    assert not app.get("iframe")
+    assert any("World bundle unavailable." in item.value for item in app.warning)
+
+    app.radio[0].set_value("first").run()
+    returned = payload()
+    assert returned["replay"] == bindings[0]
+    assert returned["render_id"] not in {first["render_id"], rerun["render_id"], second["render_id"]}
 
