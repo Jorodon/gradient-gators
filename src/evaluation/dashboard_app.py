@@ -249,6 +249,137 @@ def _selection_key(
     return f"{name}:{digest}"
 
 
+# --- RECORDED REPLAY --- #
+
+def _replay_options(bindings: tuple[dict, ...], filtered: pd.DataFrame, supplemental: bool = False) -> list[int]:
+    '''
+    Selects recorded episodes that belong to the displayed result rows.
+    '''
+    options = []
+    for index, binding in enumerate(bindings):
+        selected = binding.get("selection", {})
+        is_supplemental = selected.get("evidence_scope", "").startswith("supplemental_")
+        if supplemental:
+            if is_supplemental:
+                options.append(index)
+            continue
+        if is_supplemental:
+            continue
+        if not selected:
+            options.append(index)
+            continue
+
+        if selected.get("model_id"):
+            identity = {
+                "record_id": f"{selected['model_id']}:{selected['role']}",
+                "checkpoint_timestep": selected.get("checkpoint"),
+                "model_seed": selected.get("seed"),
+            }
+        else:
+            identity = {
+                "study_id": selected.get("experiment_id"),
+                "reward_type": selected.get("condition_id"),
+                "dataset_role": selected.get("role"),
+                "checkpoint_timestep": selected.get("checkpoint_step"),
+                "checkpoint_sha256": selected.get("checkpoint_sha256"),
+            }
+
+        # Each identity must match the same result row
+        matching = filtered
+        for column, value in identity.items():
+            if value is not None:
+                if column not in matching:
+                    matching = matching.iloc[0:0]
+                    break
+                matching = matching[matching[column] == value]
+        if len(matching) == 1:
+            options.append(index)
+    return options
+
+
+def _replay_html(binding: dict, render_id: str) -> str:
+    '''
+    Wraps the supplied grid player with one verified recorded episode.
+    '''
+    viewer = Path(__file__).resolve().parents[2] / "research_support" / "dashboard_reference" / "viewer"
+    script = (viewer / "grid_player.js").read_text(encoding="utf-8")
+    styles = (viewer / "grid_player.css").read_text(encoding="utf-8")
+
+    # Keeps recorded strings inside JSON rather than executable HTML
+    payload = json.dumps({"render_id": render_id, "replay": binding}, ensure_ascii=True, allow_nan=False)
+    payload = payload.replace("<", "\\u003c")
+    return f'''<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Recorded episode</title>
+<style>body {{ margin: 12px; background: white; }} {styles}</style></head>
+<body>
+<div id="recorded-player"></div>
+<script id="recorded-data" type="application/json">{payload}</script>
+<script>{script}</script>
+<script>
+    const saved = JSON.parse(document.getElementById("recorded-data").textContent);
+    const player = GatorRecordedGrid.mount(document.getElementById("recorded-player"), saved.replay);
+    window.addEventListener("pagehide", () => player.destroy(), {{ once: true }});
+</script>
+</body></html>'''
+
+
+def _render_recorded_replay(st, bindings: tuple[dict, ...], filtered: pd.DataFrame, source_key: str) -> None:
+    '''
+    Shows one selected episode without running a policy or the environment.
+    '''
+    st.subheader("Recorded episode playback")
+    supplemental = False
+    if any(binding.get("selection", {}).get("evidence_scope", "").startswith("supplemental_") for binding in bindings):
+        supplemental = st.checkbox(
+            "Show supplemental recorded examples",
+            key=_selection_key("replay-supplemental", source_key),
+        )
+    if supplemental:
+        st.info("Supplemental examples have their own recorded identities and are outside the filtered result totals.")
+
+    options = _replay_options(bindings, filtered, supplemental)
+    if not options:
+        st.info("No recorded episode matches the selected results. Traces are optional and are saved for selected cases only.")
+        return
+
+    labels = {}
+    for index in options:
+        selected = bindings[index].get("selection", {})
+        reward = selected.get("reward", selected.get("condition_id", "unknown reward"))
+        checkpoint = selected.get("checkpoint", selected.get("checkpoint_step", "unknown"))
+        category = selected.get("selection_category", selected.get("evidence_scope", "recorded"))
+        scenario = selected.get("scenario_id", "unknown scenario")
+        labels[index] = f"{index + 1}: {reward} | {selected.get('role', 'unknown condition')} | {checkpoint} steps | {category} | {scenario}"
+
+    selected_index = st.selectbox(
+        "Recorded episode",
+        options,
+        format_func=labels.get,
+        key=_selection_key("recorded-episode", source_key, [bindings[index].get("selection") for index in options]),
+    )
+    binding = bindings[selected_index]
+    with st.expander("Episode identity and verification"):
+        st.json({key: value for key, value in binding.items() if key not in ("map", "frames")})
+
+    if not binding.get("available"):
+        st.warning(binding.get("reason_unavailable") or "Recorded replay unavailable; the source does not supply a verified map and trace.")
+        return
+
+    st.caption(binding.get("frame_semantics", "Frame 0 is reset; each later frame is the saved state after its action."))
+    st.caption("Recorded actions: 0 up, 1 right, 2 down, 3 left, 4 WAIT.")
+
+    # Changes the embedded document on reruns so playback restarts paused at frame zero
+    st.session_state["recorded_replay_render"] = st.session_state.get("recorded_replay_render", 0) + 1
+    render_id = _selection_key("recorded-player", source_key, [binding.get("selection"), st.session_state["recorded_replay_render"]])
+    try:
+        document = _replay_html(binding, render_id)
+    except OSError as error:
+        st.warning(f"Recorded player files unavailable: {error}")
+        return
+    st.iframe(document, height=850, tab_index=0, alt="Recorded episode map and playback controls")
+
+
 def _endpoint_defaults(options: list[object]) -> list[object]:
     """Chooses one semantically appropriate endpoint value w/o hardcoding IDs."""
     if not options:
@@ -1980,73 +2111,11 @@ def _render_dashboard() -> None:
                 st.warning(f"Matched scenario configuration unavailable: {error}")
 
         if artifacts.replay_bindings:
-            st.subheader("Recorded Replay Bindings")
+            _render_recorded_replay(st, artifacts.replay_bindings, filtered, source_key)
 
-            binding_options = list(range(len(artifacts.replay_bindings)))
-
-            selected_binding_index = st.selectbox(
-                "Recorded episode",
-                binding_options,
-                format_func=lambda index: (
-                    f"Binding {index + 1} — "
-                    + (
-                        "VERIFIED"
-                        if artifacts.replay_bindings[index].get("available")
-                        else "UNAVAILABLE"
-                    )
-                ),
-                key="recorded_replay_binding_selector",
-            )
-
-            binding = artifacts.replay_bindings[selected_binding_index]
-
-            if not binding.get("available", False):
-                st.warning(
-                    binding.get(
-                        "reason_unavailable",
-                        "Replay unavailable; no reason was supplied.",
-                    )
-                )
-                if binding.get("selection"):
-                    st.caption("Recorded binding identity")
-                    st.json(binding["selection"])
-            else:
-                st.success("Recorded replay verified")
-                st.caption("Recorded selection identity")
-                st.json(binding.get("selection", {}))
-
-                st.caption("Recorded outcome")
-                st.json(binding.get("outcome", {}))
-
-                st.caption("Replay verification")
-                st.write(binding.get("verification", {}))
-                st.caption(binding.get("identity_checks", ""))
-
-                st.caption("Recorded map")
-                st.json(binding["map"])
-
-                frames = binding.get("frames", [])
-                if frames:
-                    selected_frame_index = st.slider(
-                        "Recorded frame",
-                        min_value=0,
-                        max_value=len(frames) - 1,
-                        value=0,
-                        key="recorded_replay_frame_slider",
-                    )
-                    st.caption(
-                        binding.get(
-                            "frame_semantics",
-                            "Recorded frame data; no simulation is performed.",
-                        )
-                    )
-                    st.json(frames[selected_frame_index])
-
-                st.caption("Source hashes")
-                st.json(binding.get("source_hashes", {}))
-
-        if artifacts.traces:
-            st.subheader("Verified trajectory playback")
+        elif artifacts.traces:
+            st.subheader("Recorded coordinate history")
+            st.caption("These traces have no verified terrain binding; a map player is unavailable.")
             trace_options = sorted(artifacts.traces)
             if "episode_id" in filtered:
                 selected_episode_ids = set(filtered["episode_id"].astype(str))
