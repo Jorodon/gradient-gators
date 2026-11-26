@@ -1,6 +1,6 @@
 # Integration, evidence and downloads
 
-This reference contains measured development evidence and labelled synthetic examples. Integration uses saved records without running training or evaluations. Streamlit integration and browser acceptance remain team work.
+This reference contains measured development evidence and labelled synthetic examples. Integration uses saved records without running training or evaluations.
 
 ## One download folder
 
@@ -8,7 +8,7 @@ Obtain the relevant GitHub release links from **@jorodons**. Download the record
 
 Create `docs/research/dashboard/downloaded_releases/` at the repository root, then extract the downloads into it. Preserve each archive's bundled top-level folder and all manifest IDs; do not flatten or rename the bundle contents. The supplied `.gitignore` excludes this directory. An external directory also works when explicitly supplied to the readers.
 
-The planned Streamlit integration reuses its existing artifact-directory input: select the common extraction directory, then choose the detected result bundle if needed. Selecting the bundle directory directly is also supported by the planned adapter. Existing CSV input remains valid. A single selection determines results and sibling world locations; users do not need to configure the two developer-test environment variables below. Until DASH-01/02/04 are implemented, the current upstream dashboard only understands its existing CSV inputs.
+In Streamlit, choose **SAVED RESULTS**, enter the common extraction directory, and choose the detected results bundle if needed. Selecting the bundle directory directly is also supported. Existing CSV input remains valid. A single selection determines results and sibling world locations; users do not need to configure the two developer-test environment variables below.
 
 ## Repository and release boundaries
 
@@ -91,6 +91,18 @@ The 35 baseline traces use the same five DEV and two TRAIN scenarios across rewa
 A bounded audit of 1,898 saved traces found no authentic death-on-goal example. A labelled synthetic fixture can check rendering precedence; it does not fill the measured-evidence gap.
 
 Frame 0 is reset state. Frame N is state after action N, including enemy movement and damage. WAIT/invalid moves can leave position unchanged while time, enemies and HP change. Success requires reaching the goal alive; death on the goal is failure. Missing action probabilities, critic values, LSTM state or reward components cannot be reconstructed as measured evidence.
+
+### Recorded episode playback
+
+The Streamlit player embeds the supplied `grid_player.js` and CSS with the verified reader payload. The dashboard requires Streamlit 1.67 or newer for `st.iframe` support; the integration is checked with Streamlit 1.67.0. Run `python -m pip install -r requirements.txt` in the dashboard environment, then `python -m streamlit run dashboard.py` from the repository root.
+
+The **Recorded episode** selector follows the displayed result rows. Its choices come from the loaded bundle, including recorded condition, checkpoint and scenario identities. Only selected episodes have traces; an empty choice set does not mean that evaluation failed. Use **Show supplemental recorded examples** for separately labelled examples such as WAIT. These examples are outside the filtered totals and never contribute additional evaluation cases.
+
+Playback starts paused at frame zero. Use **Play/Pause**, **Previous**, **Next**, or the **Recorded frame** slider. Changing the source, episode, filters or refreshing the dashboard resets playback. The map shows recorded terrain, agent and enemy positions, HP, attempted action, reward and terminal flags. Unchanged position after WAIT or an invalid move remains unchanged; intermediate states are not inferred. Expand **Episode identity and verification** for the full selection and source hashes. Synthetic examples are labelled in the player and are not scientific results.
+
+With results only, the player reports the missing world or trace while numerical results remain available. Extract the matching worlds beside the results bundle in the common download folder and choose **Refresh saved data**. Do not copy worlds into the repository or substitute another scenario. Native traces without a verified terrain binding retain a labelled coordinate-history view instead of an invented map.
+
+For a browser check, play an episode, switch to another episode and confirm that the new map starts paused at frame zero. Repeat with another bundle containing a different checkpoint and trace length. Check a recorded WAIT and invalid move, plus the labelled synthetic death-on-goal fixture. Confirm that results-only loading and adding the matching worlds followed by Refresh produce identical numerical tables. Parser checks and AppTest do not replace this browser check.
 
 ## Other supported input families
 
