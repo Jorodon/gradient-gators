@@ -63,6 +63,8 @@ def _scalar(value):
 
 def _portable(value):
     """Remove private fields and paths from nested export metadata."""
+    if isinstance(value, pd.DataFrame):
+        return _portable(dict(columns=list(value.columns), rows=value.to_dict("records")))
     if isinstance(value, dict):
         return {
             key: _portable(item) for key, item in value.items()
@@ -260,9 +262,11 @@ def selected_table(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 def build_export(
     table: pd.DataFrame, evidence: dict, filters: dict, view_scope: str,
-    conclusions: dict, displayed_metrics=None,
+    conclusions: dict, displayed_metrics=None, displayed_views=None,
 ) -> dict:
-    """Prepare selected rows for export and preserve the supplied metrics."""
+    '''
+    Prepares selected rows and displayed views without recalculating their metrics.
+    '''
     table = selected_table(table)
     kinds = set(table.get("record_type", pd.Series(dtype=object)).dropna())
     if kinds == {"aggregate"}:
@@ -278,6 +282,7 @@ def build_export(
         schema_version=1, evidence=evidence, filters=filters,
         view_scope=view_scope, row_scope=row_scope,
         displayed_metrics=displayed_metrics, conclusions=conclusions,
+        displayed_views=displayed_views or {},
     ))
     # The selected table already contains portable scalar values.
     payload["table"] = dict(columns=list(table.columns), rows=table.to_dict("records"))

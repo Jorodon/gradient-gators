@@ -158,11 +158,17 @@ def test_export_matches_selected_table():
 
     export = build_export(filtered, build_evidence_context(*evidence_inputs()),
         {"reward_types": ["sparse"], "model_seeds": [np.int64(7)]}, "Filtered summary",
-        {"status": "missing", "claims": []}, {"success_rate": np.float64(0.333), "unavailable": pd.NA})
+        {"status": "missing", "claims": []}, {"success_rate": np.float64(0.333), "unavailable": pd.NA},
+        displayed_views={"learning": {"scope": "selected_learning_model", "model_id": "policy-a",
+            "points": pd.DataFrame({"actual_steps": [100123], "success_rate": [np.nan]})}})
     decoded = json.loads(json.dumps(export, allow_nan=False))
     assert decoded["table"] == {"columns": list(table.columns), "rows": table.to_dict("records")}
     assert decoded["filters"] == {"reward_types": ["sparse"], "model_seeds": [7]}
     assert decoded["displayed_metrics"] == {"success_rate": 0.333, "unavailable": None}
+    assert decoded["displayed_views"]["learning"] == {
+        "scope": "selected_learning_model", "model_id": "policy-a",
+        "points": {"columns": ["actual_steps", "success_rate"], "rows": [{"actual_steps": 100123, "success_rate": None}]},
+    }
     assert "not individual episodes" in decoded["row_scope"]
     assert "private" not in json.dumps(decoded)
     assert table.to_csv(index=False).splitlines()[1].startswith("c,aggregate,sparse,2.0,,")
