@@ -196,6 +196,14 @@ def test_matched_selection_uses_median_length_and_reports_missing_categories():
     ]
     assert list(chosen_failure["scenario_id"]) == ["id-a"]
 
+    unknown = episodes.copy()
+    unknown["success"] = pd.NA
+    without_outcomes = select_matched_episode_rows(
+        unknown, {"ID": ("id-a", "id-b"), "OOD": ("ood-a", "ood-b")},
+        model_seed_slot=0, checkpoint_timestep=250000,
+    )
+    assert not without_outcomes.has_eligible_cases
+
 
 def test_dashboard_filters_seed_and_checkpoint_without_filling_columns():
     """Filters real data while retaining original metrics/ identity."""
@@ -219,6 +227,7 @@ def test_aggregate_episode_metrics_counts_outcomes_steps_and_safety():
     episodes.loc[0, ["success", "end_reason"]] = [False, "death"]
     episodes.loc[1, ["end_reason", "truncated"]] = ["timestep_limit", True]
     episodes.loc[0, "damage_taken"] = 5.0
+    episodes["hazard_contacts"] = 0
     episodes.loc[1, "hazard_contacts"] = 2
 
     metrics = aggregate_episode_metrics(episodes)
@@ -231,6 +240,66 @@ def test_aggregate_episode_metrics_counts_outcomes_steps_and_safety():
     assert metrics["total_steps"] == episodes["episode_length"].sum()
     assert metrics["mean_damage_taken"] == pytest.approx(1.2)
     assert metrics["total_hazard_contacts"] == 2
+
+
+def test_panel_metrics_use_completed_counts_and_preserve_missing_coverage():
+    '''
+    Weights unequal panels and leaves incomplete measurements unavailable.
+    '''
+    panels = pd.DataFrame([
+        dict(episode_count=2, success_count=1, death_count=0, timeout_count=1,
+             mean_length=5.0, episode_return=10.0, damage_taken=1.0,
+             hazard_contacts_mean=0.5, enemy_contacts_mean=0.0),
+        dict(episode_count=6, success_count=3, death_count=1, timeout_count=2,
+             mean_length=7.0, episode_return=30.0, damage_taken=3.0,
+             hazard_contacts_mean=0.9999999999999999, enemy_contacts_mean=0.5),
+    ])
+
+    metrics = aggregate_episode_metrics(panels)
+
+    assert metrics["episode_count"] == 8
+    assert metrics["success_rate"] == 0.5
+    assert metrics["mean_episode_return"] == 25.0
+    assert metrics["mean_damage_taken"] == 2.5
+    assert metrics["mean_episode_length"] == 6.5
+    assert metrics["total_steps"] == 52
+    assert metrics["total_hazard_contacts"] == 7
+    assert metrics["total_enemy_contacts"] == 3
+
+    panels.loc[1, ["episode_return", "hazard_contacts_mean", "death_count"]] = None
+    incomplete = aggregate_episode_metrics(panels)
+    assert incomplete["mean_episode_return"] is None
+    assert incomplete["total_hazard_contacts"] is None
+    assert incomplete["death_count"] is None
+    assert incomplete["total_enemy_contacts"] == 3
+
+    panels.loc[1, "episode_count"] = None
+    unknown_denominator = aggregate_episode_metrics(panels)
+    assert unknown_denominator["episode_count"] is None
+    assert unknown_denominator["success_rate"] is None
+
+
+def test_native_outcome_flags_are_not_truthy_strings(tmp_path):
+    '''
+    Preserves false flags and rejects unrecognized recorded outcome values.
+    '''
+    episodes = episode_rows().iloc[:2].copy()
+    episodes["success"] = ["false", "true"]
+    episodes["truncated"] = ["false", "true"]
+    episodes.to_csv(tmp_path / "episodes.csv", index=False)
+
+    artifacts = load_dashboard_artifacts(tmp_path)
+    metrics = aggregate_episode_metrics(artifacts.episodes)
+
+    assert metrics["success_count"] == 1
+    assert metrics["timeout_count"] == 1
+    assert metrics["death_count"] is None
+    assert set(artifacts.episodes["model_seed"]) == {1}
+
+    episodes.loc[episodes.index[0], "success"] = "unknown"
+    episodes.to_csv(tmp_path / "episodes.csv", index=False)
+    with pytest.raises(ValueError, match="Native success"):
+        load_dashboard_artifacts(tmp_path)
 
 
 def test_matched_scenario_file_requires_two_disjoint_ids(tmp_path):
@@ -361,8 +430,8 @@ def test_normalized_reader_is_available_through_the_same_source_contract(tmp_pat
     assert len(artifacts.records) == 2
     assert artifacts.records[0].study_id == "example-future-study"
     assert artifacts.episodes.iloc[0]["deaths"] is None
-    assert set(artifacts.episodes["data_origin"]) == {"unknown"}
-    assert aggregate_episode_metrics(artifacts.episodes)["death_count"] == 0
+    assert set(artifacts.episodes["data_origin"]) == {"synthetic"}
+    assert aggregate_episode_metrics(artifacts.episodes)["death_count"] is None
 
 
 def test_recorded_bundle_combines_one_legacy_summary_per_reward(tmp_path):
@@ -440,6 +509,12 @@ def test_recorded_bundle_combines_one_legacy_summary_per_reward(tmp_path):
     assert set(artifacts.episodes["reward_type"]) == {"sparse", "balanced"}
     assert set(artifacts.episodes["data_origin"]) == {"unknown"}
     assert aggregate_episode_metrics(artifacts.episodes)["episode_count"] == 200
+
+    # Every result artifact must be checked before a cached source is reused
+    changed = bundle / entries[-1]["relative_path"]
+    changed.write_bytes(changed.read_bytes().replace(b'complete', b'tampered'))
+    with pytest.raises(ValueError, match="hash|size"):
+        source_identity(bundle)
 
 
 def test_common_root_exposes_each_bundle_and_refresh_identity_changes(tmp_path):
@@ -550,6 +625,16 @@ def test_recurrent_release_summary_when_available():
     assert len(results["extensions"]["producer_robustness_models"]) == 25
     assert len(results["extensions"]["producer_robustness_rewards"]) == 5
     assert results["extensions"]["compute_accounting"]
+
+    panel = artifacts.episodes[
+        (artifacts.episodes["record_id"] == "primary_s0_sparse__t2000000:FINAL_ID")
+    ]
+    metrics = aggregate_episode_metrics(panel)
+    assert metrics["mean_episode_return"] == 69.5
+    assert metrics["total_hazard_contacts"] == 210
+    assert metrics["total_enemy_contacts"] == 117
+    assert panel.iloc[0]["n_expected"] == 200
+    assert panel.iloc[0]["n_completed"] == 200
 
     from research_support.dashboard_reference.readers.bundle_paths import BundleIndex
     from research_support.dashboard_reference.readers.results_adapter import (

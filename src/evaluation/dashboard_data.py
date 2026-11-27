@@ -202,7 +202,8 @@ def _bundle_source(
         )
     # Validate the selected result now so a cached view cannot hide a changed
     # or tampered export behind an unchanged Streamlit cache key.
-    bundle.read_bytes(result_ids[0])
+    for artifact_id in result_ids:
+        bundle.read_bytes(artifact_id)
     bundle_id = bundle.manifest.get("bundle_id", path.name)
     if not isinstance(bundle_id, str) or not bundle_id:
         raise ValueError("Bundle manifest requires a nonempty bundle_id")
@@ -313,7 +314,9 @@ def _normalize_episode_columns(
     run_id: str,
     source: str,
 ) -> pd.DataFrame:
-    """Adds only identity aliases needed by dashboard UI."""
+    '''
+    Preserves native identities and parses recorded outcome flags.
+    '''
     normalized = frame.copy()
     if "run_id" not in normalized:
         normalized["run_id"] = run_id
@@ -321,6 +324,22 @@ def _normalize_episode_columns(
         normalized["distribution"] = normalized["distribution_label"]
     if "scenario" not in normalized and "scenario_id" in normalized:
         normalized["scenario"] = normalized["scenario_id"]
+    for target, original in (
+        ("model_seed", "training_seed"),
+        ("study_id", "experiment_id"),
+        ("dataset_role", "split"),
+    ):
+        if target not in normalized and original in normalized:
+            normalized[target] = normalized[original]
+    for column in ("success", "terminated", "truncated"):
+        if column in normalized:
+            flags = normalized[column].astype("string").str.lower().map({
+                "true": True, "false": False, "1": True, "0": False,
+                "1.0": True, "0.0": False,
+            })
+            if (normalized[column].notna() & flags.isna()).any():
+                raise ValueError(f"Native {column} values must be true, false, 1 or 0")
+            normalized[column] = flags
     normalized["data_source"] = source
     return normalized
 
@@ -530,13 +549,17 @@ def _structured_records_frame(
     provenance = study.get("metadata", {}).get("provenance", {})
     data_origin = "synthetic" if study.get("fixture") is True else "measured"
     study_status = study.get("status", "unknown")
+    datasets = {item["role"]: item for item in study.get("metadata", {}).get("datasets", [])}
     rows: list[dict[str, Any]] = []
     records: list[DashboardRecord] = []
     for record in study["records"]:
         model = record.get("metadata", {}).get("model", {})
         exported = record.get("metadata", {}).get("exported", {})
+        metrics = exported.get("source_metrics", {})
+        dataset = datasets.get(record.get("split"), {})
         row = {
             "record_id": record["id"],
+            "model_id": record.get("model_id"),
             "study_id": study["id"],
             "run_id": provenance.get("run_id"),
             "attempt_id": provenance.get("attempt_id"),
@@ -547,11 +570,18 @@ def _structured_records_frame(
             "training_seed": record.get("seed"),
             "model_seed_slot": model.get("slot", model.get("seed_slot")),
             "checkpoint_timestep": record.get("checkpoint"),
+            "checkpoint_sha256": model.get("checkpoint_sha256"),
             "dataset_role": record.get("split"),
+            "dataset_manifest_sha256": dataset.get("manifest_sha256"),
+            "protocol_id": study.get("protocol"),
+            "training_budget": study.get("results", {}).get("training_budget"),
+            "checkpoint_grid": study.get("results", {}).get("checkpoint_grid"),
             "distribution": record.get("split"),
             "evaluation_mode": record.get("evaluation_mode"),
-            "episode_count": record.get("episodes"),
-            "episodes": record.get("episodes"),
+            "episode_count": record.get("n_completed", record.get("episodes")),
+            "episodes": record.get("n_completed", record.get("episodes")),
+            "n_expected": record.get("n_expected"),
+            "n_completed": record.get("n_completed"),
             "success_count": record.get("successes"),
             "successes": record.get("successes"),
             "death_count": record.get("deaths"),
@@ -560,6 +590,13 @@ def _structured_records_frame(
             "timeouts": record.get("timeouts"),
             "mean_damage": record.get("mean_damage"),
             "damage_taken": record.get("mean_damage"),
+            "episode_return": metrics.get("raw_return_mean", exported.get("raw_return_mean")),
+            "hazard_contacts_mean": metrics.get("hazard_contacts_mean", exported.get("mean_hazard_contacts")),
+            "enemy_contacts_mean": metrics.get("enemy_contacts_mean", exported.get("mean_enemy_contacts")),
+            "fall_damage": metrics.get("fall_damage_mean", exported.get("mean_fall_damage")),
+            "hazard_damage": metrics.get("hazard_damage_mean", exported.get("mean_hazard_damage")),
+            "enemy_damage": metrics.get("enemy_damage_mean", exported.get("mean_enemy_damage")),
+            "invalid_moves": metrics.get("illegal_moves_mean"),
             "mean_length": exported.get("mean_length"),
             "mean_length_success": exported.get("mean_length_success"),
             "mean_length_failure": exported.get("mean_length_failure"),
@@ -598,7 +635,7 @@ def _normalized_records_frame(
     records: list[DashboardRecord] = []
     for study in document["studies"]:
         metadata = study.get("metadata", {})
-        data_origin = "synthetic" if study.get("fixture") is True else "unknown"
+        data_origin = "synthetic" if study.get("fixture") is True or metadata.get("synthetic") is True else "unknown"
         for record in study["records"]:
             row = dict(record)
             row.update(
@@ -612,6 +649,10 @@ def _normalized_records_frame(
                     "model_seed": record.get("seed"),
                     "model_seed_slot": record.get("seed_slot"),
                     "checkpoint_timestep": record.get("checkpoint"),
+                    "consumed_training_steps": record.get("actual_training_steps"),
+                    "training_budget": record.get("training_budget", metadata.get("training_budget")),
+                    "checkpoint_grid": record.get("checkpoint_grid", metadata.get("checkpoint_grid")),
+                    "protocol_id": study.get("protocol"),
                     "dataset_role": record.get("split"),
                     "distribution": record.get("split"),
                     "episode_count": record.get("episodes"),
@@ -667,6 +708,7 @@ def _legacy_result_records_frame(
         model_seed = result.get("training", {}).get(
             "model_seed", result.get("effective_settings", {}).get("model_seed")
         )
+        reward_definition = result.get("effective_settings", {}).get("reward")
         checkpoints = {
             item.get("nominal_training_steps"): item
             for item in result.get("checkpoints", [])
@@ -688,6 +730,7 @@ def _legacy_result_records_frame(
                 "run_id": artifact_id,
                 "experiment_id": experiment_id,
                 "reward_type": reward,
+                "reward_definition": json.dumps(reward_definition, sort_keys=True) if reward_definition is not None else None,
                 "model_seed": model_seed,
                 "checkpoint_timestep": checkpoint,
                 "checkpoint_sha256": checkpoint_info.get("sha256"),
@@ -704,6 +747,8 @@ def _legacy_result_records_frame(
                 "episode_return": metrics.get("raw_return_mean"),
                 "invalid_moves": metrics.get("illegal_moves_mean"),
                 "nominal_training_steps": checkpoint,
+                "training_budget": result.get("effective_settings", {}).get("algorithm", {}).get("total_timesteps"),
+                "checkpoint_grid": sorted(checkpoints),
                 "consumed_training_steps": checkpoint_info.get("actual_training_steps"),
                 "optimized_training_steps": checkpoint_info.get(
                     "optimized_training_steps"
@@ -1205,24 +1250,14 @@ def filter_episode_data(
 
 
 def aggregate_episode_metrics(data: pd.DataFrame) -> dict[str, Any]:
-    """Aggregates available outcome, step, + safety metrics.
-
-    Missing columns remain ``None`` so the dashboard can show unavailable
-    data (instead of presenting a fabricated zero).
-
-    Args:
-        data: Filtered episode summary rows.
-
-    Returns:
-        dict[str, Any]: Aggregate metrics for the supplied episodes.
-    """
-    episode_count = len(data)
-    for count_column in ("episode_count", "episodes"):
-        if count_column in data:
-            values = pd.to_numeric(data[count_column], errors="coerce").dropna()
-            if not values.empty:
-                episode_count = int(values.sum())
-                break
+    '''
+    Combines recorded episode values or panel means using completed episode counts.
+    Missing measurements leave the corresponding selection metric unavailable.
+    '''
+    count_column = next((column for column in ("episode_count", "episodes") if column in data), None)
+    weights = pd.to_numeric(data[count_column], errors="coerce").astype(float) if count_column else pd.Series(1.0, index=data.index)
+    complete_counts = weights.notna().all() and weights.ge(0).all() and not weights.isin([float("inf"), -float("inf")]).any()
+    episode_count = int(weights.sum()) if complete_counts else None
     metrics: dict[str, Any] = {
         "episode_count": episode_count,
         "success_count": None,
@@ -1240,87 +1275,74 @@ def aggregate_episode_metrics(data: pd.DataFrame) -> dict[str, Any]:
         "total_enemy_contacts": None,
         "mean_invalid_moves": None,
     }
-    if data.empty:
+    if data.empty or not complete_counts or not episode_count:
         return metrics
 
-    if "success" in data:
-        success = data["success"].dropna().astype(bool)
-        if not success.empty:
-            metrics["success_count"] = int(success.sum())
-            metrics["success_rate"] = float(success.mean())
-    elif {"success_count", "episode_count"}.issubset(data.columns):
-        counts = pd.to_numeric(data["success_count"], errors="coerce")
-        episodes = pd.to_numeric(data["episode_count"], errors="coerce")
-        valid = counts.notna() & episodes.notna() & (episodes > 0)
-        if valid.any():
-            metrics["success_count"] = int(counts[valid].sum())
-            metrics["success_rate"] = float(counts[valid].sum() / episodes[valid].sum())
+    # Zero-completed panels do not contribute observations
+    selected = data.loc[weights > 0]
+    weights = weights.loc[weights > 0]
 
-    if "end_reason" in data or "truncated" in data:
-        death = (
-            data["end_reason"].eq("death")
-            if "end_reason" in data
-            else pd.Series(False, index=data.index)
-        )
-        timeout = (
-            data["end_reason"].eq("timestep_limit")
-            if "end_reason" in data
-            else pd.Series(False, index=data.index)
-        )
-        if "truncated" in data:
-            timeout = timeout | data["truncated"].fillna(False).astype(bool)
-        metrics["death_count"] = int(death.sum())
-        metrics["timeout_count"] = int(timeout.sum())
-    elif {"death_count", "timeout_count"}.issubset(data.columns):
-        metrics["death_count"] = int(
-            pd.to_numeric(data["death_count"], errors="coerce").fillna(0).sum()
-        )
-        metrics["timeout_count"] = int(
-            pd.to_numeric(data["timeout_count"], errors="coerce").fillna(0).sum()
-        )
+    def values(column):
+        '''
+        Returns a complete recorded column for the selected observations.
+        '''
+        if column not in selected:
+            return None
+        result = pd.to_numeric(selected[column], errors="coerce").astype(float)
+        if result.isna().any() or result.isin([float("inf"), -float("inf")]).any():
+            return None
+        return result
 
-    if "episode_length" in data:
-        lengths = pd.to_numeric(data["episode_length"], errors="coerce").dropna()
-        if not lengths.empty:
-            metrics["total_steps"] = int(lengths.sum())
-            metrics["mean_episode_length"] = float(lengths.mean())
-    elif {"mean_length", "episode_count"}.issubset(data.columns):
-        lengths = pd.to_numeric(data["mean_length"], errors="coerce")
-        episodes = pd.to_numeric(data["episode_count"], errors="coerce")
-        valid = lengths.notna() & episodes.notna() & (episodes > 0)
-        if valid.any():
-            metrics["total_steps"] = int((lengths[valid] * episodes[valid]).sum())
-            metrics["mean_episode_length"] = float(
-                (lengths[valid] * episodes[valid]).sum() / episodes[valid].sum()
-            )
+    successes = values("success_count" if count_column else "success")
+    if successes is not None:
+        metrics["success_count"] = int(successes.sum())
+        metrics["success_rate"] = float(successes.sum() / episode_count)
+
+    for column, metric_name in (("death_count", "death_count"), ("timeout_count", "timeout_count")):
+        counts = values(column)
+        if counts is not None:
+            metrics[metric_name] = int(counts.sum())
+    if not count_column:
+        if "end_reason" in selected and selected["end_reason"].notna().all():
+            metrics["death_count"] = int(selected["end_reason"].eq("death").sum())
+            if "truncated" not in selected:
+                metrics["timeout_count"] = int(selected["end_reason"].eq("timestep_limit").sum())
+        truncated = values("truncated")
+        if truncated is not None:
+            timeout = truncated.eq(True)
+            if "end_reason" in selected:
+                timeout = timeout | selected["end_reason"].eq("timestep_limit")
+            metrics["timeout_count"] = int(timeout.sum())
+
+    length_column = "mean_length" if count_column and "mean_length" in selected else "episode_length"
+    lengths = values(length_column)
+    if lengths is not None:
+        steps = float((lengths * weights).sum())
+        metrics["total_steps"] = int(round(steps))
+        metrics["mean_episode_length"] = steps / episode_count
 
     mean_columns = {
         "episode_return": "mean_episode_return",
-        "damage_taken": "mean_damage_taken",
+        "damage_taken" if "damage_taken" in selected else "mean_damage": "mean_damage_taken",
         "fall_damage": "mean_fall_damage",
         "hazard_damage": "mean_hazard_damage",
         "enemy_damage": "mean_enemy_damage",
         "invalid_moves": "mean_invalid_moves",
     }
     for column, metric_name in mean_columns.items():
-        if column in data:
-            values = pd.to_numeric(data[column], errors="coerce").dropna()
-            if not values.empty:
-                metrics[metric_name] = float(values.mean())
-
-    if metrics["mean_damage_taken"] is None and "mean_damage" in data:
-        values = pd.to_numeric(data["mean_damage"], errors="coerce").dropna()
-        if not values.empty:
-            metrics["mean_damage_taken"] = float(values.mean())
+        measured = values(column)
+        if measured is not None:
+            metrics[metric_name] = float((measured * weights).sum() / episode_count)
 
     for column, metric_name in (
         ("hazard_contacts", "total_hazard_contacts"),
         ("enemy_contacts", "total_enemy_contacts"),
     ):
-        if column in data:
-            values = pd.to_numeric(data[column], errors="coerce").dropna()
-            if not values.empty:
-                metrics[metric_name] = int(values.sum())
+        mean_column = column + "_mean"
+        measured = values(mean_column if mean_column in selected else column)
+        if measured is not None:
+            total = (measured * weights).sum() if mean_column in selected else measured.sum()
+            metrics[metric_name] = int(round(float(total)))
 
     return metrics
 
@@ -1381,7 +1403,7 @@ def select_matched_episode_rows(
                 candidates = filtered[
                     filtered["scenario_id"].isin(condition_ids)
                     & (filtered["reward_type"] == reward_type)
-                    & (filtered["success"].astype(bool) == success)
+                    & filtered["success"].eq(success)
                 ].copy()
                 if candidates.empty:
                     unavailable.append(
