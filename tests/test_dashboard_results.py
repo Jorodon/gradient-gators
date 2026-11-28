@@ -314,13 +314,15 @@ def test_raw_return_is_marked_as_incomparable_across_rewards():
     assert "never as a ranking across rewards" in caption
 
 
-def test_mismatched_training_budgets_are_labelled_not_silently_compared():
-    """Two endpoints in one table is a comparison caveat, not a detail."""
+def test_different_checkpoints_are_labelled_and_shown_separately():
+    '''
+    Keeps records at different checkpoints out of a pooled result table.
+    '''
     mixed = [outcome("sparse", seed, checkpoint=2_000_000) for seed in range(3)]
     mixed += [outcome("safety", seed, checkpoint=1_000_000) for seed in range(3)]
 
-    warning = render(results(mixed)).text("warning")
-    assert "mixed training budgets" in warning
+    view = render(results(mixed))
+    assert "each checkpoint is shown separately" in view.text("caption")
 
 
 def test_unequal_seed_counts_across_rewards_are_labelled():
@@ -347,7 +349,7 @@ def test_a_second_cohort_drives_its_own_counts_and_labels():
     assert row["Success rate"] == "55.0%"
     caption = recorder.text("caption")
     assert "m4-common-ppo-v1" in caption
-    assert "1,000,000 consumed interactions" in caption
+    assert "1,000,000 nominal training interactions" in caption
     assert "Independent training seeds: 3 per reward" in caption
 
 
@@ -424,7 +426,7 @@ def release_results():
         pytest.skip("Published recurrent results bundle not downloaded")
     from src.evaluation.dashboard_data import load_dashboard_artifacts
 
-    return load_dashboard_artifacts(RELEASE_ROOT)
+    return load_dashboard_artifacts(RELEASE_RESULTS)
 
 
 @pytest.fixture(scope="module")
@@ -477,7 +479,7 @@ def test_released_study_declares_its_protocol_and_endpoint(release_results):
     caption = render_release(release_results, choice="FINAL_ID").text("caption")
 
     assert "recurrent-complete-900-2m-v1" in caption
-    assert "2,000,000 consumed interactions" in caption
+    assert "2,000,000 nominal training interactions" in caption
     assert "Condition: FINAL_ID" in caption
 
 
@@ -531,3 +533,80 @@ def test_released_final_and_train_conditions_differ(release_results):
     final_row = final.row_for("Completed / expected", "sparse")
     train_row = train.row_for("Completed / expected", "sparse")
     assert final_row["Completed / expected"] != train_row["Completed / expected"]
+
+
+def test_selected_native_rows_supply_result_tables_without_a_scientific_export():
+    '''
+    Keeps native summaries and exports aligned with the selected reward and condition.
+    '''
+    artifacts = Artifacts(None)
+    artifacts.episodes = pd.DataFrame([
+        dict(reward_type="sparse", training_seed=11, dataset_role="DEV", checkpoint_timestep=100,
+             success=True, episode_return=10, damage_taken=0, episode_length=3),
+        dict(reward_type="sparse", training_seed=11, dataset_role="DEV", checkpoint_timestep=100,
+             success=False, episode_return=0, damage_taken=10, episode_length=9),
+        dict(reward_type="balanced", training_seed=22, dataset_role="TRAIN", checkpoint_timestep=200,
+             success=True, episode_return=20, damage_taken=0, episode_length=5),
+    ])
+    selected = artifacts.episodes[artifacts.episodes["reward_type"] == "sparse"]
+    recorder = Recorder()
+    view = _render_results(recorder, artifacts, selected)
+
+    assert not recorder.offered
+    assert list(view["tables"]) == ["DEV"]
+    assert recorder.row_for("Success rate", "sparse")["Success rate"] == "50.0%"
+    assert recorder.row_for("Success rate", "sparse")["Completed / expected"] == "2 / Unavailable"
+    pd.testing.assert_frame_equal(view["tables"]["DEV"]["summary"], recorder.frames[0])
+    assert all("balanced" not in frame.to_string() for frame in recorder.frames)
+
+    later = selected.copy()
+    later["checkpoint_timestep"] = 200
+    later["success"] = True
+    view = _render_results(Recorder(), artifacts, pd.concat([selected, later], ignore_index=True))
+    assert len(view["tables"]) == 2
+    assert [table["summary"].iloc[0]["Success rate"] for table in view["tables"].values()] == ["50.0%", "100.0%"]
+
+
+def test_seed_spread_and_declaration_use_independent_policies():
+    '''
+    Reports sample spread without counting different reward seeds as extra replicas.
+    '''
+    from src.evaluation.dashboard_app import _cohort_mismatches, _declaration, _reward_summary
+
+    records = _result_records(Artifacts(results([
+        outcome("sparse", 11, successes=100), outcome("sparse", 22, successes=140),
+        outcome("balanced", 33, successes=120), outcome("balanced", 44, successes=160),
+    ])))
+    summary = _reward_summary(records, "FINAL_ID")
+    assert summary[0]["sample_sd_percentage_points"] == pytest.approx(14.1421356237)
+    assert "Independent training seeds: 2 per reward" in _declaration(Artifacts(None), records, "FINAL_ID")
+    records[0]["dataset_manifest_sha256"] = "first"
+    records[1]["dataset_manifest_sha256"] = "second"
+    records[0]["evaluation_mode"] = "deterministic"
+    records[1]["evaluation_mode"] = "stochastic"
+    records[0]["reward_definition"] = "first formula"
+    records[1]["reward_definition"] = "second formula"
+    notes = _cohort_mismatches(records, "FINAL_ID")
+    assert "mixed dataset identities" in notes
+    assert "mixed evaluation modes" in notes
+    assert "mixed reward definitions for sparse" in notes
+    sparse = next(row for row in _reward_summary(records, "FINAL_ID") if row["reward"] == "sparse")
+    assert sparse["sample_sd_percentage_points"] is None
+
+
+def test_released_seed_spread_matches_published_expected_values(release_results):
+    '''
+    Reconciles the declared sample SD for every final reward and condition.
+    '''
+    from src.evaluation.dashboard_app import _reward_summary
+
+    expected = json.loads(Path(
+        "docs/research/studies/recurrent_ppo_frozen_protocol_v1/expected_results.json"
+    ).read_text(encoding="utf-8"))
+    records = _result_records(release_results)
+    summaries = {role: _reward_summary(records, role) for role in {
+        row["role"] for row in expected["final_summary"]
+    }}
+    for row in expected["final_summary"]:
+        actual = next(item for item in summaries[row["role"]] if item["reward"] == row["reward"])
+        assert actual["sample_sd_percentage_points"] == pytest.approx(row["sample_sd_percentage_points"])

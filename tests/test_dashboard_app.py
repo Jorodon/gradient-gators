@@ -3,10 +3,13 @@
 from pathlib import Path
 import json
 import re
+import shutil
 
 import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
+
+from src.evaluation.dashboard_data import load_dashboard_artifacts
 
 from src.evaluation.dashboard_app import (
     DEMO_COLUMNS,
@@ -36,6 +39,34 @@ def require_saved_bundle(path: str) -> str:
     if not Path(path).exists():
         pytest.skip(f"Saved dashboard bundle not downloaded: {path}")
     return path
+
+
+def _write_development_bundle(root: Path, study_id: str, seed: int, checkpoints: list[int], count: int) -> Path:
+    '''
+    Writes invented development records with overlapping local IDs for source-switch checks.
+    '''
+    directory = root / study_id
+    directory.mkdir(parents=True)
+    records = []
+    for index, checkpoint in enumerate(checkpoints):
+        records.append(dict(
+            id=f"shared-{index}", condition="sparse", split="DEV", seed=seed,
+            checkpoint=checkpoint, episodes=count, successes=index, deaths=0,
+            timeouts=count-index, mean_damage=0, mean_length=4,
+            evaluation_mode="deterministic", orientation="original",
+            source="invented.json", evidence="Synthetic compatibility fixture; not scientific evidence.",
+            data_status="complete", training_budget=checkpoints[-1],
+        ))
+    study = dict(
+        id=study_id, title=f"Synthetic compatibility: {study_id}", fixture=True,
+        protocol="development fixture", status="completed", sources=["invented.json"],
+        caveats=["Synthetic compatibility fixture; no policy or environment was executed."],
+        metadata=dict(training_budget=checkpoints[-1], checkpoint_grid=checkpoints), records=records,
+    )
+    (directory / "normalized_studies.json").write_text(
+        json.dumps(dict(schema_version=1, studies=[study])), encoding="utf-8",
+    )
+    return directory
 
 
 def test_sample_data_has_expected_demo_columns():
@@ -133,20 +164,16 @@ def test_saved_dashboard_labels_and_endpoint_controls_match_recorded_bundle():
     assert "publication: not_published" in next(item.value for item in app.caption if item.value.startswith("Data source:"))
 
 
-def test_learning_history_expands_phase_and_checkpoint_scope():
-    """Keeps learning history selection separate from endpoint comparison."""
+def test_learning_history_keeps_validation_separate_from_final_results():
+    '''
+    Keeps learning checkpoints separate from final evaluation conditions.
+    '''
     app = run_saved_dashboard("research_support/dashboard_reference/examples")
     app.radio[1].set_value("Learning history").run()
 
     assert not app.exception
-    assert set(widget_values(app, "Dataset phase")) == {
-        "FINAL_ID",
-        "FINAL_OOD_COMBINED",
-        "FINAL_OOD_HAZARD",
-        "FINAL_OOD_OBSTACLE",
-        "FINAL_OOD_PURSUIT",
-        "LEARNING_VALIDATION",
-    }
+    assert widget_values(app, "Dataset phase") == ["LEARNING_VALIDATION"]
+    assert next(item.value for item in app.metric if item.label == "Success rate") == "N/A"
     assert not any(item.label == "Endpoint checkpoint" for item in app.selectbox)
     assert any(
         "Learning history uses all available checkpoints." in item.value
@@ -252,7 +279,6 @@ def test_frozen_release_learning_history_shows_curves_and_metrics():
 
 def test_all_recurrent_learning_curves_match_release():
     from src.evaluation.dashboard_app import recorded_learning_points
-    from src.evaluation.dashboard_data import load_dashboard_artifacts
 
     root = Path(
         "docs/research/dashboard/downloaded_releases/"
@@ -446,3 +472,135 @@ def test_recorded_replay_rerun_selection_and_unavailable_source_replace_iframe()
     assert returned["replay"] == bindings[0]
     assert returned["render_id"] not in {first["render_id"], rerun["render_id"], second["render_id"]}
 
+
+def test_development_sources_refresh_switch_relocate_and_export(tmp_path, monkeypatch):
+    '''
+    Keeps filters, learning coordinates and exports bound to the selected source after refresh.
+    '''
+    from src.evaluation import dashboard_app
+
+    exports = []
+    original = dashboard_app.build_export
+    original_loader = dashboard_app.load_dashboard_artifacts
+
+    def capture(*args, **kwargs):
+        payload = original(*args, **kwargs)
+        exports.append(payload)
+        return payload
+
+    def load_float_coordinates(*args, **kwargs):
+        artifacts = original_loader(*args, **kwargs)
+        artifacts.episodes["checkpoint_timestep"] = artifacts.episodes["checkpoint_timestep"].astype(float)
+        return artifacts
+
+    monkeypatch.setattr(dashboard_app, "build_export", capture)
+    monkeypatch.setattr(dashboard_app, "load_dashboard_artifacts", load_float_coordinates)
+    root = tmp_path / "downloaded_releases"
+    _write_development_bundle(root, "synthetic_alpha", 71, [0, 100, 400], 10)
+    app = run_saved_dashboard(str(root))
+    assert not app.exception
+    first_export = exports[-1]
+    assert widget_values(app, "Model seed") == [71]
+    assert next(item.value for item in app.selectbox if item.label == "Endpoint checkpoint") == 400
+    assert {row["study_id"] for row in first_export["table"]["rows"]} == {"synthetic_alpha"}
+
+    second = _write_development_bundle(root, "synthetic_beta", 902, [0, 75, 300], 7)
+    next(item for item in app.button if item.label == "Refresh saved data").click().run()
+    selector = next(item for item in app.selectbox if item.label == "Saved study")
+    selector.set_value(next(option for option in selector.options if "synthetic_beta" in option)).run()
+    assert not app.exception
+    assert widget_values(app, "Study") == ["synthetic_beta"]
+    assert widget_values(app, "Model seed") == [902]
+    assert next(item.value for item in app.selectbox if item.label == "Endpoint checkpoint") == 300
+    assert {row["study_id"] for row in exports[-1]["table"]["rows"]} == {"synthetic_beta"}
+    assert {row["episode_count"] for row in exports[-1]["table"]["rows"]} == {7}
+    assert not app.get("iframe")
+
+    next(item for item in app.radio if item.label == "Comparison scope").set_value("Learning history").run()
+    assert not app.exception
+    assert {row["checkpoint_timestep"] for row in exports[-1]["table"]["rows"]} == {0, 75, 300}
+    learning = exports[-1]["displayed_views"]["learning"]
+    assert learning["scope"] == "selected_learning_model"
+    assert {row["nominal_steps"] for row in learning["points"]["rows"]} == {0, 75, 300}
+    assert any("pending" in item.value.lower() for item in app.info)
+
+    selector = next(item for item in app.selectbox if item.label == "Saved study")
+    selector.set_value(next(option for option in selector.options if "synthetic_alpha" in option)).run()
+    assert not app.exception
+    assert widget_values(app, "Model seed") == [71]
+    assert {row["study_id"] for row in exports[-1]["table"]["rows"]} == {"synthetic_alpha"}
+
+    relocated = tmp_path / "relocated" / second.name
+    shutil.copytree(second, relocated)
+    old = load_dashboard_artifacts(second)
+    moved = load_dashboard_artifacts(relocated)
+    assert old.source_id == moved.source_id
+    pd.testing.assert_frame_equal(old.episodes, moved.episodes)
+    app.text_input[0].set_value(str(relocated)).run()
+    assert not app.exception
+    assert widget_values(app, "Model seed") == [902]
+
+    path = relocated / "normalized_studies.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    next(item for item in app.radio if item.label == "Comparison scope").set_value("Learning history").run()
+    assert not app.exception
+    learning = exports[-1]["displayed_views"]["learning"]
+    assert all(isinstance(row["nominal_steps"], float) for row in learning["points"]["rows"])
+    assert learning["metrics"]["normalized_aulc"] is not None
+
+    payload["studies"][0]["records"].append(dict(payload["studies"][0]["records"][-1], id="shared-3", checkpoint=301))
+    payload["studies"][0]["metadata"]["checkpoint_grid"].append(301)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    next(item for item in app.button if item.label == "Refresh saved data").click().run()
+    next(item for item in app.radio if item.label == "Comparison scope").set_value("Learning history").run()
+    assert not app.exception
+    learning = exports[-1]["displayed_views"]["learning"]
+    assert learning["missing_checkpoints"] == []
+    assert learning["metrics"]["normalized_aulc"] is None
+
+    payload["studies"][0]["records"].pop()
+    payload["studies"][0]["metadata"]["checkpoint_grid"].pop()
+    payload["studies"][0]["records"].pop(1)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    next(item for item in app.button if item.label == "Refresh saved data").click().run()
+    next(item for item in app.radio if item.label == "Comparison scope").set_value("Learning history").run()
+    assert not app.exception
+    learning = exports[-1]["displayed_views"]["learning"]
+    assert {row["nominal_steps"] for row in learning["points"]["rows"]} == {0, 300}
+    assert learning["missing_checkpoints"] == [75]
+    assert learning["metrics"]["normalized_aulc"] is None
+    assert learning["metrics"]["threshold_status"] == "not declared"
+
+
+def test_invalid_sources_report_failure_without_a_replay(tmp_path):
+    '''
+    Distinguishes unsupported interchange and changed indexed bytes from valid saved results.
+    '''
+    valid = _write_development_bundle(tmp_path, "valid_source", 71, [0, 100, 400], 10)
+    app = run_saved_dashboard(str(valid))
+    assert not app.exception
+    assert app.dataframe
+
+    unsupported = tmp_path / "unsupported"
+    unsupported.mkdir()
+    (unsupported / "normalized_studies.json").write_text(
+        json.dumps(dict(schema_version=999, studies=[])), encoding="utf-8",
+    )
+    app.text_input[0].set_value(str(unsupported)).run()
+    assert not app.exception
+    assert any("schema_version" in item.value for item in app.error)
+    assert not app.get("iframe")
+    assert not app.dataframe
+
+
+def test_native_single_episode_loads_without_a_range_slider(tmp_path):
+    '''
+    Displays a native singleton without constructing a slider with identical bounds.
+    '''
+    from test_dashboard_data import episode_rows
+
+    episode_rows().iloc[:1].to_csv(tmp_path / "evaluation_episodes.csv", index=False)
+    app = run_saved_dashboard(str(tmp_path))
+    assert not app.exception
+    assert not any(item.label == "Episode range" for item in app.slider)
+    assert len(app.session_state["dashboard_last_accepted"]["artifacts"].episodes) == 1

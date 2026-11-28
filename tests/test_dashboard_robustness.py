@@ -239,10 +239,11 @@ def test_partial_condition_still_reports_its_counts():
 # --------------------------------------------------------------------------- #
 
 
-def test_recurrent_protocol_rejects_a_one_million_checkpoint():
+@pytest.mark.parametrize("checkpoint", [1_000_000, None])
+def test_recurrent_protocol_rejects_an_unverified_final_checkpoint(checkpoint):
     """An earlier checkpoint is a different measurement, not a weaker final one."""
     recorder = render(
-        Artifacts(results(), episode_rows(checkpoint=1_000_000))
+        Artifacts(results(), episode_rows(checkpoint=checkpoint))
     )
     text = recorder.text("error")
 
@@ -315,7 +316,7 @@ def test_contrasts_are_displayed_without_being_recomputed():
 
     assert contrasts["p (Holm)"].iloc[0] == 0.09
     assert bool(contrasts["rejects at 0.05"].iloc[0]) is False
-    assert contrasts["95% CI"].iloc[0] == [0.01, 0.15]
+    assert contrasts["nominal 95% CI (pp)"].iloc[0] == [1.0, 15.0]
     assert "not recomputed here" in recorder.text("caption")
 
 
@@ -343,7 +344,7 @@ def release_artifacts():
 
     from src.evaluation.dashboard_data import load_dashboard_artifacts
 
-    root = Path(__file__).resolve().parents[1] / RELEASE_DIR
+    root = Path(__file__).resolve().parents[1] / RELEASE_DIR / "recurrent_ppo_frozen_protocol_v1_results"
 
     if not root.is_dir() or not any(root.iterdir()):
         pytest.skip(f"frozen study release not downloaded to {RELEASE_DIR}")
@@ -405,8 +406,37 @@ def test_released_study_verdicts_match_the_recorded_rates(release_artifacts):
 
 
 def test_released_study_contrasts_carry_holm_adjusted_values(release_artifacts):
-    contrasts = render(release_artifacts).frame_with("p (Holm)")
+    recorder = Recorder()
+    view = _render_robustness(recorder, release_artifacts)
+    contrasts = recorder.frame_with("p (Holm)")
 
     assert len(contrasts) == 4
     assert contrasts["p (Holm)"].notna().all()
     assert contrasts["paired seeds"].eq(5).all()
+    assert len(view["tables"]["paired_seed_differences"]) == 20
+    assert "Full frozen cohort" in recorder.text("caption")
+    for saved in release_artifacts.scientific_results["comparisons"]:
+        row = contrasts[contrasts["reward"] == saved["reward"]].iloc[0]
+        assert row["nominal 95% CI (pp)"] == pytest.approx([100 * value for value in saved["ci95_nominal"]])
+        pairs = view["tables"]["paired_seed_differences"]
+        paired = pairs[pairs["reward"] == saved["reward"]]
+        assert paired["difference (pp)"].tolist() == pytest.approx([100 * pair["difference"] for pair in saved["pairs"]])
+        assert paired["seed"].tolist() == [pair["seed"] for pair in saved["pairs"]]
+
+
+def test_historical_final_coverage_is_checked_when_inventory_is_not_supplied():
+    '''
+    Uses the historical protocol's required final models instead of assuming a missing inventory is complete.
+    '''
+    from research_support.dashboard_reference.protocols import REWARDS
+
+    payload = results(protocol_id=LEGACY_PROTOCOL_ID, budget=1_000_000)
+    payload["inventory"] = None
+    frame = episode_rows(checkpoint=1_000_000, rewards=REWARDS)
+    recorder = render(Artifacts(payload, frame))
+    assert "Incomplete evaluation" not in recorder.text("warning")
+    assert recorder.frame_with("passes")["passes"].notna().all()
+
+    partial = render(Artifacts(payload, frame.iloc[1:]))
+    assert "Incomplete evaluation" in partial.text("warning")
+    assert partial.frame_with("passes")["passes"].isna().all()

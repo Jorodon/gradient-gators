@@ -45,13 +45,50 @@ DEMO_COLUMNS = (
     "scenario",
 )
 
-def recorded_learning_points(results: dict | None) -> pd.DataFrame:
-    """Read recorded learning checkpoints without inventing missing points."""
+def recorded_learning_points(results: dict | None, records: pd.DataFrame | None = None) -> pd.DataFrame:
+    '''
+    Reads selected learning checkpoints without combining different policies or filling gaps.
+    '''
     columns = [
         "model_id", "reward_type", "seed", "dataset_role",
         "nominal_steps", "actual_steps", "optimized_steps",
         "success_rate", "complete",
     ]
+    if records is not None:
+        if records.empty or "checkpoint_timestep" not in records:
+            return pd.DataFrame(columns=columns)
+
+        identities = [column for column in (
+            "study_id", "experiment_id", "run_id", "configuration_id", "reward_type",
+            "model_seed", "training_seed", "evaluation_mode", "dataset_role", "distribution",
+            "dataset_id", "dataset_manifest_sha256",
+        ) if column in records and records[column].notna().any()]
+        rows = []
+        for _, group in records.groupby([*identities, "checkpoint_timestep"], dropna=False, sort=False):
+            row = group.iloc[0]
+            exported = row.get("reported_metrics")
+            exported = exported if isinstance(exported, dict) else {}
+            source = exported.get("source_metrics", {})
+            source = source if isinstance(source, dict) else {}
+            model = source.get("model_id") or " | ".join(str(row[column]) for column in identities)
+            metrics = aggregate_episode_metrics(group)
+            completed = metrics["episode_count"]
+            expected = row.get("n_expected", completed)
+            actual = row.get("consumed_training_steps")
+            panel = row.get("record_type") == "aggregate"
+            rows.append(dict(
+                model_id=model, reward_type=row.get("reward_type"), seed=row.get("model_seed", row.get("training_seed")),
+                dataset_role=row.get("dataset_role", row.get("distribution")),
+                nominal_steps=row["checkpoint_timestep"], actual_steps=actual,
+                optimized_steps=row.get("optimized_training_steps"), success_rate=metrics["success_rate"],
+                complete=bool(completed and metrics["success_rate"] is not None
+                              and (expected is None or pd.isna(expected) or completed == expected)
+                              and (not panel or len(group) == 1)),
+                n_completed=completed, n_expected=expected, success_count=metrics["success_count"],
+                training_budget=row.get("training_budget"), checkpoint_grid=row.get("checkpoint_grid"),
+            ))
+        return pd.DataFrame(rows)
+
     if not results:
         return pd.DataFrame(columns=columns)
 
@@ -81,6 +118,105 @@ def recorded_learning_points(results: dict | None) -> pd.DataFrame:
         })
 
     return pd.DataFrame(rows, columns=columns)
+
+def _render_learning(st, artifacts, filtered: pd.DataFrame, source_key: str) -> dict:
+    '''
+    Displays one selected policy's recorded checkpoints and declared learning metrics.
+    '''
+    results = (artifacts.scientific_results if artifacts is not None else None) or {}
+    points = recorded_learning_points(results, filtered)
+    view = dict(scope="selected_learning_model", points=pd.DataFrame(), metrics={})
+    if points.empty:
+        st.info("Checkpoint learning evaluations are unavailable for this selection.")
+        return view
+
+    models = sorted(points["model_id"].dropna().unique())
+    model = st.selectbox("Learning model", models, key=_selection_key("learning-model", source_key, models))
+    curve = points[points["model_id"] == model].sort_values("nominal_steps")
+    view.update(model_id=model, points=curve)
+    st.caption("This curve uses the selected learning model. The records table includes all models selected in the sidebar.")
+    if curve["nominal_steps"].duplicated().any():
+        st.info("Select one configuration, evaluation mode and condition to compare a single learning curve.")
+        return view
+
+    grid = results.get("checkpoint_grid") or next(
+        (value for value in curve["checkpoint_grid"] if isinstance(value, list)), []
+    )
+    budgets = curve["training_budget"].dropna().unique()
+    horizon = results.get("training_budget") or (int(budgets[0]) if len(budgets) == 1 else None)
+    missing = sorted(set(grid) - set(curve["nominal_steps"]))
+    complete = bool(grid and horizon and 0 in grid and horizon in grid
+                    and not missing and curve["complete"].all())
+    coordinate = "actual_steps" if curve["actual_steps"].notna().all() else "nominal_steps"
+    label = "Actual consumed interactions" if coordinate == "actual_steps" else "Nominal training steps"
+    observed = curve[curve["complete"]].set_index(coordinate)[["success_rate"]]
+    if observed.empty:
+        st.info("No complete learning evaluations available.")
+    elif complete:
+        st.line_chart(observed, x_label=label, y_label="Success rate")
+    else:
+        st.scatter_chart(observed, x_label=label, y_label="Success rate")
+
+    st.caption(f"Scheduled checkpoints: {grid or 'not declared'} · Horizon: {horizon or 'not declared'} · Curve: {'Complete' if complete else 'Incomplete or schedule not declared'}")
+    if missing:
+        st.caption(f"Missing scheduled checkpoints: {missing}")
+    if not curve["complete"].all():
+        st.caption("Incomplete evaluations are excluded from the plotted curve; no values are filled in.")
+    st.dataframe(curve[[
+        "nominal_steps", "actual_steps", "optimized_steps", "success_rate",
+        "n_completed", "n_expected", "complete",
+    ]], hide_index=True, width="stretch")
+
+    metrics = next((item for item in results.get("extensions", {}).get("producer_learning_metrics", [])
+                    if item.get("model_id") == model), None)
+    if metrics is None:
+        metrics = dict(normalized_aulc=None, threshold_status="not declared")
+        protocol_id = results.get("protocol_id")
+        if protocol_id == "m4-common-ppo-v1" and (curve["n_expected"] == 100).all():
+            from research_support.dashboard_reference.metrics.research_metrics import learning_metrics
+            saved = learning_metrics([
+                dict(checkpoint_step=int(row.nominal_steps), n_expected=int(row.n_expected),
+                     n_completed=int(row.n_completed), success_count=int(row.success_count))
+                for row in curve.itertuples()
+            ], protocol_id=protocol_id)
+            metrics.update(saved, time_to_sustained_80=saved["time_to_80_successes"],
+                           source="Recorded evaluations under the declared protocol")
+        elif complete and horizon:
+            from src.evaluation.checkpoint_evaluation import calculate_normalized_aulc
+            coordinates = curve[coordinate].tolist()
+            if (all(pd.notna(value) and float(value).is_integer() and 0 <= value <= horizon for value in coordinates)
+                    and coordinates[0] == 0 and coordinates[-1] == horizon
+                    and all(left < right for left, right in zip(coordinates, coordinates[1:]))):
+                metrics["normalized_aulc"] = calculate_normalized_aulc(
+                    [(int(step), rate) for step, rate in zip(coordinates, curve["success_rate"])],
+                    training_budget=int(horizon),
+                )
+                metrics["source"] = "Recorded evaluations over the declared training horizon"
+            else:
+                st.caption("AULC is unavailable: recorded coordinates do not span the declared horizon in strictly increasing whole interactions.")
+    else:
+        metrics = dict(metrics, source="Published producer learning metrics")
+
+    columns = st.columns(2)
+    area = metrics.get("normalized_aulc")
+    columns[0].metric("Normalized AULC", f"{area:.4f}" if area is not None else "Unavailable")
+    threshold = metrics.get("time_to_sustained_80")
+    status = metrics.get("threshold_status", "unavailable")
+    columns[1].metric("Sustained 80%", f"{threshold:,} interactions" if threshold is not None else status.capitalize())
+    st.caption(f"Threshold status: {status} · Metric source: {metrics.get('source', 'Unavailable')}")
+    censoring = metrics.get("censoring_steps", metrics.get("censoring_timestep"))
+    if censoring is not None:
+        st.caption(f"Censoring horizon: {censoring:,} interactions")
+    accounting = results.get("extensions", {}).get("compute_accounting", {})
+    if accounting.get("note"):
+        st.caption(accounting["note"])
+        final = curve[curve["nominal_steps"] == horizon]
+        if len(final) == 1 and final[["actual_steps", "optimized_steps"]].notna().all().all():
+            point = final.iloc[0]
+            st.caption(f"Excluded final-tail interactions: {int(point['actual_steps'] - point['optimized_steps']):,} (actual: {int(point['actual_steps']):,}; optimized: {int(point['optimized_steps']):,})")
+    view.update(metrics=metrics, coordinate=coordinate, missing_checkpoints=missing, checkpoint_grid=grid, training_budget=horizon)
+    return view
+
 
 def build_sample_data(episodes_per_group: int = 12) -> pd.DataFrame:
     """Create demo data for presentation.
@@ -526,10 +662,8 @@ def _final_condition_records(artifacts, protocol):
 
         checkpoint = row.get("checkpoint_timestep")
 
-        # An unrecorded checkpoint is not evidence of the wrong one, so it is
-        # left out of the endpoint comparison rather than counted against it.
-        if (step := _optional_int(checkpoint)) is not None:
-            model["checkpoints"].add(step)
+        # Final qualification requires the declared endpoint
+        model["checkpoints"].add(_optional_int(checkpoint))
 
     return sorted(models.values(), key=lambda m: (m["reward"], m["seed"]))
 
@@ -545,9 +679,11 @@ def _endpoint_mismatches(models, budget):
     mismatched = []
 
     for model in models:
-        off = sorted(step for step in model["checkpoints"] if step != budget)
+        off = sorted(step for step in model["checkpoints"] if step is not None and step != budget)
 
-        if off:
+        if not model["checkpoints"] or None in model["checkpoints"]:
+            mismatched.append(f"{model['reward']}/{model['seed']} with no recorded checkpoint")
+        elif off:
             mismatched.append(f"{model['reward']}/{model['seed']} at {off}")
 
     return tuple(mismatched)
@@ -597,9 +733,19 @@ def _failed_checks(assessment):
     return ", ".join(failed)
 
 
-def _completeness(results):
-    """Whether the cohort is complete, and what is missing if it is not."""
+def _completeness(results, models=None, protocol=None):
+    '''
+    Checks the declared inventory or the historical final-model coverage.
+    '''
     inventory = results.get("inventory") or {}
+    if not inventory and models is not None and protocol is not None:
+        expected = {(reward, seed) for reward in protocol["rewards"] for seed in protocol["primary_seeds"]}
+        observed = {(model["reward"], model["seed"]) for model in models}
+        complete_models = {(model["reward"], model["seed"]) for model in models
+                           if all(model["conditions"].get(role, {}).get("fraction") is not None for role in FINAL_CONDITIONS)}
+        inventory = {"complete": complete_models == expected and observed == expected,
+                     "observed_models": len(observed), "expected_models": len(expected),
+                     "missing_models": sorted(expected - complete_models)}
     missing_roles = list(results.get("missing_final_roles") or [])
     missing_models = list(inventory.get("missing_models") or [])
     missing_datasets = list(inventory.get("missing_dataset_roles") or [])
@@ -636,24 +782,11 @@ def _is_synthetic(artifacts, results):
     return False
 
 
-# --- DASH-05 results view -------------------------------------------------
-#
-# Every figure below is read from the producer's exported `outcomes`. The UI
-# does not recalculate success, safety or coverage: the reference says browser
-# code must not silently recalculate exporter statistics, and a second
-# derivation is exactly how a dashboard comes to disagree with the study it is
-# displaying. Fields that an export omits stay unavailable; they never become
-# zero, because a missing evaluation and a failed one are different claims.
+# --- RESULTS --- #
 
-# label -> (source, key, unit). "outcome" reads the record itself, "metrics"
-# reads its source_metrics block. Nothing here is required: a release that
-# omits a field renders it as unavailable.
+# Labels map to the outcome or source metrics, keeping missing values unavailable
 _SAFETY_FIELDS = (
-    # Counts are summed over the condition and shown against the completed
-    # denominator. Means are averaged across seeds with equal weight per seed,
-    # which is a deliberate aggregation and is labelled as one: a pooled
-    # cohort statistic would need the producer's own weighting, and inventing
-    # one here is exactly the recalculation the reference forbids.
+    # Counts use completed episodes; cohort means give each policy equal weight
     ("Deaths", "outcome", "death_count", "count"),
     ("Timeouts", "outcome", "timeout_count", "count"),
     ("Mean damage", "outcome", "mean_damage", "HP"),
@@ -661,10 +794,7 @@ _SAFETY_FIELDS = (
     ("Hazard damage", "metrics", "hazard_damage_mean", "HP"),
     ("Enemy damage", "metrics", "enemy_damage_mean", "HP"),
     ("Final HP", "metrics", "final_hp_mean", "HP"),
-    # The two invalid-move denominators answer different questions and the
-    # reference calls for both by name. Pooling counts every invalid action
-    # over every transition; the episode mean weights each episode equally, so
-    # one long flailing episode cannot dominate it.
+    # Transition-pooled fractions and mean episode fractions use different denominators
     ("Invalid moves (pooled over transitions)", "metrics",
      "illegal_moves_fraction_pooled", "fraction"),
     ("Invalid moves (mean per-episode fraction)", "metrics",
@@ -674,20 +804,63 @@ _SAFETY_FIELDS = (
 _FINAL_ROLE_MARKER = "FINAL"
 
 
-def _result_records(artifacts) -> list[dict]:
-    """Flattens exported outcomes into one record per model, role and reward."""
+def _result_records(artifacts, filtered: pd.DataFrame | None = None) -> list[dict]:
+    '''
+    Reads selected result panels through the existing dashboard adapters.
+    '''
     results = getattr(artifacts, "scientific_results", None) or {}
-    outcomes = results.get("outcomes")
-    if not isinstance(outcomes, list):
-        return []
-
+    frame = filtered if filtered is not None else getattr(artifacts, "episodes", pd.DataFrame())
     records = []
+    if not frame.empty:
+        if "episode_count" in frame:
+            groups = [frame.loc[[index]] for index in frame.index]
+        else:
+            columns = [name for name in (
+                "study_id", "run_id", "reward_type", "training_seed", "model_seed",
+                "dataset_role", "distribution", "checkpoint_timestep", "evaluation_mode",
+            ) if name in frame]
+            groups = [group for _, group in frame.groupby(columns, dropna=False)] if columns else [frame]
+
+        for group in groups:
+            row = group.iloc[0].to_dict()
+            saved = row.get("reported_metrics")
+            saved = saved if isinstance(saved, dict) else {}
+            metrics = saved.get("source_metrics", saved)
+            metrics = metrics if isinstance(metrics, dict) else {}
+            totals = aggregate_episode_metrics(group)
+            role = row.get("dataset_role", row.get("distribution", "recorded"))
+            reward = row.get("reward_type", row.get("reward"))
+            if reward is None or pd.isna(reward):
+                continue
+            expected = _optional_int(row.get("n_expected", saved.get("n_expected")))
+            if expected is None and row.get("data_status") == "complete":
+                expected = totals["episode_count"]
+            outcome = dict(saved, death_count=totals["death_count"], timeout_count=totals["timeout_count"],
+                           mean_damage=totals["mean_damage_taken"])
+            records.append({
+                "record_id": row.get("record_id"), "reward": str(reward), "role": str(role),
+                "seed": _optional_int(row.get("model_seed", row.get("training_seed"))),
+                "model_id": row.get("model_id", row.get("run_id")),
+                "checkpoint_step": _optional_int(row.get("checkpoint_timestep")),
+                "expected": expected, "completed": totals["episode_count"],
+                "successes": totals["success_count"],
+                "safe_successes": _optional_int(metrics.get("zero_damage_success_count", metrics.get("zero_damage_success_sum"))),
+                "raw_return": totals["mean_episode_return"], "outcome": outcome, "metrics": metrics,
+                "dataset_manifest_sha256": row.get("dataset_manifest_sha256"),
+                "evaluation_mode": row.get("evaluation_mode"), "reward_definition": row.get("reward_definition"),
+            })
+        return records
+    if filtered is not None:
+        return records
+
+    # Some callers provide the exported summaries without a dashboard table
+    outcomes = results.get("outcomes") or []
     for outcome in outcomes:
         if not isinstance(outcome, dict):
             continue
         metrics = outcome.get("source_metrics")
         metrics = metrics if isinstance(metrics, dict) else {}
-        reward = metrics.get("reward")
+        reward = metrics.get("reward", outcome.get("reward"))
         role = outcome.get("role")
         if not reward or not role:
             continue
@@ -782,6 +955,17 @@ def _reward_summary(records: list[dict], role: str) -> list[dict]:
             and total_expected is not None
             and total_completed == total_expected
         )
+        observed_only = total_expected is None and not role.startswith("FINAL")
+        checkpoints = {record["checkpoint_step"] for record in subset}
+        one_per_seed = len(seeds) == len(subset)
+        compatible = len(checkpoints) == 1
+        for field in ("dataset_manifest_sha256", "evaluation_mode", "reward_definition"):
+            values = {str(record[field]) for record in subset if record.get(field) is not None and not pd.isna(record[field])}
+            compatible = compatible and len(values) <= 1
+        rates = [_rate(record["successes"], record["completed"]) for record in subset]
+        can_average = compatible and (fully_evaluated or observed_only)
+        seed_mean = can_average and one_per_seed and all(value is not None for value in rates)
+        seed_spread = seed_mean and len(seeds) > 1
 
         summary.append({
             "reward": reward,
@@ -795,11 +979,13 @@ def _reward_summary(records: list[dict], role: str) -> list[dict]:
             # denominator produces a number that looks like a result and is not
             # one.
             "success_rate": (
-                _rate(total_successes, total_completed) if fully_evaluated else None
+                _rate(total_successes, total_completed) if can_average else None
             ),
             "safe_success_rate": (
-                _rate(total_safe, total_completed) if fully_evaluated else None
+                _rate(total_safe, total_completed) if can_average else None
             ),
+            "mean_seed_success_rate": float(np.mean(rates)) if seed_mean else None,
+            "sample_sd_percentage_points": float(np.std(rates, ddof=1) * 100) if seed_spread else None,
             "complete": fully_evaluated,
         })
     return summary
@@ -815,12 +1001,13 @@ def _seed_rows(records: list[dict], role: str) -> list[dict]:
         rows.append({
             "reward": record["reward"],
             "seed": record["seed"],
+            "checkpoint_step": record["checkpoint_step"],
             "successes": record["successes"],
             "completed": record["completed"],
             "expected": record["expected"],
             "success_rate": (
                 _rate(record["successes"], record["completed"])
-                if record["completed"] == record["expected"]
+                if record["completed"] == record["expected"] or (record["expected"] is None and not role.startswith("FINAL"))
                 else None
             ),
             "raw_return": record["raw_return"],
@@ -857,6 +1044,17 @@ def _cohort_mismatches(records: list[dict], role: str) -> list[str]:
     }
     if len(set(seeds_per_reward.values())) > 1:
         notes.append("unequal independent-seed counts across rewards")
+
+    for field, label in (("dataset_manifest_sha256", "dataset identities"), ("evaluation_mode", "evaluation modes")):
+        values = {str(record[field]) for record in subset if record.get(field) is not None and not pd.isna(record[field])}
+        if len(values) > 1:
+            notes.append(f"mixed {label}")
+    for reward in seeds_per_reward:
+        definitions = {str(record["reward_definition"]) for record in subset
+                       if record["reward"] == reward and record.get("reward_definition") is not None
+                       and not pd.isna(record["reward_definition"])}
+        if len(definitions) > 1:
+            notes.append(f"mixed reward definitions for {reward}")
 
     return notes
 
@@ -918,10 +1116,14 @@ def _declaration(artifacts, records: list[dict], role: str) -> str:
         record["checkpoint_step"] for record in subset
         if record["checkpoint_step"] is not None
     }
-    seeds = {record["seed"] for record in subset if record["seed"] is not None}
+    seed_counts = {reward: len({record["seed"] for record in subset
+                               if record["reward"] == reward and record["seed"] is not None})
+                   for reward in sorted({record["reward"] for record in subset})}
+    counts = set(seed_counts.values())
+    seeds = f"{next(iter(counts))} per reward" if len(counts) == 1 else ", ".join(f"{reward}: {count}" for reward, count in seed_counts.items())
 
     if len(checkpoints) == 1:
-        endpoint = f"{next(iter(checkpoints)):,} consumed interactions"
+        endpoint = f"{next(iter(checkpoints)):,} nominal training interactions"
     elif checkpoints:
         endpoint = "mixed endpoints"
     else:
@@ -930,7 +1132,7 @@ def _declaration(artifacts, records: list[dict], role: str) -> str:
     protocol = results.get("protocol_id") or "Unavailable"
     return (
         f"Protocol: {protocol} | Endpoint: {endpoint} | Condition: {role} | "
-        f"Independent training seeds: {len(seeds)} per reward | "
+        f"Independent training seeds: {seeds} | "
         f"Models in view: {len(subset)}"
     )
 
@@ -976,34 +1178,46 @@ def _render_safety_panel(st, records: list[dict], role: str | None) -> None:
     st.bar_chart(frame)
 
 
-def _render_results(st, artifacts) -> None:
-    """Results view: coverage, per-seed variation and denominated safety.
-
-    This section exists because a pooled success percentage answers almost none
-    of the questions a reader actually has. Separating condition, denominator
-    and seed is what makes the comparison interpretable.
-    """
-    records = _result_records(artifacts)
+def _render_results(st, artifacts, filtered: pd.DataFrame | None = None) -> dict:
+    '''
+    Shows selected results with separate tables for each evaluation condition.
+    '''
+    records = _result_records(artifacts, filtered)
     st.subheader("Results")
 
     if not records:
         st.info(
             "Exported result summaries are not available in this artifact set."
         )
-        return
+        return {"scope": "selected_results", "tables": {}}
 
     roles = _result_roles(records)
-    role = st.selectbox(
-        "Evaluation condition",
-        roles,
-        index=0,
-        key=_selection_key("results-role", str(getattr(artifacts, "source_id", "")), roles),
-        help=(
-            "Conditions are shown one at a time. Training, learning-validation "
-            "and final conditions are different populations and are never "
-            "pooled into a single success figure."
-        ),
-    )
+    if filtered is None:
+        roles = [st.selectbox(
+            "Evaluation condition", roles, index=0,
+            key=_selection_key("results-role", str(getattr(artifacts, "source_id", "")), roles),
+        )]
+    tables = {}
+    for role in roles:
+        selected = [record for record in records if record["role"] == role]
+        checkpoints = sorted(
+            {record["checkpoint_step"] for record in selected},
+            key=lambda value: -1 if value is None else value,
+        )
+        if len(checkpoints) > 1:
+            st.caption("Selected records span multiple checkpoints; each checkpoint is shown separately.")
+        for checkpoint in checkpoints:
+            subset = [record for record in selected if record["checkpoint_step"] == checkpoint]
+            label = role if len(checkpoints) == 1 else f"{role} @ {_format_count(checkpoint)}"
+            st.markdown(f"**{label}**")
+            tables[label] = _render_result_condition(st, artifacts, subset, role)
+    return {"scope": "selected_results", "tables": tables}
+
+
+def _render_result_condition(st, artifacts, records: list[dict], role: str) -> dict:
+    '''
+    Renders one condition and returns the same tables for selected-result downloads.
+    '''
 
     st.caption(_declaration(artifacts, records, role))
 
@@ -1030,6 +1244,8 @@ def _render_results(st, artifacts) -> None:
             ),
             "Success rate": _format_rate(entry["success_rate"]),
             "Safe success rate": _format_rate(entry["safe_success_rate"]),
+            "Mean across seeds": _format_rate(entry["mean_seed_success_rate"]),
+            "Sample SD (percentage points)": entry["sample_sd_percentage_points"],
         }
         for entry in summary
     ])
@@ -1037,8 +1253,11 @@ def _render_results(st, artifacts) -> None:
     st.caption(
         "Success rate = successes / completed episodes. Safe success rate = "
         "successes taking no damage / completed episodes. A rate is shown only "
-        "where completed equals expected; otherwise the cohort is incomplete "
-        "and the cell reads Unavailable rather than zero."
+        "where declared coverage is complete. Development sources without an "
+        "expected count describe observed cases only. Mixed checkpoints or "
+        "incompatible identities are not pooled into a rate. Sample SD uses "
+        "one complete policy per independent training seed (n − 1 denominator); "
+        "it is descriptive spread, not a confidence interval."
     )
 
     st.markdown("**Per-seed values**")
@@ -1047,6 +1266,7 @@ def _render_results(st, artifacts) -> None:
         {
             "Reward": row["reward"],
             "Seed": row["seed"],
+            "Checkpoint": row["checkpoint_step"],
             "Successes / completed": (
                 f"{_format_count(row['successes'])} / "
                 f"{_format_count(row['completed'])}"
@@ -1090,6 +1310,7 @@ def _render_results(st, artifacts) -> None:
             None if any(value is None for value in completed) else sum(completed)
         )
         row = {"Reward": reward}
+        compatible = not _cohort_mismatches(subset, role)
         for label, source, key, unit in _SAFETY_FIELDS:
             values = [_field_value(record, source, key) for record in subset]
             present = [value for value in values if value is not None]
@@ -1101,12 +1322,13 @@ def _render_results(st, artifacts) -> None:
                 row[label] = (
                     f"{int(sum(present)):,} / {_format_count(total_completed)}"
                 )
+            elif not compatible:
+                row[label] = "Unavailable"
             else:
                 row[label] = _format_measure(sum(present) / len(present), unit)
         safety_rows.append(row)
-    st.dataframe(
-        pd.DataFrame(safety_rows), use_container_width=True, hide_index=True
-    )
+    safety_table = pd.DataFrame(safety_rows)
+    st.dataframe(safety_table, use_container_width=True, hide_index=True)
     st.caption(
         "Deaths and timeouts are totals over the condition shown against "
         "completed episodes. Damage and invalid-move figures are means across "
@@ -1116,9 +1338,10 @@ def _render_results(st, artifacts) -> None:
         "answer different questions. Missing measures read Unavailable, never "
         "zero."
     )
+    return {"summary": table, "per_seed": seed_table, "safety": safety_table}
 
 
-def _render_robustness(st, artifacts) -> None:
+def _render_robustness(st, artifacts) -> dict:
     """Display the frozen broad-robustness assessment for final-protocol results.
 
     Rates come from the normalized episode records and the verdict comes from
@@ -1132,6 +1355,8 @@ def _render_robustness(st, artifacts) -> None:
     the prescribed endpoint produces a qualification.
     """
     st.subheader("Robustness")
+    view = {"scope": "full_frozen_cohort", "tables": {}}
+    st.caption("Full frozen cohort: this assessment and its published comparisons do not change with the descriptive sidebar filters.")
 
     results = artifacts.scientific_results if artifacts is not None else None
 
@@ -1141,7 +1366,7 @@ def _render_robustness(st, artifacts) -> None:
             "Robustness is reported only from a final evaluation cohort; "
             "development results cannot stand in for one."
         )
-        return
+        return view
 
     try:
         from research_support.dashboard_reference.protocols import get_protocol
@@ -1153,9 +1378,9 @@ def _render_robustness(st, artifacts) -> None:
             "Robustness criteria are selected by declared protocol, so no "
             "assessment is shown."
         )
-        return
+        return view
 
-    budget = results.get("training_budget") or protocol["budget"]
+    budget = protocol["budget"]
 
     st.caption(
         "A model passes when all of: "
@@ -1172,10 +1397,10 @@ def _render_robustness(st, artifacts) -> None:
             "No final-condition records are present in this selection. "
             "Robustness requires the final evaluation conditions."
         )
-        return
+        return view
 
     synthetic = _is_synthetic(artifacts, results)
-    complete, missing, observed, expected = _completeness(results)
+    complete, missing, observed, expected = _completeness(results, models, protocol)
     mismatched = _endpoint_mismatches(models, budget)
     verdict_allowed = complete and not synthetic and not mismatched
 
@@ -1220,7 +1445,8 @@ def _render_robustness(st, artifacts) -> None:
             })
 
     st.markdown("**Success by condition**")
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    view["tables"]["condition_rates"] = pd.DataFrame(rows)
+    st.dataframe(view["tables"]["condition_rates"], use_container_width=True, hide_index=True)
     st.caption(
         "Success rate is successes over expected cases, and is blank unless the "
         "condition was evaluated to its full prescribed size - missing is not "
@@ -1233,11 +1459,10 @@ def _render_robustness(st, artifacts) -> None:
         assessed, families = _assess_models(models, protocol["id"])
     except (ImportError, ValueError) as error:
         st.warning(f"Qualification unavailable: {error}")
-        return
+        return view
 
     st.markdown("**Per-model qualification**")
-    st.dataframe(
-        pd.DataFrame([
+    view["tables"]["model_qualification"] = pd.DataFrame([
             {
                 "reward": item["reward"],
                 "seed": item["seed"],
@@ -1247,14 +1472,11 @@ def _render_robustness(st, artifacts) -> None:
                 "reason": item.get("reason") or "",
             }
             for item in assessed
-        ]),
-        use_container_width=True,
-        hide_index=True,
-    )
+        ])
+    st.dataframe(view["tables"]["model_qualification"], use_container_width=True, hide_index=True)
 
     st.markdown("**Reward family qualification**")
-    st.dataframe(
-        pd.DataFrame([
+    view["tables"]["family_qualification"] = pd.DataFrame([
             {
                 "reward": item["reward"],
                 "fully assessed": f"{item.get('n_fully_assessed')} of {item.get('n_expected')}",
@@ -1263,43 +1485,59 @@ def _render_robustness(st, artifacts) -> None:
                 "reason": item.get("reason") or "",
             }
             for item in families
-        ]),
-        use_container_width=True,
-        hide_index=True,
-    )
+        ])
+    st.dataframe(view["tables"]["family_qualification"], use_container_width=True, hide_index=True)
 
     comparisons = [item for item in (results.get("comparisons") or ())
                    if item.get("role") == "FINAL_OOD_COMBINED"]
 
     if comparisons:
         st.markdown("**Shaped minus sparse on combined OOD**")
-        st.dataframe(
-            pd.DataFrame([
+        view["tables"]["comparisons"] = pd.DataFrame([
                 {
                     "reward": item.get("reward"),
                     "reference": item.get("reference"),
                     "paired seeds": item.get("n_pairs"),
-                    "mean difference": item.get("mean_difference"),
-                    "95% CI": item.get("ci95"),
+                    "mean difference (pp)": 100 * item["mean_difference"] if item.get("mean_difference") is not None else None,
+                    "nominal 95% CI (pp)": (
+                        [100 * value for value in interval]
+                        if (interval := item.get("ci95_nominal", item.get("ci95", item.get("nominal_95_interval")))) is not None else None
+                    ),
                     "p (two-sided)": item.get("p_two_sided"),
-                    "p (Holm)": item.get("p_holm"),
+                    "p (Holm)": item.get("p_holm", item.get("holm_p")),
                     "rejects at 0.05": item.get("reject_holm_05"),
-                    "reason": item.get("reason") or "",
+                    "reason": item.get("reason", item.get("reason_unavailable")) or "",
                 }
                 for item in comparisons
-            ]),
-            use_container_width=True,
-            hide_index=True,
-        )
+            ])
+        st.dataframe(view["tables"]["comparisons"], use_container_width=True, hide_index=True)
+        pairs = []
+        for item in comparisons:
+            for index, pair in enumerate(item.get("pairs", item.get("paired_differences", []))):
+                pair = pair if isinstance(pair, dict) else {"difference": pair}
+                pairs.append({
+                    "reward": item.get("reward"), "reference": item.get("reference"),
+                    "seed": pair.get("seed"), "pair index": index + 1,
+                    "difference (pp)": 100 * pair["difference"] if pair.get("difference") is not None else None,
+                })
+        if pairs:
+            st.markdown("**Saved paired-seed differences**")
+            view["tables"]["paired_seed_differences"] = pd.DataFrame(pairs)
+            st.dataframe(view["tables"]["paired_seed_differences"], use_container_width=True, hide_index=True)
         st.caption(
             "Paired over trained model seeds, which are the independent "
             "replicates; episodes and repeated scenarios are not. Intervals and "
-            "Holm-adjusted p-values are read from the export, not recomputed here."
+            "Holm-adjusted p-values are read from the export, not recomputed here. "
+            "Differences and nominal 95% intervals use percentage points (pp). "
+            "The intervals are unadjusted; Holm adjusts the four-comparison p-value family, not these intervals."
         )
+    return view
 
 
-def _render_research_evidence(st, artifacts, table, filters, view_scope, metrics):
-    """Display reviewed conclusions, source details and downloads for this selection."""
+def _render_research_evidence(st, artifacts, table, filters, view_scope, metrics, displayed_views):
+    '''
+    Displays reviewed conclusions, source details and downloads for the selected views.
+    '''
     evidence = (
         artifacts.evidence_context if artifacts is not None else None
     ) or {"fixture": artifacts is None}
@@ -1354,12 +1592,15 @@ def _render_research_evidence(st, artifacts, table, filters, view_scope, metrics
         st.info(conclusions["message"])
 
     payload = build_export(
-        table, evidence, filters, view_scope, conclusions, displayed_metrics=metrics
+        table, evidence, filters, view_scope, conclusions,
+        displayed_metrics=metrics, displayed_views=displayed_views,
     )
     with st.expander("Sources, scope and provenance"):
         st.caption(
             "Selection identifies the displayed rows. Evidence metadata describes "
             "the source study; it may cover more models than the selection. "
+            "The JSON also includes the selected learning model and displayed Results tables. "
+            "Published robustness tables retain their explicitly labelled full-study scope. "
             "Missing provenance is unavailable, not inferred."
         )
         st.json({
@@ -1486,6 +1727,7 @@ def _render_dashboard() -> None:
             st.rerun()
 
         root_key = str(os.path.abspath(os.path.expanduser(artifact_root)))
+        selected_source = None
         try:
             sources = discover_dashboard_sources(artifact_root)
             if not sources:
@@ -1530,11 +1772,13 @@ def _render_dashboard() -> None:
             )
             st.session_state["dashboard_last_accepted"] = {
                 "root": root_key,
+                "source_id": selected_source.source_id,
                 "artifacts": artifacts,
             }
         except Exception as error:
             previous = st.session_state.get("dashboard_last_accepted")
-            if previous and previous.get("root") == root_key:
+            if (previous and previous.get("root") == root_key and selected_source is not None
+                    and previous.get("source_id") == selected_source.source_id):
                 artifacts = previous["artifacts"]
                 st.error(f"Saved data refresh failed; showing last accepted data: {error}")
             else:
@@ -1569,6 +1813,13 @@ def _render_dashboard() -> None:
                 "checkpoint. Learning history keeps available checkpoints."
             ),
         )
+        st.caption("An empty filter selection means all available values.")
+        if selected_scope == "Learning history" and "dataset_role" in data:
+            learning_roles = data["dataset_role"].isin(["LEARNING_VALIDATION", "DEV", "CHECKPOINT_VALIDATION"])
+            data = data[learning_roles]
+            if data.empty:
+                st.info("Learning-validation records are unavailable in this source.")
+                st.stop()
         reward_options = _filter_options(data, "reward_type")
         selected_rewards = st.multiselect(
             "Reward type",
@@ -1620,7 +1871,7 @@ def _render_dashboard() -> None:
         role_options = _filter_options(data, "dataset_role")
         if role_options:
             role_default = (
-                role_options
+                role_options[:1]
                 if selected_scope == "Learning history"
                 else _endpoint_defaults(role_options)
             )
@@ -1647,7 +1898,7 @@ def _render_dashboard() -> None:
         distribution_options = _filter_options(data, "distribution")
         if distribution_options:
             distribution_default = (
-                distribution_options
+                distribution_options[:1]
                 if selected_scope == "Learning history"
                 else _endpoint_defaults(distribution_options)
             )
@@ -1732,7 +1983,7 @@ def _render_dashboard() -> None:
         if "episode" in data:
             min_episode = int(data["episode"].min())
             max_episode = int(data["episode"].max())
-            selected_episode_range = st.slider(
+            selected_episode_range = (min_episode, max_episode) if min_episode == max_episode else st.slider(
                 "Episode range",
                 min_value=min_episode,
                 max_value=max_episode,
@@ -1753,34 +2004,40 @@ def _render_dashboard() -> None:
         dataset_roles=selected_roles,
         evaluation_modes=selected_modes,
     )
-    learning_data = filter_episode_data(data, **filter_args)
     filtered = filter_episode_data(
         data,
         **filter_args,
         checkpoint_timestep=selected_checkpoint,
     )
 
-    if selected_scope == "Learning history":
-        filtered = learning_data
-
     if filtered.empty:
         st.warning("No episodes match the selected filters.")
         st.stop()
 
     aggregates = aggregate_episode_metrics(filtered)
-    success_values = filtered["success"] if "success" in filtered else None
-    success_available = (
-        success_values is not None and not success_values.dropna().empty
+    mixed_scope = any(
+        column in filtered and filtered[column].dropna().nunique() > 1
+        for column in ("checkpoint_timestep", "dataset_role", "distribution", "evaluation_mode",
+                       "study_id", "dataset_manifest_sha256", "dataset_id", "reward_definition",
+                       configuration_column)
     )
+    if mixed_scope:
+        aggregates = {key: value if key == "episode_count" else None for key, value in aggregates.items()}
+        st.caption("Episode count is an inventory across the selection. Performance is shown separately by checkpoint and condition below, without pooling histories or evaluation conditions.")
+    if filtered["reward_type"].nunique() > 1:
+        aggregates["mean_episode_return"] = None
+        st.caption("Average return is available after selecting one reward; reward scales differ.")
 
     def metric_text(value: object, format_string: str) -> str:
-        """Format an aggregate without substituting a fake value."""
+        '''
+        Formats a displayed metric without substituting missing values.
+        '''
         if value is None:
             return "N/A"
         return format_string.format(value)
 
     metric_columns = st.columns(5)
-    metric_columns[0].metric("Episodes", f"{aggregates['episode_count']:,}")
+    metric_columns[0].metric("Episodes", metric_text(aggregates['episode_count'], "{:,}"))
     metric_columns[1].metric(
         "Success rate",
         metric_text(aggregates["success_rate"], "{:.1%}"),
@@ -1816,240 +2073,47 @@ def _render_dashboard() -> None:
         metric_text(aggregates["total_enemy_contacts"], "{:,}"),
     )
 
+    displayed_views = {}
     chart_left, chart_right = st.columns(2)
     with chart_left:
-        chart_data = learning_data
-        chart_title = (
-            "Learning progress"
-            if selected_scope == "Learning history"
-            else "Learning progress at selected endpoint"
-        )
-        st.subheader(chart_title)
-        recorded = (
-            recorded_learning_points(artifacts.scientific_results)
-            if artifacts is not None
-            else pd.DataFrame()
-        )
-
-        if (
-                selected_scope == "Learning history"
-                and not recorded.empty
-                and artifacts.scientific_results.get("protocol_id")
-                == "recurrent-complete-900-2m-v1"
-        ):
-            st.caption("Checkpoint success vs. actual consumed interactions")
-            selected = recorded[
-                recorded["reward_type"].isin(selected_rewards)
-                & recorded["seed"].isin(selected_model_seeds)
-                ]
-            if not selected.empty:
-                model_options = sorted(selected["model_id"].dropna().unique())
-                selected_model = st.selectbox(
-                    "Learning model",
-                    model_options,
-                    key=_selection_key(
-                        "learning-model", source_key, model_options
-                    ),
-                )
-
-                curve = selected[
-                    selected["model_id"] == selected_model
-                    ].sort_values("actual_steps")
-
-                observed = curve[curve["complete"]]
-                grid = artifacts.scientific_results.get("checkpoint_grid", [])
-                missing_steps = sorted(set(grid) - set(curve["nominal_steps"]))
-
-                chart_points = observed.set_index("actual_steps")[["success_rate"]]
-
-                if observed.empty:
-                    st.info("No complete learning evaluations available.")
-                elif missing_steps or len(observed) < len(curve):
-                    st.scatter_chart(
-                        chart_points,
-                        x_label="Actual consumed interactions",
-                        y_label="Success rate",
-                    )
-                else:
-                    st.line_chart(
-                        chart_points,
-                        x_label="Actual consumed interactions",
-                        y_label="Success rate",
-                    )
-
-                if len(observed) < len(curve):
-                    st.caption(
-                        f"{len(curve) - len(observed)} incomplete checkpoint "
-                        "evaluation(s) excluded from the plotted curve."
-                    )
-
-                if missing_steps:
-                    st.caption(f"Missing scheduled checkpoints: {missing_steps}")
-
-                st.caption("Recorded checkpoint coordinates (no imputation):")
-                st.dataframe(
-                    curve[
-                        [
-                            "nominal_steps",
-                            "actual_steps",
-                            "optimized_steps",
-                            "success_rate",
-                            "complete",
-                        ]
-                    ],
-                    hide_index=True,
-                )
-                metrics = (
-                    artifacts.scientific_results
-                    .get("extensions", {})
-                    .get("producer_learning_metrics", [])
-                )
-                matching = next(
-                    (
-                        item for item in metrics
-                        if item.get("model_id") == selected_model
-                    ),
-                    None,
-                )
-
-                if matching is not None:
-                    metric_cols = st.columns(2)
-
-                    metric_cols[0].metric(
-                        "Normalized AULC",
-                        f"{matching['normalized_aulc']:.4f}"
-                        if matching.get("normalized_aulc") is not None
-                        else "Unavailable",
-                    )
-
-                    threshold = matching.get("time_to_sustained_80")
-                    status = matching.get("threshold_status", "unavailable")
-
-                    metric_cols[1].metric(
-                        "Sustained 80%",
-                        f"{threshold:,} interactions"
-                        if threshold is not None
-                        else status.capitalize(),
-                    )
-
-                    st.caption(
-                        f"Threshold status: {status} | "
-                        f"Censoring horizon: "
-                        f"{matching.get('censoring_steps', 'Unavailable'):,} "
-                        f"interactions"
-                        if isinstance(matching.get("censoring_steps"), int)
-                        else f"Threshold status: {status} | "
-                             "Censoring horizon: unavailable"
-                    )
-                    results = artifacts.scientific_results
-                    grid = results.get("checkpoint_grid", [])
-                    horizon = results.get("training_budget")
-
-                    missing = set(grid) - set(curve["nominal_steps"])
-                    incomplete = not curve["complete"].all()
-                    completeness = (
-                        "Incomplete" if missing or incomplete else "Complete"
-                    )
-
-                    st.caption(
-                        f"Protocol: {results.get('protocol_id', 'Unavailable')} | "
-                        f"Horizon: {horizon:,} interactions"
-                        if isinstance(horizon, int)
-                        else "Training horizon unavailable"
-                    )
-                    st.caption(
-                        f"Scheduled checkpoints: {grid} | "
-                        f"Curve: {completeness}"
-                    )
-
-                    accounting = results.get("extensions", {}).get(
-                        "compute_accounting", {}
-                    )
-                    if accounting.get("note"):
-                        st.caption(accounting["note"])
-                        final_points = curve[
-                            curve["nominal_steps"] == horizon
-                            ]
-
-                        if len(final_points) == 1:
-                            final_point = final_points.iloc[0]
-                            actual = final_point["actual_steps"]
-                            optimized = final_point["optimized_steps"]
-
-                            if pd.notna(actual) and pd.notna(optimized):
-                                excluded_tail = int(actual - optimized)
-                                st.caption(
-                                    f"Excluded final-tail interactions: "
-                                    f"{excluded_tail:,} "
-                                    f"(actual: {int(actual):,}; "
-                                    f"optimized: {int(optimized):,})"
-                                )
-
-                        st.caption(
-                            "Repeated/discarded recovery interactions: "
-                            "separately accounted for by the producer; "
-                            "numerical total not available in this export."
-                        )
-        elif {"episode", "episode_return", "reward_type"}.issubset(
-                chart_data.columns
-        ):
-            progress = (
-                chart_data.groupby(
-                    ["episode", "reward_type"], as_index=False
-                )["episode_return"]
-                .mean()
-                .pivot(index="episode", columns="reward_type", values="episode_return")
-            )
-            st.line_chart(progress)
-
-        elif {"checkpoint_timestep", "success_count", "episode_count"}.issubset(
-            chart_data.columns
-        ):
-            learning = chart_data.copy()
-            if "dataset_role" in learning and selected_scope == "Learning history":
-                learning = learning[learning["dataset_role"] == "DEV"]
-            learning["success_rate"] = (
-                learning["success_count"] / learning["episode_count"]
-            )
-            progress = learning.pivot_table(
-                index="checkpoint_timestep",
-                columns="reward_type",
-                values="success_rate",
-                aggfunc="mean",
-            )
-            st.line_chart(progress)
+        if selected_scope == "Learning history":
+            st.subheader("Learning progress")
+            displayed_views["learning"] = _render_learning(st, artifacts, filtered, source_key)
         else:
-            st.info("Learning-return data are not available in this artifact set.")
+            st.subheader("Selected endpoint")
+            st.caption("Results and safety summaries use the same sidebar selection as the episode records.")
 
-    # Both headline panels read the producer's exported summaries rather than
-    # re-deriving rates from the episode frame. The previous derivation pooled
-    # whatever the filters left standing, which mixed training, learning and
-    # final conditions into one percentage and lost the expected denominator.
-    result_records = _result_records(artifacts)
-    headline_role = _primary_role(result_records)
+    result_records = _result_records(artifacts, filtered)
+    headline_role = _primary_role(result_records) if not mixed_scope else None
 
     with chart_right:
         st.subheader("Success by reward type")
-        _render_success_panel(st, result_records, headline_role)
+        if mixed_scope:
+            st.info("Success is shown by checkpoint and condition in Results below.")
+        else:
+            _render_success_panel(st, result_records, headline_role)
 
     safety_left, safety_right = st.columns(2)
     with safety_left:
         st.subheader("Safety metrics")
-        _render_safety_panel(st, result_records, headline_role)
+        if mixed_scope:
+            st.info("Safety outcomes are shown by checkpoint and condition in Results below.")
+        else:
+            _render_safety_panel(st, result_records, headline_role)
 
     with safety_right:
         st.subheader("Episode records")
         displayed_table = selected_table(filtered)
         st.dataframe(displayed_table, use_container_width=True, hide_index=True)
 
-    _render_results(st, artifacts)
+    displayed_views["results"] = _render_results(st, artifacts, filtered)
 
-    _render_robustness(st, artifacts)
+    displayed_views["robustness"] = _render_robustness(st, artifacts)
 
     _render_research_evidence(
         st, artifacts, displayed_table,
         {**filter_args, "checkpoint_timestep": selected_checkpoint},
-        selected_scope, aggregates,
+        selected_scope, aggregates, displayed_views,
     )
 
     if artifacts is not None:
